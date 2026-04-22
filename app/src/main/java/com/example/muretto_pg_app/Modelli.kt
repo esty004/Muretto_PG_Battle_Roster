@@ -101,3 +101,17 @@ object GestoreBattle {
         sharedPref.edit().clear().apply()
     }
 }
+
+object DatiAllenamento {
+    val argomenti = listOf(
+        "argomento 1", "argomento 2", "argomento 3"
+    )
+
+    val modalita = listOf(
+        "modalità 1", "modalità 2", "modalità 3"
+    )
+
+    val parole = listOf(
+        "parola 1", "parola 2", "parola 3"
+    )
+}

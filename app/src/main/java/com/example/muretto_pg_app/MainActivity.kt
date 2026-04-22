@@ -100,9 +100,36 @@ fun AppNavigation() {
                 onSelezionaModalita = { nome ->
                     if (nome == "Muretto classico") {
                         navController.navigate("muretto_classico")
+                    } else if (nome == "Allenamento") {
+                        navController.navigate("allenamento")
                     }
                 }
             )
+        }
+
+        composable("allenamento") {
+            SchermataAllenamento(
+                onTornaIndietro = { navController.popBackStack() },
+                onSelezionaAllenamento = { nome ->
+                    when (nome) {
+                        "Generatore di argomenti" -> navController.navigate("generatore_argomenti")
+                        "Generatore di modalità" -> navController.navigate("generatore_modalita")
+                        "Generatore di parole" -> navController.navigate("generatore_parole")
+                    }
+                }
+            )
+        }
+
+        composable("generatore_argomenti") {
+            SchermataGeneratoreArgomenti(onTornaIndietro = { navController.popBackStack() })
+        }
+
+        composable("generatore_modalita") {
+            SchermataGeneratoreModalita(onTornaIndietro = { navController.popBackStack() })
+        }
+
+        composable("generatore_parole") {
+            SchermataGeneratoreParole(onTornaIndietro = { navController.popBackStack() })
         }
 
         composable("muretto_classico") {
