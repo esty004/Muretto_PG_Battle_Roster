@@ -197,11 +197,11 @@ fun RoundCard(round: Round, onClick: () -> Unit) {
 
             if (round.partecipanti.isNotEmpty()) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-                    BoxMC(mc = round.partecipanti[0], isVincitore = round.vincitoreId == round.partecipanti[0].id, isSconfitto = round.completato && round.vincitoreId != round.partecipanti[0].id)
+                    BoxMCTorneo(mc = round.partecipanti[0], isVincitore = round.vincitoreId == round.partecipanti[0].id, isSconfitto = round.completato && round.vincitoreId != round.partecipanti[0].id)
 
                     if (round.partecipanti.size >= 2) {
                         Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(85.dp).padding(horizontal = 10.dp))
-                        BoxMC(mc = round.partecipanti[1], isVincitore = round.vincitoreId == round.partecipanti[1].id, isSconfitto = round.completato && round.vincitoreId != round.partecipanti[1].id)
+                        BoxMCTorneo(mc = round.partecipanti[1], isVincitore = round.vincitoreId == round.partecipanti[1].id, isSconfitto = round.completato && round.vincitoreId != round.partecipanti[1].id)
                     }
                 }
 
@@ -209,7 +209,7 @@ fun RoundCard(round: Round, onClick: () -> Unit) {
                 if (round.partecipanti.size > 2) {
                     for (i in 2 until round.partecipanti.size) {
                         Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(50.dp).padding(vertical = 12.dp))
-                        BoxMC(mc = round.partecipanti[i], isVincitore = round.vincitoreId == round.partecipanti[i].id, isSconfitto = round.completato && round.vincitoreId != round.partecipanti[i].id)
+                        BoxMCTorneo(mc = round.partecipanti[i], isVincitore = round.vincitoreId == round.partecipanti[i].id, isSconfitto = round.completato && round.vincitoreId != round.partecipanti[i].id)
                     }
                 }
             }
@@ -218,7 +218,7 @@ fun RoundCard(round: Round, onClick: () -> Unit) {
 }
 
 @Composable
-fun BoxMC(mc: Freestyler, isVincitore: Boolean = false, isSconfitto: Boolean = false, width: Dp = 100.dp, height: Dp = 130.dp) {
+fun BoxMCTorneo(mc: Freestyler, isVincitore: Boolean = false, isSconfitto: Boolean = false, width: Dp = 100.dp, height: Dp = 130.dp) {
     val colorMatrix = remember(isSconfitto) { if (isSconfitto) ColorMatrix().apply { setToSaturation(0f) } else null }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {

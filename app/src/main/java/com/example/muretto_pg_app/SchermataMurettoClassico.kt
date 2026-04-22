@@ -116,7 +116,7 @@ fun SchermataMurettoClassico(onTornaAlMenu: () -> Unit, onIniziaBattle: () -> Un
                 ) {
                     items(listaFiltrata) { mc ->
                         val isSelezionato = mcsSelezionati.contains(mc.id)
-                        CardFreestyler(
+                        CardFreestylerTorneo(
                             freestyler = mc,
                             isSelezionato = isSelezionato,
                             onClick = {
@@ -197,7 +197,7 @@ fun SchermataMurettoClassico(onTornaAlMenu: () -> Unit, onIniziaBattle: () -> Un
 }
 
 @Composable
-fun CardFreestyler(freestyler: Freestyler, isSelezionato: Boolean, onClick: () -> Unit) {
+fun CardFreestylerTorneo(freestyler: Freestyler, isSelezionato: Boolean, onClick: () -> Unit) {
     val colorMatrix = remember(isSelezionato) {
         if (isSelezionato) ColorMatrix().apply { setToSaturation(0f) } else null
     }

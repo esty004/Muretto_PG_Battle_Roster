@@ -24,6 +24,9 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.delay
 
+/**
+ * Carica la lista delle parole da un file JSON situato nelle risorse raw.
+ */
 fun caricaParoleDaJson(context: Context): List<String> {
     return try {
         val jsonString = context.resources.openRawResource(R.raw.common_words).bufferedReader().use { it.readText() }
@@ -34,6 +37,10 @@ fun caricaParoleDaJson(context: Context): List<String> {
     }
 }
 
+/**
+ * Schermata del generatore di parole.
+ * Permette l'estrazione manuale (Classico) o automatica (A Tempo).
+ */
 @Composable
 fun SchermataGeneratoreParole(onTornaIndietro: () -> Unit) {
     val context = LocalContext.current
@@ -44,6 +51,7 @@ fun SchermataGeneratoreParole(onTornaIndietro: () -> Unit) {
 
     Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            // Header
             Box(modifier = Modifier.fillMaxWidth().padding(top = 44.dp, bottom = 20.dp)) {
                 IconButton(
                     onClick = { onTornaIndietro() },
@@ -59,6 +67,7 @@ fun SchermataGeneratoreParole(onTornaIndietro: () -> Unit) {
                 )
             }
 
+            // Tabs per cambiare modalità di generazione
             TabRow(
                 selectedTabIndex = tabSelezionata,
                 containerColor = Color.Transparent,
@@ -83,6 +92,7 @@ fun SchermataGeneratoreParole(onTornaIndietro: () -> Unit) {
                 )
             }
 
+            // Selettore comune per quante parole estrarre contemporaneamente
             SelettoreQuantita(
                 quantita = quantitaParole,
                 onQuantitaChange = { quantitaParole = it },
@@ -128,6 +138,9 @@ fun SelettoreQuantita(quantita: Int, onQuantitaChange: (Int) -> Unit, font: Font
     }
 }
 
+/**
+ * Modalità Classica: l'utente preme un tasto per estrarre nuove parole.
+ */
 @Composable
 fun ModalitaClassica(font: FontFamily, quantita: Int, parolePool: List<String>) {
     var paroleCorrenti by remember { mutableStateOf(listOf("PREMI PER", "ESTRARRE")) }
@@ -171,7 +184,7 @@ fun ModalitaClassica(font: FontFamily, quantita: Int, parolePool: List<String>) 
 
         Button(
             onClick = { 
-                paroleCorrenti = List(quantita) { parolePool.random() }
+                paroleCorrenti = parolePool.shuffled().take(quantita)
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
             modifier = Modifier.fillMaxWidth().height(60.dp),
@@ -184,16 +197,30 @@ fun ModalitaClassica(font: FontFamily, quantita: Int, parolePool: List<String>) 
     }
 }
 
+/**
+ * Modalità A Tempo: le parole cambiano automaticamente basandosi su un intervallo
+ * fisso (10s) o sul ritmo (BPM).
+ */
 @Composable
 fun ModalitaATempo(font: FontFamily, quantita: Int, parolePool: List<String>) {
     var paroleCorrenti by remember { mutableStateOf(listOf("START PER", "INIZIARE")) }
     var attivo by remember { mutableStateOf(false) }
 
-    LaunchedEffect(attivo, quantita) {
+    // Stati per la gestione dinamica del tempo
+    var tipoTempo by remember { mutableIntStateOf(0) } // 0: 10 secondi fisso, 1: Basato su BPM
+    var bpm by remember { mutableIntStateOf(90) }
+    var tapTimes by remember { mutableStateOf(listOf<Long>()) }
+
+    // Calcolo dell'intervallo di attesa
+    // Se BPM: 60.000ms / BPM * 16 (per cambiare parola ogni 4 battute in 4/4)
+    val intervalloMillis = if (tipoTempo == 0) 10000L else (60000L / bpm.coerceAtLeast(1)) * 16
+
+    // Loop di estrazione automatica
+    LaunchedEffect(attivo, quantita, intervalloMillis) {
         if (attivo) {
             while (attivo) {
-                paroleCorrenti = List(quantita) { parolePool.random() }
-                delay(10000)
+                paroleCorrenti = parolePool.shuffled().take(quantita)
+                delay(intervalloMillis)
             }
         }
     }
@@ -202,8 +229,61 @@ fun ModalitaATempo(font: FontFamily, quantita: Int, parolePool: List<String>) {
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(8.dp))
+        // Switcher tra Secondi fissi e BPM
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Button(
+                onClick = { tipoTempo = 0 },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (tipoTempo == 0) Color(0xFFD32F2F) else Color.DarkGray
+                ),
+                modifier = Modifier.weight(1f).height(45.dp).padding(horizontal = 4.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("10 SECONDI", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+            Button(
+                onClick = { tipoTempo = 1 },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (tipoTempo == 1) Color(0xFFD32F2F) else Color.DarkGray
+                ),
+                modifier = Modifier.weight(1f).height(45.dp).padding(horizontal = 4.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("BPM (4/4)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
 
+        // Sezione interattiva per il TAP dei BPM
+        if (tipoTempo == 1) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 12.dp)
+            ) {
+                Text("BPM: $bpm", color = Color.White, fontFamily = font, fontSize = 20.sp, modifier = Modifier.padding(end = 16.dp))
+                Button(
+                    onClick = {
+                        val ora = System.currentTimeMillis()
+                        val nuoviTap = (tapTimes + ora).takeLast(4) // Media degli ultimi 4 tap
+                        tapTimes = nuoviTap
+                        if (nuoviTap.size >= 2) {
+                            val diffs = nuoviTap.zipWithNext { a, b -> b - a }
+                            val media = diffs.average()
+                            bpm = (60000 / media).toInt().coerceIn(40, 220)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.height(40.dp)
+                ) {
+                    Text("TAP BPM", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+            }
+        }
+
+        // Box visualizzazione parole
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -233,8 +313,9 @@ fun ModalitaATempo(font: FontFamily, quantita: Int, parolePool: List<String>) {
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
+        // Tasto Start/Stop
         Button(
             onClick = { attivo = !attivo },
             colors = ButtonDefaults.buttonColors(
@@ -251,15 +332,16 @@ fun ModalitaATempo(font: FontFamily, quantita: Int, parolePool: List<String>) {
             )
         }
 
+        // Info testuale sullo stato corrente
         if (attivo) {
             Text(
-                "Nuove parole ogni 10 secondi",
+                text = if (tipoTempo == 0) "Cambio ogni 10 secondi" else "Cambio ogni 4 misure ($bpm BPM)",
                 color = Color.Gray,
-                modifier = Modifier.padding(top = 16.dp),
+                modifier = Modifier.padding(top = 12.dp),
                 fontSize = 14.sp
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
     }
 }
