@@ -8,7 +8,12 @@ import androidx.compose.animation.core.*
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -167,34 +172,118 @@ fun AppNavigation() {
 
 @Composable
 fun SchermataDiBenvenuto(onVaiAlMenu: () -> Unit) {
+    var inTransizione by remember { mutableStateOf(false) }
+
+    // Zoom cinematografico dello sfondo
+    val scalaSfondo by animateFloatAsState(
+        targetValue = if (inTransizione) 2.8f else 1f,
+        animationSpec = tween(durationMillis = 1300, easing = FastOutSlowInEasing),
+        label = "zoom_sfondo"
+    )
+
+    // Espansione del buco nero che inghiotte tutto
+    val scalaEspansione by animateFloatAsState(
+        targetValue = if (inTransizione) 40f else 0f,
+        animationSpec = tween(durationMillis = 1100, easing = FastOutSlowInEasing),
+        label = "espansione_buco",
+        finishedListener = { onVaiAlMenu() }
+    )
+
+    // Dissolvenza dei contenuti (muro e testi)
+    val alphaContenuto by animateFloatAsState(
+        targetValue = if (inTransizione) 0f else 1f,
+        animationSpec = tween(durationMillis = 700),
+        label = "dissolvenza_contenuto"
+    )
+
+    // Aura oscura pulsante per indicare l'interattività del logo
+    val infiniteTransition = rememberInfiniteTransition(label = "aura_pulsante")
+    val scalaAura by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse),
+        label = "scala_aura"
+    )
+    val alphaAura by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0.6f,
+        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse),
+        label = "alpha_aura"
+    )
+
+    val offsetLogo = (-72).dp // Regolazione millimetrica: la via di mezzo perfetta
+
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.sfondo_schermata_iniziale),
-            contentDescription = "Sfondo a mattoni con logo integrato",
-            contentScale = ContentScale.FillWidth,
-            modifier = Modifier.fillMaxWidth()
-        )
-
+        // 1. Lo sfondo a mattoni e i testi (zoomano e sfumano via)
         Box(
-            modifier = Modifier.fillMaxSize().padding(top = 90.dp),
-            contentAlignment = Alignment.TopCenter
+            modifier = Modifier.fillMaxSize().graphicsLayer {
+                scaleX = scalaSfondo
+                scaleY = scalaSfondo
+                alpha = alphaContenuto
+            }
         ) {
-            TestoBomboletta()
-        }
+            Image(
+                painter = painterResource(id = R.drawable.sfondo_schermata_iniziale),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
 
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Box(contentAlignment = Alignment.BottomEnd, modifier = Modifier.wrapContentSize()) {
-                Spacer(modifier = Modifier.size(180.dp))
+            // Testo BATTLE ROSTER in alto (con Outline)
+            Box(modifier = Modifier.fillMaxSize().padding(top = 80.dp), contentAlignment = Alignment.TopCenter) {
+                TestoBomboletta()
+            }
+
+            // Testo WHAT UUU SAYYYNNN in basso
+            Box(modifier = Modifier.fillMaxSize().padding(bottom = 120.dp), contentAlignment = Alignment.BottomCenter) {
                 TestoAnimatoStileMinecraft()
             }
-            Spacer(modifier = Modifier.height(500.dp))
-            PulsanteInizia(onVaiAlMenu)
+        }
+
+        // 2. L'aura oscura pulsante (Più visibile e centrata)
+        if (!inTransizione) {
+            Box(
+                modifier = Modifier
+                    .offset(y = offsetLogo)
+                    .size(280.dp)
+                    .graphicsLayer {
+                        scaleX = scalaAura
+                        scaleY = scalaAura
+                        alpha = alphaAura
+                    }
+                    .background(Color.Black.copy(alpha = 0.4f), CircleShape) // Aura interna soffusa
+                    .border(4.dp, Color.Black.copy(alpha = 0.6f), CircleShape) // Bordo pulsante
+            )
+        }
+
+        // 3. Area interattiva centrata sul logo
+        Box(
+            modifier = Modifier
+                .offset(y = offsetLogo)
+                .size(250.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    if (!inTransizione) inTransizione = true
+                }
+        )
+
+        // 4. L'effetto di espansione del "Buco Nero"
+        if (inTransizione) {
+            Box(
+                modifier = Modifier
+                    .offset(y = offsetLogo)
+                    .size(90.dp)
+                    .graphicsLayer {
+                        scaleX = scalaEspansione
+                        scaleY = scalaEspansione
+                    }
+                    .background(Color.Black, CircleShape)
+            )
         }
     }
 }
@@ -209,7 +298,25 @@ fun TestoBomboletta() {
         visible = visibile,
         enter = expandHorizontally(animationSpec = tween(durationMillis = 2000, easing = LinearOutSlowInEasing), expandFrom = Alignment.Start) + fadeIn(animationSpec = tween(durationMillis = 2000))
     ) {
-        Text("BATTLE ROSTER", color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold, fontFamily = MioFontPersonalizzato)
+        Box(contentAlignment = Alignment.Center) {
+            // Outline Nero per leggibilità
+            Text(
+                "BATTLE ROSTER",
+                color = Color.Black,
+                fontSize = 42.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = MioFontPersonalizzato,
+                style = TextStyle(drawStyle = Stroke(miter = 10f, width = 10f, join = StrokeJoin.Round))
+            )
+            // Testo Bianco
+            Text(
+                "BATTLE ROSTER",
+                color = Color.White,
+                fontSize = 42.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = MioFontPersonalizzato
+            )
+        }
     }
 }
 
@@ -225,20 +332,10 @@ fun TestoAnimatoStileMinecraft() {
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.offset(x = -8.dp, y = 420.dp).graphicsLayer { scaleX = scalaTesto; scaleY = scalaTesto }
+        modifier = Modifier.graphicsLayer { scaleX = scalaTesto; scaleY = scalaTesto }
     ) {
         Text("WHAT UUU SAYYYNNN!!!", color = Color.Black, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = MioFontPersonalizzato, style = TextStyle(drawStyle = Stroke(miter = 10f, width = 12f, join = StrokeJoin.Round)))
         Text("WHAT UUU SAYYYNNN!!!", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = MioFontPersonalizzato)
     }
 }
 
-@Composable
-fun PulsanteInizia(onVaiAlMenu: () -> Unit) {
-    Button(
-        onClick = { onVaiAlMenu() },
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-        modifier = Modifier.width(220.dp).height(65.dp)
-    ) {
-        Text(text = "Inizia ora", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-    }
-}

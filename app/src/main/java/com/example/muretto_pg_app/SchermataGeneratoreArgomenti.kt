@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun SchermataGeneratoreArgomenti(onTornaIndietro: () -> Unit) {
     val MioFontPersonalizzato = FontFamily(Font(R.font.jackboa))
-    var argomentoCorrente by remember { mutableStateOf("Premi il tasto per generare") }
+    var argomentoCorrente by remember { mutableStateOf("PREMI PER\nGENERARE") }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
         Column(
@@ -50,7 +50,7 @@ fun SchermataGeneratoreArgomenti(onTornaIndietro: () -> Unit) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+                    .height(250.dp)
                     .border(2.dp, Color(0xFFD32F2F), RoundedCornerShape(16.dp))
                     .background(Color(0xFF111111), RoundedCornerShape(16.dp))
                     .padding(24.dp),
@@ -59,10 +59,11 @@ fun SchermataGeneratoreArgomenti(onTornaIndietro: () -> Unit) {
                 Text(
                     text = argomentoCorrente.uppercase(),
                     color = Color.White,
-                    fontSize = 28.sp,
+                    fontSize = 38.sp,
                     fontFamily = MioFontPersonalizzato,
                     fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    lineHeight = 44.sp
                 )
             }
 
