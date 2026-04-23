@@ -54,38 +54,20 @@ fun SchermataOttavi(
 
             Column(modifier = Modifier.fillMaxSize().padding(bottom = 100.dp)) {
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
-                    IconButton(
-                        onClick = { onTornaIndietro() },
-                        modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)
-                    ) {
+                    IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)) {
                         Text("<", color = Color.White, fontSize = 45.sp, fontFamily = MioFontPersonalizzato)
                     }
-                    Text(
-                        GestoreBattle.faseAttuale.name,
-                        color = Color.White, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.align(Alignment.Center).offset(x = 15.dp)
-                    )
+                    Text(GestoreBattle.faseAttuale.name, color = Color.White, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center).offset(x = 15.dp))
                 }
 
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(listaRounds) { round ->
-                        RoundCard(round = round, onClick = { onRoundClick(round.id) })
-                    }
+                LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    items(listaRounds) { round -> RoundCard(round = round, onClick = { onRoundClick(round.id) }) }
                 }
             }
 
             if (!tuttiFiniti) {
-                FloatingActionButton(
-                    onClick = { mostraDialogAggiunta = true },
-                    containerColor = Color.White,
-                    contentColor = Color.Black,
-                    shape = CircleShape,
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Aggiungi MC", modifier = Modifier.size(30.dp))
+                FloatingActionButton(onClick = { mostraDialogAggiunta = true }, containerColor = Color.White, contentColor = Color.Black, shape = CircleShape, modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)) {
+                    Icon(Icons.Default.Add, contentDescription = "Aggiungi", modifier = Modifier.size(30.dp))
                 }
             }
 
@@ -104,10 +86,7 @@ fun SchermataOttavi(
                             GestoreBattle.resetSelezione()
                             onTornaIndietro()
                         } else {
-                            val vincitori = GestoreBattle.roundsAttuali.mapNotNull { r ->
-                                r.partecipanti.find { it.id == r.vincitoreId }
-                            }
-
+                            val vincitori = GestoreBattle.roundsAttuali.mapNotNull { r -> r.partecipanti.find { it.id == r.vincitoreId } }
                             when(GestoreBattle.faseAttuale) {
                                 FaseTorneo.OTTAVI -> GestoreBattle.generaFase(FaseTorneo.QUARTI, vincitori)
                                 FaseTorneo.QUARTI -> GestoreBattle.generaFase(FaseTorneo.SEMIFINALE, vincitori)
@@ -117,12 +96,8 @@ fun SchermataOttavi(
                             GestoreBattle.salvaProgresso(context)
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(0.8f).padding(bottom = 20.dp).height(60.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(testoBottone, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                }
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)), modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(0.8f).padding(bottom = 20.dp).height(60.dp), shape = RoundedCornerShape(12.dp)
+                ) { Text(testoBottone, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
             }
         }
     }
@@ -133,47 +108,31 @@ fun SchermataOttavi(
             containerColor = Color(0xFF222222),
             title = { Text("Aggiungi partecipante", color = Color.White) },
             text = {
-                OutlinedTextField(
-                    value = nomeNuovoMc,
-                    onValueChange = { nomeNuovoMc = it },
-                    placeholder = { Text("Nome Freestyler", color = Color.Gray) },
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White),
-                    singleLine = true
-                )
+                OutlinedTextField(value = nomeNuovoMc, onValueChange = { nomeNuovoMc = it }, placeholder = { Text("Nome Freestyler o Team", color = Color.Gray) }, colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White), singleLine = true)
             },
             confirmButton = {
-                Button(
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-                    onClick = {
-                        if (nomeNuovoMc.isNotBlank()) {
-                            val nuovoMc = Freestyler(
-                                id = UUID.randomUUID().toString(),
-                                nome = nomeNuovoMc.trim(),
-                                immagineId = R.drawable.no_pic
-                            )
-                            aggiungiMcARoundIncompleto(nuovoMc)
-                            nomeNuovoMc = ""
-                            mostraDialogAggiunta = false
-                        }
+                Button(colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)), onClick = {
+                    if (nomeNuovoMc.isNotBlank()) {
+                        val nuovoMembro = Freestyler(UUID.randomUUID().toString(), nomeNuovoMc.trim(), R.drawable.no_pic)
+                        val nuovoTeam = Team(UUID.randomUUID().toString(), nomeNuovoMc.trim(), listOf(nuovoMembro))
+                        aggiungiTeamARoundIncompleto(nuovoTeam)
+                        nomeNuovoMc = ""
+                        mostraDialogAggiunta = false
                     }
-                ) { Text("Aggiungi", color = Color.White) }
+                }) { Text("Aggiungi", color = Color.White) }
             },
-            dismissButton = {
-                TextButton(onClick = { mostraDialogAggiunta = false }) { Text("Annulla", color = Color.Gray) }
-            }
+            dismissButton = { TextButton(onClick = { mostraDialogAggiunta = false }) { Text("Annulla", color = Color.Gray) } }
         )
     }
 }
 
-fun aggiungiMcARoundIncompleto(mc: Freestyler) {
+fun aggiungiTeamARoundIncompleto(team: Team) {
     val roundAperti = GestoreBattle.roundsAttuali.filter { !it.completato }
     if (roundAperti.isNotEmpty()) {
         val roundPiuVuoto = roundAperti.minByOrNull { it.partecipanti.size }
         val indice = GestoreBattle.roundsAttuali.indexOfFirst { it.id == roundPiuVuoto?.id }
         if (indice != -1) {
-            val roundModificato = GestoreBattle.roundsAttuali[indice].copy(
-                partecipanti = GestoreBattle.roundsAttuali[indice].partecipanti + mc
-            )
+            val roundModificato = GestoreBattle.roundsAttuali[indice].copy(partecipanti = GestoreBattle.roundsAttuali[indice].partecipanti + team)
             GestoreBattle.roundsAttuali[indice] = roundModificato
         }
     }
@@ -184,32 +143,28 @@ fun RoundCard(round: Round, onClick: () -> Unit) {
     val backgroundBrush = Brush.horizontalGradient(colors = listOf(Color(0xFF3A0000), Color(0xFF00003A)))
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .border(3.dp, Color(0xFFD32F2F), RoundedCornerShape(24.dp))
-            .background(brush = backgroundBrush)
-            .clickable { onClick() }
-            .padding(20.dp)
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).border(3.dp, Color(0xFFD32F2F), RoundedCornerShape(24.dp)).background(brush = backgroundBrush).clickable { onClick() }.padding(20.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
             Text("Round ${round.numero}", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(bottom = 16.dp))
 
             if (round.partecipanti.isNotEmpty()) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-                    BoxMCTorneo(mc = round.partecipanti[0], isVincitore = round.vincitoreId == round.partecipanti[0].id, isSconfitto = round.completato && round.vincitoreId != round.partecipanti[0].id)
+                // SUDDIVIDE GLI MC A GRUPPI DI 2 (Righe)
+                val righe = round.partecipanti.chunked(2)
 
-                    if (round.partecipanti.size >= 2) {
-                        Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(85.dp).padding(horizontal = 10.dp))
-                        BoxMCTorneo(mc = round.partecipanti[1], isVincitore = round.vincitoreId == round.partecipanti[1].id, isSconfitto = round.completato && round.vincitoreId != round.partecipanti[1].id)
+                righe.forEachIndexed { index, riga ->
+                    // Aggiunge il VS tra una riga e l'altra se ci sono più di 2 partecipanti
+                    if (index > 0) {
+                        Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(40.dp).padding(vertical = 8.dp))
                     }
-                }
 
-                // Tutti gli extra vengono incolonnati sotto come rumble
-                if (round.partecipanti.size > 2) {
-                    for (i in 2 until round.partecipanti.size) {
-                        Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(50.dp).padding(vertical = 12.dp))
-                        BoxMCTorneo(mc = round.partecipanti[i], isVincitore = round.vincitoreId == round.partecipanti[i].id, isSconfitto = round.completato && round.vincitoreId != round.partecipanti[i].id)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+                        BoxTeam(team = riga[0], isVincitore = round.vincitoreId == riga[0].id, isSconfitto = round.completato && round.vincitoreId != riga[0].id)
+
+                        if (riga.size == 2) {
+                            Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(85.dp).padding(horizontal = 10.dp))
+                            BoxTeam(team = riga[1], isVincitore = round.vincitoreId == riga[1].id, isSconfitto = round.completato && round.vincitoreId != riga[1].id)
+                        }
                     }
                 }
             }
@@ -218,21 +173,27 @@ fun RoundCard(round: Round, onClick: () -> Unit) {
 }
 
 @Composable
-fun BoxMCTorneo(mc: Freestyler, isVincitore: Boolean = false, isSconfitto: Boolean = false, width: Dp = 100.dp, height: Dp = 130.dp) {
+fun BoxTeam(team: Team, isVincitore: Boolean = false, isSconfitto: Boolean = false, width: Dp = 100.dp, height: Dp = 130.dp) {
     val colorMatrix = remember(isSconfitto) { if (isSconfitto) ColorMatrix().apply { setToSaturation(0f) } else null }
+    val fontSize = if (team.membri.size > 1) 11.sp else 13.sp
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            modifier = Modifier
-                .width(width).height(height)
-                .clip(RoundedCornerShape(16.dp))
-                .border(width = if (isVincitore) 4.dp else 1.dp, color = if (isVincitore) Color.Green else Color.Gray, shape = RoundedCornerShape(16.dp))
-                .background(Color.DarkGray)
+            modifier = Modifier.width(width).height(height).clip(RoundedCornerShape(16.dp)).border(width = if (isVincitore) 4.dp else 1.dp, color = if (isVincitore) Color.Green else Color.Gray, shape = RoundedCornerShape(16.dp)).background(Color.DarkGray)
         ) {
-            Image(painter = painterResource(id = mc.immagineId), contentDescription = null, modifier = Modifier.fillMaxSize(), alignment = Alignment.TopCenter, contentScale = ContentScale.Crop, colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null)
+            if (team.membri.size == 1) {
+                Image(painter = painterResource(id = team.membri[0].immagineId), contentDescription = null, modifier = Modifier.fillMaxSize(), alignment = Alignment.TopCenter, contentScale = ContentScale.Crop, colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null)
+            } else if (team.membri.size >= 2) {
+                Row(modifier = Modifier.fillMaxSize()) {
+                    Image(painter = painterResource(id = team.membri[0].immagineId), contentDescription = null, modifier = Modifier.weight(1f).fillMaxHeight(), alignment = Alignment.TopCenter, contentScale = ContentScale.Crop, colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null)
+                    Box(modifier = Modifier.width(2.dp).fillMaxHeight().background(Color.Black))
+                    Image(painter = painterResource(id = team.membri[1].immagineId), contentDescription = null, modifier = Modifier.weight(1f).fillMaxHeight(), alignment = Alignment.TopCenter, contentScale = ContentScale.Crop, colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null)
+                }
+            }
+
             if (isVincitore) Box(modifier = Modifier.matchParentSize().background(Color.Green.copy(alpha = 0.3f)))
             if (isSconfitto) Icon(Icons.Default.Close, null, tint = Color.Red.copy(alpha = 0.8f), modifier = Modifier.fillMaxSize().padding(16.dp))
         }
-        Text(text = mc.nome.uppercase(), color = if (isVincitore) Color.Green else if(isSconfitto) Color.Gray else Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp), textAlign = TextAlign.Center)
+        Text(text = team.nome.uppercase(), color = if (isVincitore) Color.Green else if(isSconfitto) Color.Gray else Color.White, fontSize = fontSize, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp), textAlign = TextAlign.Center)
     }
 }
