@@ -8,7 +8,12 @@ import androidx.compose.animation.core.*
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +43,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Configurazione Full Screen (Immersiva)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -53,6 +59,10 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Gestore principale della navigazione dell'app.
+ * Include il controllo per il recupero di sessioni di torneo interrotte.
+ */
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
@@ -60,6 +70,7 @@ fun AppNavigation() {
     val context = LocalContext.current
     val MioFontPersonalizzato = FontFamily(Font(R.font.jackboa))
 
+    // Controllo all'avvio: se esiste un torneo salvato, chiede se riprenderlo
     LaunchedEffect(Unit) {
         if (GestoreBattle.haProgresso(context)) {
             mostraPopupRecupero = true
@@ -77,7 +88,7 @@ fun AppNavigation() {
                     onClick = {
                         GestoreBattle.caricaProgresso(context)
                         mostraPopupRecupero = false
-                        navController.navigate("ottavi") // (La rotta di navigazione si chiama sempre così, ma visualizzerà la fase corretta)
+                        navController.navigate("ottavi") 
                     }) { Text("SÌ", color = Color.White, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
@@ -90,42 +101,76 @@ fun AppNavigation() {
     }
 
     NavHost(navController = navController, startDestination = "benvenuto") {
+        // Schermata Iniziale con logo animato
         composable("benvenuto") {
             SchermataDiBenvenuto(onVaiAlMenu = { navController.navigate("menu") })
         }
 
+        // Menu Principale
         composable("menu") {
             SchermataMenu(
                 onTornaIndietro = { navController.popBackStack() },
                 onSelezionaModalita = { nome ->
                     if (nome == "Muretto classico") {
                         navController.navigate("muretto_classico")
+                    } else if (nome == "Allenamento") {
+                        navController.navigate("allenamento")
                     }
                 }
             )
         }
 
+        // Sezione Allenamento (Matchmaking + Generatori)
+        composable("allenamento") {
+            SchermataAllenamento(
+                onTornaIndietro = { navController.popBackStack() },
+                onSelezionaAllenamento = { nome ->
+                    when (nome) {
+                        "Generatore di argomenti" -> navController.navigate("generatore_argomenti")
+                        "Generatore di modalita" -> navController.navigate("generatore_modalita")
+                        "Generatore di parole" -> navController.navigate("generatore_parole")
+                    }
+                }
+            )
+        }
+
+        // Route per i vari generatori
+        composable("generatore_argomenti") {
+            SchermataGeneratoreArgomenti(onTornaIndietro = { navController.popBackStack() })
+        }
+
+        composable("generatore_modalita") {
+            SchermataGeneratoreModalita(onTornaIndietro = { navController.popBackStack() })
+        }
+
+        composable("generatore_parole") {
+            SchermataGeneratoreParole(onTornaIndietro = { navController.popBackStack() })
+        }
+
+        // Selezione MC per Torneo Classico
         composable("muretto_classico") {
             SchermataMurettoClassico(
                 onTornaAlMenu = { navController.popBackStack() },
                 onIniziaBattle = {
-                    // --- ORA USA LA LOGICA INTELLIGENTE PER SCEGLIERE LA FASE ---
+                    // Logica intelligente: sceglie automaticamente se partire da Ottavi, Quarti o Finale
                     GestoreBattle.iniziaTorneo(GestoreBattle.mcsSelezionati)
                     navController.navigate("ottavi")
                 }
             )
         }
 
+        // Tabellone del Torneo
         composable("ottavi") {
             SchermataOttavi(
                 onTornaIndietro = { navController.popBackStack() },
-                onVaiAiQuarti = { /* Gestito internamente */ },
+                onVaiAiQuarti = { /* Gestito internamente tramite GestoreBattle */ },
                 onRoundClick = { roundId ->
                     navController.navigate("round_singolo/$roundId")
                 }
             )
         }
 
+        // Dettaglio della singola Battle
         composable("round_singolo/{roundId}") { backStackEntry ->
             val roundId = backStackEntry.arguments?.getString("roundId") ?: ""
             SchermataRoundSingolo(
@@ -137,37 +182,125 @@ fun AppNavigation() {
 }
 
 
-
+/**
+ * Schermata d'apertura cinematografica.
+ * Implementa una transizione a "Buco Nero" che inghiotte il logo quando cliccato.
+ */
 @Composable
 fun SchermataDiBenvenuto(onVaiAlMenu: () -> Unit) {
+    var inTransizione by remember { mutableStateOf(false) }
+
+    // Animazione Zoom Sfondo
+    val scalaSfondo by animateFloatAsState(
+        targetValue = if (inTransizione) 2.8f else 1f,
+        animationSpec = tween(durationMillis = 1300, easing = FastOutSlowInEasing),
+        label = "zoom_sfondo"
+    )
+
+    // Animazione Espansione Buco Nero (centrata sul logo)
+    val scalaEspansione by animateFloatAsState(
+        targetValue = if (inTransizione) 40f else 0f,
+        animationSpec = tween(durationMillis = 1100, easing = FastOutSlowInEasing),
+        label = "espansione_buco",
+        finishedListener = { onVaiAlMenu() } // Naviga solo quando l'animazione è finita
+    )
+
+    // Dissolvenza contenuti
+    val alphaContenuto by animateFloatAsState(
+        targetValue = if (inTransizione) 0f else 1f,
+        animationSpec = tween(durationMillis = 700),
+        label = "dissolvenza_contenuto"
+    )
+
+    // Aura pulsante attorno al logo (Feedback interattivo)
+    val infiniteTransition = rememberInfiniteTransition(label = "aura_pulsante")
+    val scalaAura by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse),
+        label = "scala_aura"
+    )
+    val alphaAura by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0.6f,
+        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse),
+        label = "alpha_aura"
+    )
+
+    // Offset calcolato per centrare l'animazione sul logo della giacca (y = -72dp)
+    val offsetLogo = (-72).dp 
+
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.sfondo_schermata_iniziale),
-            contentDescription = "Sfondo a mattoni con logo integrato",
-            contentScale = ContentScale.FillWidth,
-            modifier = Modifier.fillMaxWidth()
-        )
-
+        // 1. Elementi Visuali: Sfondo + Testi
         Box(
-            modifier = Modifier.fillMaxSize().padding(top = 90.dp),
-            contentAlignment = Alignment.TopCenter
+            modifier = Modifier.fillMaxSize().graphicsLayer {
+                scaleX = scalaSfondo
+                scaleY = scalaSfondo
+                alpha = alphaContenuto
+            }
         ) {
-            TestoBomboletta()
-        }
+            Image(
+                painter = painterResource(id = R.drawable.sfondo_schermata_iniziale),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
 
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Box(contentAlignment = Alignment.BottomEnd, modifier = Modifier.wrapContentSize()) {
-                Spacer(modifier = Modifier.size(180.dp))
+            // Titolo Superiore
+            Box(modifier = Modifier.fillMaxSize().padding(top = 80.dp), contentAlignment = Alignment.TopCenter) {
+                TestoBomboletta()
+            }
+
+            // Call to action inferiore
+            Box(modifier = Modifier.fillMaxSize().padding(bottom = 120.dp), contentAlignment = Alignment.BottomCenter) {
                 TestoAnimatoStileMinecraft()
             }
-            Spacer(modifier = Modifier.height(500.dp))
-            PulsanteInizia(onVaiAlMenu)
+        }
+
+        // 2. Aura Pulsante (Centrata sul logo)
+        if (!inTransizione) {
+            Box(
+                modifier = Modifier
+                    .offset(y = offsetLogo)
+                    .size(280.dp)
+                    .graphicsLayer {
+                        scaleX = scalaAura
+                        scaleY = scalaAura
+                        alpha = alphaAura
+                    }
+                    .background(Color.Black.copy(alpha = 0.4f), CircleShape) 
+                    .border(4.dp, Color.Black.copy(alpha = 0.6f), CircleShape) 
+            )
+        }
+
+        // 3. Area di click invisibile sul logo
+        Box(
+            modifier = Modifier
+                .offset(y = offsetLogo)
+                .size(250.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    if (!inTransizione) inTransizione = true
+                }
+        )
+
+        // 4. L'effetto Buco Nero che copre tutto
+        if (inTransizione) {
+            Box(
+                modifier = Modifier
+                    .offset(y = offsetLogo)
+                    .size(90.dp)
+                    .graphicsLayer {
+                        scaleX = scalaEspansione
+                        scaleY = scalaEspansione
+                    }
+                    .background(Color.Black, CircleShape)
+            )
         }
     }
 }
@@ -182,7 +315,23 @@ fun TestoBomboletta() {
         visible = visibile,
         enter = expandHorizontally(animationSpec = tween(durationMillis = 2000, easing = LinearOutSlowInEasing), expandFrom = Alignment.Start) + fadeIn(animationSpec = tween(durationMillis = 2000))
     ) {
-        Text("BATTLE ROSTER", color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold, fontFamily = MioFontPersonalizzato)
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                "BATTLE ROSTER",
+                color = Color.Black,
+                fontSize = 42.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = MioFontPersonalizzato,
+                style = TextStyle(drawStyle = Stroke(miter = 10f, width = 10f, join = StrokeJoin.Round))
+            )
+            Text(
+                "BATTLE ROSTER",
+                color = Color.White,
+                fontSize = 42.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = MioFontPersonalizzato
+            )
+        }
     }
 }
 
@@ -198,20 +347,9 @@ fun TestoAnimatoStileMinecraft() {
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.offset(x = -8.dp, y = 420.dp).graphicsLayer { scaleX = scalaTesto; scaleY = scalaTesto }
+        modifier = Modifier.graphicsLayer { scaleX = scalaTesto; scaleY = scalaTesto }
     ) {
         Text("WHAT UUU SAYYYNNN!!!", color = Color.Black, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = MioFontPersonalizzato, style = TextStyle(drawStyle = Stroke(miter = 10f, width = 12f, join = StrokeJoin.Round)))
         Text("WHAT UUU SAYYYNNN!!!", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = MioFontPersonalizzato)
-    }
-}
-
-@Composable
-fun PulsanteInizia(onVaiAlMenu: () -> Unit) {
-    Button(
-        onClick = { onVaiAlMenu() },
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-        modifier = Modifier.width(220.dp).height(65.dp)
-    ) {
-        Text(text = "Inizia ora", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
     }
 }
