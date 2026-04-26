@@ -54,10 +54,10 @@ object GestoreBattle {
      */
     fun iniziaTorneo(partecipanti: List<Freestyler>) {
         when {
-            partecipanti.size < 4 -> generaFase(FaseTorneo.FINALE, partecipanti) 
-            partecipanti.size < 8 -> generaFase(FaseTorneo.SEMIFINALE, partecipanti) 
-            partecipanti.size < 16 -> generaFase(FaseTorneo.QUARTI, partecipanti) 
-            else -> generaFase(FaseTorneo.OTTAVI, partecipanti) 
+            partecipanti.size < 4 -> generaFase(FaseTorneo.FINALE, partecipanti)
+            partecipanti.size < 8 -> generaFase(FaseTorneo.SEMIFINALE, partecipanti)
+            partecipanti.size < 16 -> generaFase(FaseTorneo.QUARTI, partecipanti)
+            else -> generaFase(FaseTorneo.OTTAVI, partecipanti)
         }
     }
 
@@ -69,10 +69,10 @@ object GestoreBattle {
         roundsAttuali.clear()
 
         val numRound = when(fase) {
-            FaseTorneo.OTTAVI -> 8      
-            FaseTorneo.QUARTI -> 4      
-            FaseTorneo.SEMIFINALE -> 2  
-            FaseTorneo.FINALE -> 1      
+            FaseTorneo.OTTAVI -> 8
+            FaseTorneo.QUARTI -> 4
+            FaseTorneo.SEMIFINALE -> 2
+            FaseTorneo.FINALE -> 1
         }
 
         val liste = List(numRound) { mutableListOf<Freestyler>() }
@@ -205,4 +205,24 @@ object DatiAllenamento {
         "Minuto Libero", "Minuto Beat Scelta", "Minuto Beat Argomento", "Linker", "Taboo", "Modalità Personaggi", "Modalità Situazioni", "Universi Paralleli",
         "Sono il tuo più grande fan", "Cover Battle"
     )
+
+    fun caricaArgomenti(context: Context): List<String> {
+        return try {
+            val json = context.resources.openRawResource(R.raw.topics).bufferedReader().use { it.readText() }
+            val type = object : TypeToken<List<String>>() {}.type
+            Gson().fromJson(json, type)
+        } catch (e: Exception) {
+            argomenti
+        }
+    }
+
+    fun caricaModalita(context: Context): List<String> {
+        return try {
+            val json = context.resources.openRawResource(R.raw.modes).bufferedReader().use { it.readText() }
+            val type = object : TypeToken<List<String>>() {}.type
+            Gson().fromJson(json, type)
+        } catch (e: Exception) {
+            modalita
+        }
+    }
 }

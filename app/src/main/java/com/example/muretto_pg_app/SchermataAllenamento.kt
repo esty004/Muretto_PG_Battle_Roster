@@ -37,15 +37,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/**
- * Schermata principale dell'Allenamento.
- * Divisa in due Tab: Matchmaking (per creare battle veloci) e Generatori (Argomenti, Parole, ecc.).
- */
 @Composable
 fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (String) -> Unit) {
     val MioFontPersonalizzato = FontFamily(Font(R.font.jackboa))
     
-    // Inizializza il dataset MC se non è stato ancora fatto nel ciclo di vita corrente
     LaunchedEffect(Unit) {
         GestoreAllenamento.inizializzaSeVuoto()
     }
@@ -53,7 +48,6 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
     Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
         Column(modifier = Modifier.fillMaxSize()) {
 
-            // Header con pulsante indietro e titolo
             Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 10.dp)) {
                 IconButton(
                     onClick = { onTornaIndietro() },
@@ -69,8 +63,6 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
                 )
             }
 
-            // TabRow per navigare tra Matchmaking e Generatori
-            // Lo stato è salvato in GestoreAllenamento per mantenere la posizione tornando indietro
             TabRow(
                 selectedTabIndex = GestoreAllenamento.tabSelezionata,
                 containerColor = Color.Transparent,
@@ -95,7 +87,6 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
                 )
             }
 
-            // Area dei contenuti dinamici
             Box(modifier = Modifier.weight(1f)) {
                 if (GestoreAllenamento.tabSelezionata == 0) {
                     SezioneMatchmaking(font = MioFontPersonalizzato)
@@ -107,22 +98,17 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
     }
 }
 
-/**
- * Sezione per selezionare gli MC e generare accoppiamenti casuali.
- */
 @Composable
 fun SezioneMatchmaking(font: FontFamily) {
     var mostraDialogAggiunta by remember { mutableStateOf(false) }
     var nomeNuovoMc by remember { mutableStateOf("") }
     
-    // Filtro per la ricerca testuale
     val listaFiltrata = GestoreAllenamento.listaMcsAllenamento.filter { 
         it.nome.contains(GestoreAllenamento.testoRicerca, ignoreCase = true) 
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (!GestoreAllenamento.mostraRisultatiMatchmaking) {
-            // --- UI SELEZIONE MC ---
             Column(modifier = Modifier.fillMaxSize().padding(bottom = 80.dp)) {
                 Text(
                     text = "SELEZIONA GLI MC",
@@ -131,7 +117,6 @@ fun SezioneMatchmaking(font: FontFamily) {
                     textAlign = TextAlign.Center
                 )
 
-                // Barra di ricerca
                 OutlinedTextField(
                     value = GestoreAllenamento.testoRicerca,
                     onValueChange = { GestoreAllenamento.testoRicerca = it },
@@ -147,7 +132,6 @@ fun SezioneMatchmaking(font: FontFamily) {
                     shape = RoundedCornerShape(12.dp)
                 )
 
-                // Griglia degli MC con foto
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     contentPadding = PaddingValues(16.dp),
@@ -168,7 +152,6 @@ fun SezioneMatchmaking(font: FontFamily) {
                 }
             }
 
-            // Bottone per aggiungere MC manualmente alla lista locale
             FloatingActionButton(
                 onClick = { mostraDialogAggiunta = true },
                 containerColor = Color(0xFF4CAF50),
@@ -179,7 +162,6 @@ fun SezioneMatchmaking(font: FontFamily) {
                 Icon(Icons.Default.Add, contentDescription = "Aggiungi MC", modifier = Modifier.size(30.dp))
             }
 
-            // Bottone per generare le battle
             Button(
                 onClick = { generaBattleMatchmaking() },
                 enabled = GestoreAllenamento.mcsSelezionatiIds.size >= 2,
@@ -190,7 +172,6 @@ fun SezioneMatchmaking(font: FontFamily) {
                 Text("GENERA BATTLE", color = Color.White, fontSize = 22.sp, fontFamily = font)
             }
         } else {
-            // --- UI RISULTATI MATCHMAKING ---
             Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                 Text(
                     "ACCOPPIAMENTI",
@@ -207,7 +188,6 @@ fun SezioneMatchmaking(font: FontFamily) {
                     items(GestoreAllenamento.battleGenerate) { pair ->
                         BattleCardMatchmaking(mc1 = pair.first, mc2 = pair.second)
                     }
-                    // Visualizza chi riposa se il numero di MC è dispari
                     if (GestoreAllenamento.mcSingolo != null) {
                         item {
                             Row(
@@ -231,7 +211,6 @@ fun SezioneMatchmaking(font: FontFamily) {
                     ) {
                         Text("INDIETRO", color = Color.White, fontSize = 18.sp, fontFamily = font)
                     }
-                    // Rimescola le battle mantenendo la stessa selezione di MC
                     Button(
                         onClick = { generaBattleMatchmaking() },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
@@ -245,7 +224,6 @@ fun SezioneMatchmaking(font: FontFamily) {
         }
     }
 
-    // Dialog per l'inserimento manuale di un MC
     if (mostraDialogAggiunta) {
         AlertDialog(
             onDismissRequest = { mostraDialogAggiunta = false },
@@ -279,9 +257,6 @@ fun SezioneMatchmaking(font: FontFamily) {
     }
 }
 
-/**
- * Logica per accoppiare casualmente gli MC selezionati.
- */
 private fun generaBattleMatchmaking() {
     val selezionati = GestoreAllenamento.listaMcsAllenamento.filter { 
         GestoreAllenamento.mcsSelezionatiIds.contains(it.id) 
@@ -298,9 +273,6 @@ private fun generaBattleMatchmaking() {
     }
 }
 
-/**
- * Card grafica per visualizzare un accoppiamento (1vs1) con stile torneo.
- */
 @Composable
 fun BattleCardMatchmaking(mc1: Freestyler, mc2: Freestyler) {
     val backgroundBrush = Brush.horizontalGradient(colors = listOf(Color(0xFF3A0000), Color(0xFF00003A)))
@@ -328,9 +300,6 @@ fun BattleCardMatchmaking(mc1: Freestyler, mc2: Freestyler) {
     }
 }
 
-/**
- * Componente base per visualizzare la foto e il nome di un MC.
- */
 @Composable
 fun BoxMC(mc: Freestyler, isVincitore: Boolean = false, isSconfitto: Boolean = false, width: Dp = 100.dp, height: Dp = 130.dp) {
     val colorMatrix = remember(isSconfitto) { if (isSconfitto) ColorMatrix().apply { setToSaturation(0f) } else null }
@@ -351,9 +320,6 @@ fun BoxMC(mc: Freestyler, isVincitore: Boolean = false, isSconfitto: Boolean = f
     }
 }
 
-/**
- * Card interattiva usata nella griglia di selezione MC.
- */
 @Composable
 fun CardFreestyler(freestyler: Freestyler, isSelezionato: Boolean, onClick: () -> Unit) {
     val colorMatrix = remember(isSelezionato) { if (isSelezionato) ColorMatrix().apply { setToSaturation(0f) } else null }
@@ -389,9 +355,6 @@ fun CardFreestyler(freestyler: Freestyler, isSelezionato: Boolean, onClick: () -
     }
 }
 
-/**
- * Lista delle card cliccabili che portano ai vari generatori casuali.
- */
 @Composable
 fun SezioneGeneratori(font: FontFamily, onSelezionaAllenamento: (String) -> Unit) {
     val opzioniAllenamento = listOf("Generatore di argomenti", "Generatore di modalita", "Generatore di parole")

@@ -1,5 +1,6 @@
 package com.example.muretto_pg_app
 
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -22,6 +23,8 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun SchermataGeneratoreModalita(onTornaIndietro: () -> Unit) {
+    val context = LocalContext.current
+    val modalitaPool = remember<List<String>> { DatiAllenamento.caricaModalita(context) }
     val MioFontPersonalizzato = FontFamily(Font(R.font.jackboa))
     var modalitaCorrente by remember { mutableStateOf("PREMI PER\nGENERARE") }
 
@@ -70,7 +73,7 @@ fun SchermataGeneratoreModalita(onTornaIndietro: () -> Unit) {
             Spacer(modifier = Modifier.height(40.dp))
 
             Button(
-                onClick = { modalitaCorrente = DatiAllenamento.modalita.random() },
+                onClick = { modalitaCorrente = modalitaPool.random() },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
                 modifier = Modifier.fillMaxWidth().height(60.dp),
                 shape = RoundedCornerShape(12.dp)
