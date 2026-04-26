@@ -38,6 +38,7 @@ object GestoreBattle {
     var mcsSelezionati = mutableStateListOf<Freestyler>()
     var roundsAttuali = mutableStateListOf<Round>()
     var faseAttuale = FaseTorneo.OTTAVI
+    var is2v2 = false
 
     /**
      * Resetta completamente il torneo.
@@ -46,19 +47,59 @@ object GestoreBattle {
         mcsSelezionati.clear()
         roundsAttuali.clear()
         faseAttuale = FaseTorneo.OTTAVI
+        is2v2 = false
+    }
+
+    /**
+     * Determina il nome della fase appropriato in base al numero di partecipanti.
+     */
+    fun determinaFase(numeroPartecipanti: Int): FaseTorneo {
+        return when {
+            numeroPartecipanti > 12 -> FaseTorneo.OTTAVI
+            numeroPartecipanti > 6 -> FaseTorneo.QUARTI
+            numeroPartecipanti > 3 -> FaseTorneo.SEMIFINALE
+            else -> FaseTorneo.FINALE
+        }
     }
 
     /**
      * Avvia il torneo decidendo la fase iniziale in base al numero di MC selezionati.
-     * Evita round deserti o con un solo partecipante.
      */
     fun iniziaTorneo(partecipanti: List<Freestyler>) {
-        when {
-            partecipanti.size < 4 -> generaFase(FaseTorneo.FINALE, partecipanti)
-            partecipanti.size < 8 -> generaFase(FaseTorneo.SEMIFINALE, partecipanti)
-            partecipanti.size < 16 -> generaFase(FaseTorneo.QUARTI, partecipanti)
-            else -> generaFase(FaseTorneo.OTTAVI, partecipanti)
+        is2v2 = false
+        val faseIniziale = determinaFase(partecipanti.size)
+        generaFase(faseIniziale, partecipanti)
+    }
+
+    /**
+     * Avvia il torneo in modalità 2v2.
+     * Crea coppie casuali e poi genera la fase.
+     */
+    fun iniziaTorneo2v2(partecipanti: List<Freestyler>) {
+        is2v2 = true
+        val shuffled = partecipanti.shuffled()
+        val coppie = mutableListOf<Freestyler>()
+
+        // Accoppia i partecipanti
+        for (i in 0 until (shuffled.size / 2) * 2 step 2) {
+            val p1 = shuffled[i]
+            val p2 = shuffled[i + 1]
+            coppie.add(
+                Freestyler(
+                    id = "${p1.id}_${p2.id}",
+                    nome = "${p1.nome} & ${p2.nome}",
+                    immagineId = R.drawable.due_contro_due
+                )
+            )
         }
+
+        // Se c'è un MC dispari, lo aggiungiamo come "singolo"
+        if (shuffled.size % 2 != 0) {
+            coppie.add(shuffled.last())
+        }
+
+        val faseIniziale = determinaFase(coppie.size)
+        generaFase(faseIniziale, coppie)
     }
 
     /**
@@ -68,23 +109,37 @@ object GestoreBattle {
         faseAttuale = fase
         roundsAttuali.clear()
 
-        val numRound = when(fase) {
-            FaseTorneo.OTTAVI -> 8
-            FaseTorneo.QUARTI -> 4
-            FaseTorneo.SEMIFINALE -> 2
-            FaseTorneo.FINALE -> 1
+        if (partecipanti.isEmpty()) return
+
+        val shuffled = partecipanti.shuffled()
+        val total = shuffled.size
+
+        if (total % 2 == 0) {
+            // Pari: tutti 1v1
+            for (i in 0 until total step 2) {
+                roundsAttuali.add(Round("r_${fase.name}_${i / 2}", (i / 2) + 1, listOf(shuffled[i], shuffled[i + 1])))
+            }
+        } else {
+            // Dispari: massimizza gli 1v1 e crea esattamente un 3-person rumble
+            if (total >= 3) {
+                val num1v1 = (total - 3) / 2
+                for (i in 0 until num1v1) {
+                    roundsAttuali.add(Round("r_${fase.name}_$i", i + 1, listOf(shuffled[i * 2], shuffled[i * 2 + 1])))
+                }
+                // Aggiunge la rumble da 3 alla fine
+                val startIndexForRumble = num1v1 * 2
+                roundsAttuali.add(
+                    Round(
+                        "r_${fase.name}_$num1v1",
+                        num1v1 + 1,
+                        listOf(shuffled[startIndexForRumble], shuffled[startIndexForRumble + 1], shuffled[startIndexForRumble + 2])
+                    )
+                )
+            } else {
+                // Caso limite con 1 solo partecipante
+                roundsAttuali.add(Round("r_${fase.name}_0", 1, listOf(shuffled[0])))
+            }
         }
-
-        val liste = List(numRound) { mutableListOf<Freestyler>() }
-
-        // Distribuzione "a mazzo di carte": i dispari vengono accorpati ai round esistenti (Rumble)
-        partecipanti.shuffled().forEachIndexed { i, mc ->
-            liste[i % numRound].add(mc)
-        }
-
-        roundsAttuali.addAll(liste.mapIndexed { i, p ->
-            Round("r_${fase.name}_$i", i + 1, p)
-        })
     }
 
     // --- LOGICA DI PERSISTENZA (SharedPreferences + GSON) ---
@@ -95,6 +150,7 @@ object GestoreBattle {
         sharedPref.edit().apply {
             putString("fase", faseAttuale.name)
             putString("rounds", gson.toJson(roundsAttuali.toList()))
+            putBoolean("is2v2", is2v2)
             apply()
         }
     }
@@ -108,6 +164,7 @@ object GestoreBattle {
         val gson = Gson()
         val faseStr = sharedPref.getString("fase", "OTTAVI")
         faseAttuale = FaseTorneo.valueOf(faseStr ?: "OTTAVI")
+        is2v2 = sharedPref.getBoolean("is2v2", false)
 
         val roundsJson = sharedPref.getString("rounds", null)
         if (roundsJson != null) {

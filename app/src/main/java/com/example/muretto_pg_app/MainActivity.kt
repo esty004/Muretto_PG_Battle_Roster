@@ -111,11 +111,22 @@ fun AppNavigation() {
             SchermataMenu(
                 onTornaIndietro = { navController.popBackStack() },
                 onSelezionaModalita = { nome ->
-                    if (nome == "Muretto classico") {
-                        navController.navigate("muretto_classico")
-                    } else if (nome == "Allenamento") {
-                        navController.navigate("allenamento")
+                    when (nome) {
+                        "Muretto classico" -> navController.navigate("muretto_classico")
+                        "2 VS 2" -> navController.navigate("due_contro_due")
+                        "Allenamento" -> navController.navigate("allenamento")
                     }
+                }
+            )
+        }
+
+        // Selezione MC per 2vs2
+        composable("due_contro_due") {
+            SchermataMurettoClassico(
+                onTornaAlMenu = { navController.popBackStack() },
+                onIniziaBattle = {
+                    GestoreBattle.iniziaTorneo2v2(GestoreBattle.mcsSelezionati)
+                    navController.navigate("ottavi")
                 }
             )
         }

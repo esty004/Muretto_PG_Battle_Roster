@@ -147,7 +147,11 @@ fun SchermataMurettoClassico(onTornaAlMenu: () -> Unit, onIniziaBattle: () -> Un
                         onIniziaBattle()
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                enabled = mcsSelezionati.size >= 2,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFD32F2F),
+                    disabledContainerColor = Color.DarkGray
+                ),
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 16.dp, vertical = 20.dp).height(60.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
