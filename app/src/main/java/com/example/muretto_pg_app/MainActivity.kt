@@ -190,7 +190,7 @@ fun FloatingPlayer(font: FontFamily) {
         val totalSecs = ms / 1000
         val mins = totalSecs / 60
         val secs = totalSecs % 60
-        return String.format(Locale.getDefault(), "%02d:%02d", mins, secs)
+        return String.format(java.util.Locale.getDefault(), "%02d:%02d", mins, secs)
     }
 
     fun aggiornaInfo() {
@@ -225,12 +225,12 @@ fun FloatingPlayer(font: FontFamily) {
         }
     }
 
-    // IL PULSANTE FLOTTANTE (Ora 50.dp, più piccolo)
+    // IL PULSANTE FLOTTANTE
     Box(
         modifier = Modifier
             .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
             .pointerInput(Unit) { detectDragGestures { change, dragAmount -> change.consume(); offsetX += dragAmount.x; offsetY += dragAmount.y } }
-            .size(50.dp) // Leggermente più piccolo (prima era 65)
+            .size(50.dp)
             .clip(CircleShape)
             .background(Color(0xFFD32F2F).copy(alpha = 0.9f))
             .border(2.dp, Color.White, CircleShape)
@@ -241,7 +241,7 @@ fun FloatingPlayer(font: FontFamily) {
             painter = painterResource(id = R.drawable.ic_music_note),
             contentDescription = "Apri Player",
             tint = Color.White,
-            modifier = Modifier.size(24.dp) // Icona ridimensionata per starci bene
+            modifier = Modifier.size(24.dp)
         )
     }
 
@@ -249,7 +249,7 @@ fun FloatingPlayer(font: FontFamily) {
         Dialog(onDismissRequest = { mostraMiniPlayer = false }) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.95f) // Schermata più grande
+                    .fillMaxWidth(0.95f)
                     .clip(RoundedCornerShape(28.dp))
                     .background(Color(0xFF1A1A1A))
                     .border(2.dp, Color(0xFFD32F2F), RoundedCornerShape(28.dp))
@@ -257,7 +257,7 @@ fun FloatingPlayer(font: FontFamily) {
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
-                    // COPERTINA (Aumentata di dimensione)
+                    // COPERTINA
                     Box(modifier = Modifier.size(220.dp).clip(RoundedCornerShape(16.dp)).background(Color.DarkGray)) {
                         if (copertinaCanzone != null) {
                             Image(bitmap = copertinaCanzone!!.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -271,7 +271,7 @@ fun FloatingPlayer(font: FontFamily) {
                     Text(artistaCanzone, color = Color.Gray, fontSize = 16.sp, maxLines = 1)
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // BARRA DELLA DURATA (SLIDER)
+                    // BARRA DELLA DURATA (SLIDER STILE SPOTIFY)
                     if (durataCanzone > 0L) {
                         Slider(
                             value = posizioneCorrente.toFloat(),
@@ -285,9 +285,9 @@ fun FloatingPlayer(font: FontFamily) {
                             },
                             valueRange = 0f..durataCanzone.toFloat(),
                             colors = SliderDefaults.colors(
-                                thumbColor = Color.White,
-                                activeTrackColor = Color(0xFFD32F2F),
-                                inactiveTrackColor = Color.DarkGray
+                                thumbColor = Color.White,            // Il punto scorrevole bianco
+                                activeTrackColor = Color.White,      // La traccia riempita bianca
+                                inactiveTrackColor = Color.DarkGray  // La traccia rimanente grigia
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -299,23 +299,23 @@ fun FloatingPlayer(font: FontFamily) {
                         Spacer(modifier = Modifier.height(24.dp))
                     }
 
-                    // CONTROLLI (Icone ridotte di dimensione)
+                    // CONTROLLI CON TESTI PIÙ PICCOLI
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_PREVIOUS) }, modifier = Modifier.size(45.dp)) {
-                            Text("I◀", color = Color.White, fontSize = 20.sp)
+                            Text("I◀", color = Color.White, fontSize = 16.sp) // Ridotto a 16.sp
                         }
 
                         FloatingActionButton(
                             onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) },
                             containerColor = Color(0xFFD32F2F),
                             shape = CircleShape,
-                            modifier = Modifier.size(60.dp) // Prima era 80
+                            modifier = Modifier.size(60.dp)
                         ) {
-                            Text(if (isPlaying) "❚❚" else "▶", color = Color.White, fontSize = 22.sp)
+                            Text(if (isPlaying) "❚❚" else "▶", color = Color.White, fontSize = 14.sp) // Ridotto a 14.sp
                         }
 
                         IconButton(onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_NEXT) }, modifier = Modifier.size(45.dp)) {
-                            Text("▶I", color = Color.White, fontSize = 20.sp)
+                            Text("▶I", color = Color.White, fontSize = 16.sp) // Ridotto a 16.sp
                         }
                     }
 
@@ -386,24 +386,24 @@ fun SchermataDiBenvenuto(onVaiAlMenu: () -> Unit) {
 fun TestoBomboletta() {
     var visibile by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { delay(500); visibile = true }
-    val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
+    val FontTitoli = FontFamily(Font(R.font.jackboa)) // Usiamo Jackboa qui
 
     AnimatedVisibility(visible = visibile, enter = expandHorizontally(animationSpec = tween(durationMillis = 2000, easing = LinearOutSlowInEasing), expandFrom = Alignment.Start) + fadeIn(animationSpec = tween(durationMillis = 2000))) {
         Box(contentAlignment = Alignment.Center) {
-            Text("BATTLE ROSTER", color = Color.Black, fontSize = 42.sp, fontWeight = FontWeight.Bold, fontFamily = MioFontPersonalizzato, style = TextStyle(drawStyle = Stroke(miter = 10f, width = 10f, join = StrokeJoin.Round)))
-            Text("BATTLE ROSTER", color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold, fontFamily = MioFontPersonalizzato)
+            Text("BATTLE ROSTER", color = Color.Black, fontSize = 42.sp, fontWeight = FontWeight.Bold, fontFamily = FontTitoli, style = TextStyle(drawStyle = Stroke(miter = 10f, width = 10f, join = StrokeJoin.Round)))
+            Text("BATTLE ROSTER", color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold, fontFamily = FontTitoli)
         }
     }
 }
 
 @Composable
 fun TestoAnimatoStileMinecraft() {
-    val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
+    val FontTitoli = FontFamily(Font(R.font.jackboa)) // Usiamo Jackboa qui
     val infiniteTransition = rememberInfiniteTransition(label = "")
     val scalaTesto by infiniteTransition.animateFloat(initialValue = 1f, targetValue = 1.2f, animationSpec = infiniteRepeatable(animation = tween(400, easing = LinearEasing), repeatMode = RepeatMode.Reverse), label = "")
 
     Box(contentAlignment = Alignment.Center, modifier = Modifier.graphicsLayer { scaleX = scalaTesto; scaleY = scalaTesto }) {
-        Text("WHAT UUU SAYYYNNN!!!", color = Color.Black, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = MioFontPersonalizzato, style = TextStyle(drawStyle = Stroke(miter = 10f, width = 12f, join = StrokeJoin.Round)))
-        Text("WHAT UUU SAYYYNNN!!!", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = MioFontPersonalizzato)
+        Text("WHAT UUU SAYYYNNN!!!", color = Color.Black, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = FontTitoli, style = TextStyle(drawStyle = Stroke(miter = 10f, width = 12f, join = StrokeJoin.Round)))
+        Text("WHAT UUU SAYYYNNN!!!", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = FontTitoli)
     }
 }

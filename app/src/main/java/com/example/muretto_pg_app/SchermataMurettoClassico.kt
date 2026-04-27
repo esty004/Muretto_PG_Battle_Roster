@@ -110,7 +110,7 @@ fun SchermataMurettoClassico(
                     ) {
                         Text("<", color = Color.White, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
                     }
-                    Text("SELEZIONA GLI MC", color = Color.White, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center).offset(x = 15.dp))
+                    Text("SELEZIONA GLI MC", color = Color.White, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center).offset(x = 15.dp))
                 }
 
                 // AVVISI UTILI PER L'UTENTE
@@ -214,7 +214,7 @@ fun SchermataMurettoClassico(
                     .padding(vertical = 20.dp)
                     .height(60.dp)
             ) {
-                Text("INIZIA BATTLE", color = Color.White, fontSize = 22.sp, fontFamily = MioFontPersonalizzato)
+                Text("INIZIA BATTLE", color = Color.White, fontSize = 22.sp, fontFamily = FontFamily(Font(R.font.jackboa)))
             }
 
             // --- SCHERMATA BLOCCO NOTE (Stile BandLab) ---

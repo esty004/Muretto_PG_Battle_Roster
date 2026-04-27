@@ -58,7 +58,7 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
 
                 Text(
                     text = "ALLENAMENTO",
-                    color = Color.White, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold,
+                    color = Color.White, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold,
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
@@ -112,7 +112,7 @@ fun SezioneMatchmaking(font: FontFamily) {
             Column(modifier = Modifier.fillMaxSize().padding(bottom = 80.dp)) {
                 Text(
                     text = "SELEZIONA GLI MC",
-                    color = Color.White, fontSize = 24.sp, fontFamily = font, fontWeight = FontWeight.Bold,
+                    color = Color.White, fontSize = 24.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                     textAlign = TextAlign.Center
                 )

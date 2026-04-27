@@ -35,11 +35,26 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
         Column(modifier = Modifier.fillMaxSize()) {
 
             Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
-                IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)) {
-                    Text("<", color = Color.White, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
+                IconButton(
+                    onClick = { onTornaIndietro() },
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        // 1. DESTRA / SINISTRA: Cambia 16.dp. Più è alto, più si sposta verso destra. Metti 0.dp per incollarlo al bordo sinistro.
+                        .padding(start = 16.dp)
+                        // 2. SU / GIÙ: Aggiungi offset. Metti un numero negativo (es. -10.dp) per alzarlo, positivo (es. 10.dp) per abbassarlo.
+                        .offset(y = -12.dp)
+                ) {
+                    Text(
+                        text = "<",
+                        color = Color.White,
+                        // 3. GRANDEZZA: Aumenta o diminuisci i 45.sp se vuoi renderlo più grande o più piccolo
+                        fontSize = 45.sp,
+                        fontFamily = MioFontPersonalizzato,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
-                Text("SELEZIONA MODALITA'", color = Color.White, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center).offset(x = 15.dp))
+                Text("SELEZIONA MODALITA'", color = Color.White, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center).offset(x = 15.dp))
             }
 
             LazyColumn(
