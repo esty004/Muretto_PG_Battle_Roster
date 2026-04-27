@@ -45,7 +45,7 @@ fun caricaParoleDaJson(context: Context): List<String> {
 fun SchermataGeneratoreParole(onTornaIndietro: () -> Unit) {
     val context = LocalContext.current
     val paroleDaJson = remember { caricaParoleDaJson(context) }
-    val MioFontPersonalizzato = FontFamily(Font(R.font.jackboa))
+    val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
     var tabSelezionata by remember { mutableIntStateOf(0) } // 0: Classico, 1: A Tempo
     var quantitaParole by remember { mutableIntStateOf(1) }
 

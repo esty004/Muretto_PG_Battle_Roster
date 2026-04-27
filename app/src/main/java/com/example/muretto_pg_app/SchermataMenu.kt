@@ -25,8 +25,11 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> Unit) {
-    val MioFontPersonalizzato = FontFamily(Font(R.font.jackboa))
+    val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
     val listaModalita = listOf("Muretto classico", "2 VS 2", "Evento", "Allenamento")
+
+    // Stato per il popup di scelta Casuale/Predefinita
+    var mostraDialog2vs2 by remember { mutableStateOf(false) }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -48,7 +51,7 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
                     CardModalita(nomeModalita = nome, onClick = {
                         when (nome) {
                             "Muretto classico" -> onSelezionaModalita("muretto_classico")
-                            "2 VS 2" -> onSelezionaModalita("due_contro_due")
+                            "2 VS 2" -> mostraDialog2vs2 = true // Apre il popup invece di andare diretto
                             "Allenamento" -> onSelezionaModalita("allenamento")
                             else -> {}
                         }
@@ -56,6 +59,27 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
                 }
             }
         }
+    }
+
+    if (mostraDialog2vs2) {
+        AlertDialog(
+            onDismissRequest = { mostraDialog2vs2 = false },
+            containerColor = Color(0xFF222222),
+            title = { Text("MODALITÀ 2 VS 2", color = Color.White, fontFamily = MioFontPersonalizzato, fontSize = 24.sp) },
+            text = { Text("Come vuoi formare le coppie?", color = Color.Gray, fontSize = 16.sp) },
+            confirmButton = {
+                Button(colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)), onClick = {
+                    mostraDialog2vs2 = false
+                    onSelezionaModalita("due_contro_due/${TipoTorneo.COPPIE_CASUALI.name}")
+                }) { Text("CASUALI", color = Color.White, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                Button(colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray), onClick = {
+                    mostraDialog2vs2 = false
+                    onSelezionaModalita("due_contro_due/${TipoTorneo.COPPIE_PREDEFINITE.name}")
+                }) { Text("PREDEFINITE", color = Color.White, fontWeight = FontWeight.Bold) }
+            }
+        )
     }
 }
 

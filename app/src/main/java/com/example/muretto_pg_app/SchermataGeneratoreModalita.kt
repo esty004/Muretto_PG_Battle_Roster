@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.sp
 fun SchermataGeneratoreModalita(onTornaIndietro: () -> Unit) {
     val context = LocalContext.current
     val modalitaPool = remember<List<String>> { DatiAllenamento.caricaModalita(context) }
-    val MioFontPersonalizzato = FontFamily(Font(R.font.jackboa))
+    val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
     var modalitaCorrente by remember { mutableStateOf("PREMI PER\nGENERARE") }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {

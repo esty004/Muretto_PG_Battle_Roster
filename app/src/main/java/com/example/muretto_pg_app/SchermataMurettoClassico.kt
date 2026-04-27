@@ -1,6 +1,11 @@
 package com.example.muretto_pg_app
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -11,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
@@ -23,25 +29,29 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SchermataMurettoClassico(
-    is2v2: Boolean,
+    tipoTorneo: TipoTorneo,
     onTornaAlMenu: () -> Unit,
     onIniziaBattle: () -> Unit
 ) {
-    val MioFontPersonalizzato = FontFamily(Font(R.font.jackboa))
+    val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
     val focusManager = LocalFocusManager.current
+    val is2v2 = tipoTorneo != TipoTorneo.SINGOLO
 
     var listaMcs by remember {
         mutableStateOf(
@@ -63,19 +73,29 @@ fun SchermataMurettoClassico(
     var testoRicerca by remember { mutableStateOf("") }
     var searchFocused by remember { mutableStateOf(false) }
     var mcsSelezionati by remember { mutableStateOf(listOf<String>()) }
+
     var mostraDialogAggiunta by remember { mutableStateOf(false) }
     var nomeNuovoMc by remember { mutableStateOf("") }
 
+    // Stati per il Blocco Note (Lista)
+    var mostraNotepad by remember { mutableStateOf(false) }
+    var testoNotepad by remember { mutableStateOf("") }
+
     val listaFiltrata = listaMcs.filter { it.nome.contains(testoRicerca, ignoreCase = true) }
 
-    // Intercetta il tasto "Indietro" di sistema per chiudere solo la tastiera
-    BackHandler(enabled = searchFocused) {
-        focusManager.clearFocus()
+    // Intercetta il tasto "Indietro" di sistema
+    BackHandler(enabled = searchFocused || mostraNotepad) {
+        if (mostraNotepad) {
+            mostraNotepad = false
+        } else {
+            focusManager.clearFocus()
+        }
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
         Box(modifier = Modifier.fillMaxSize()) {
 
+            // --- SCHERMATA PRINCIPALE (GRIGLIA) ---
             Column(modifier = Modifier.fillMaxSize().padding(bottom = 80.dp)) {
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 10.dp)) {
                     IconButton(
@@ -91,6 +111,11 @@ fun SchermataMurettoClassico(
                         Text("<", color = Color.White, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
                     }
                     Text("SELEZIONA GLI MC", color = Color.White, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center).offset(x = 15.dp))
+                }
+
+                // AVVISI UTILI PER L'UTENTE
+                if (tipoTorneo == TipoTorneo.COPPIE_PREDEFINITE) {
+                    Text("ℹ️ PREDEFINITE: Seleziona gli MC nell'ordine delle coppie (1° con 2°, 3° con 4°...)", color = Color.Cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp))
                 }
 
                 if (is2v2 && mcsSelezionati.size % 2 != 0) {
@@ -135,13 +160,40 @@ fun SchermataMurettoClassico(
                 }
             }
 
-            FloatingActionButton(onClick = { mostraDialogAggiunta = true }, containerColor = Color(0xFF4CAF50), contentColor = Color.White, shape = CircleShape, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 100.dp)) {
+            // --- PULSANTI FLOTTANTI ---
+
+            // Bottone LISTA (Notepad) circolare VERDE con testo "TxT", posizionato sopra al bottone +
+            FloatingActionButton(
+                onClick = { mostraNotepad = true },
+                containerColor = Color(0xFF4CAF50), // Verde come il tasto +
+                contentColor = Color.White,
+                shape = CircleShape,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 170.dp)
+            ) {
+                Text(
+                    text = "TxT",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Color.White
+                )
+            }
+
+            // Bottone + (Aggiungi singolo MC) a destra
+            FloatingActionButton(
+                onClick = { mostraDialogAggiunta = true },
+                containerColor = Color(0xFF4CAF50),
+                contentColor = Color.White,
+                shape = CircleShape,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 100.dp)
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Aggiungi MC", modifier = Modifier.size(30.dp))
             }
 
+            // Bottone INIZIA BATTLE al centro in basso
             Button(
                 onClick = {
                     GestoreBattle.resetSelezione()
+                    // L'uso di mapNotNull preserva l'ordine esatto di mcsSelezionati (fondamentale per Predefinite)
                     val selezionatiVeri = mcsSelezionati.mapNotNull { id -> listaMcs.find { it.id == id } }
                     GestoreBattle.mcsSelezionati.addAll(selezionatiVeri)
 
@@ -155,14 +207,99 @@ fun SchermataMurettoClassico(
                     containerColor = Color(0xFFD32F2F),
                     disabledContainerColor = Color.DarkGray
                 ),
-                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 16.dp, vertical = 20.dp).height(60.dp),
-                shape = RoundedCornerShape(12.dp)
+                shape = CircleShape, // Trasforma il rettangolo in una pillola
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth(0.85f) // Leggermente più stretto per evidenziare la curvatura
+                    .padding(vertical = 20.dp)
+                    .height(60.dp)
             ) {
                 Text("INIZIA BATTLE", color = Color.White, fontSize = 22.sp, fontFamily = MioFontPersonalizzato)
             }
+
+            // --- SCHERMATA BLOCCO NOTE (Stile BandLab) ---
+            AnimatedVisibility(
+                visible = mostraNotepad,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+                exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF121212)) {
+                    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+
+                        // Header del Notepad
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 40.dp, bottom = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            IconButton(onClick = { mostraNotepad = false }) {
+                                Text("<", color = Color.White, fontSize = 40.sp, fontFamily = MioFontPersonalizzato)
+                            }
+
+                            Text("BLOCCO NOTE", color = Color.White, fontSize = 24.sp, fontFamily = MioFontPersonalizzato)
+
+                            Button(
+                                onClick = {
+                                    // LOGICA DI PARSING MANTIENE L'ORDINE (Ottimo per COPPIE_PREDEFINITE)
+                                    val lines = testoNotepad.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
+                                    val nuoviIdSelezionati = mutableListOf<String>()
+                                    var listaAggiornata = listaMcs.toList()
+
+                                    for (line in lines) {
+                                        // Se 2vs2, divide la riga usando " e " come separatore
+                                        val nomiDaProcessare = if (is2v2) {
+                                            line.split(Regex("(?i)\\s+e\\s+")).map { it.trim() }.filter { it.isNotEmpty() }
+                                        } else {
+                                            listOf(line)
+                                        }
+
+                                        for (nome in nomiDaProcessare) {
+                                            val esistente = listaAggiornata.find { it.nome.equals(nome, ignoreCase = true) }
+                                            if (esistente != null) {
+                                                nuoviIdSelezionati.add(esistente.id)
+                                            } else {
+                                                val nuovoMc = Freestyler(UUID.randomUUID().toString(), nome, R.drawable.no_pic)
+                                                listaAggiornata = listaAggiornata + nuovoMc
+                                                nuoviIdSelezionati.add(nuovoMc.id)
+                                            }
+                                        }
+                                    }
+
+                                    listaMcs = listaAggiornata
+                                    mcsSelezionati = (mcsSelezionati + nuoviIdSelezionati).distinct() // Mantiene ordine originale
+                                    testoNotepad = ""
+                                    mostraNotepad = false
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                                shape = CircleShape
+                            ) {
+                                Text("PROSEGUI", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        // Area di Testo
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp)) {
+                            if (testoNotepad.isEmpty()) {
+                                val placeholder = if (is2v2) "Scrivi qui...\n(Es. Mogio e Bisca)" else "Scrivi qui...\n(Un nome per riga)"
+                                Text(placeholder, color = Color.DarkGray, fontSize = 20.sp, lineHeight = 30.sp)
+                            }
+                            BasicTextField(
+                                value = testoNotepad,
+                                onValueChange = { testoNotepad = it },
+                                textStyle = TextStyle(color = Color.White, fontSize = 20.sp, lineHeight = 30.sp),
+                                cursorBrush = SolidColor(Color.White),
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                }
+            }
+
         }
     }
 
+    // --- POPUP AGGIUNTA SINGOLA ---
     if (mostraDialogAggiunta) {
         AlertDialog(
             onDismissRequest = { mostraDialogAggiunta = false },

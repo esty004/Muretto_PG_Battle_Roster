@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (String) -> Unit) {
-    val MioFontPersonalizzato = FontFamily(Font(R.font.jackboa))
+    val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
     
     LaunchedEffect(Unit) {
         GestoreAllenamento.inizializzaSeVuoto()

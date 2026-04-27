@@ -65,7 +65,7 @@ val listaModalitaSpareggio = listOf(
 
 @Composable
 fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
-    val MioFontPersonalizzato = FontFamily(Font(R.font.jackboa))
+    val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
     val context = LocalContext.current
 
     val indiceRound = GestoreBattle.roundsAttuali.indexOfFirst { it.id == roundId }

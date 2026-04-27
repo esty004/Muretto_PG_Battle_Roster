@@ -20,18 +20,21 @@ data class Round(
 )
 
 enum class FaseTorneo { OTTAVI, QUARTI, SEMIFINALE, FINALE }
+enum class TipoTorneo { SINGOLO, COPPIE_CASUALI, COPPIE_PREDEFINITE }
 
 object GestoreBattle {
     var mcsSelezionati = mutableStateListOf<Freestyler>()
     var roundsAttuali = mutableStateListOf<Round>()
     var faseAttuale = FaseTorneo.OTTAVI
     var is2v2 = false
+    var tipoTorneoAttuale = TipoTorneo.SINGOLO
 
     fun resetSelezione() {
         mcsSelezionati.clear()
         roundsAttuali.clear()
         faseAttuale = FaseTorneo.OTTAVI
         is2v2 = false
+        tipoTorneoAttuale = TipoTorneo.SINGOLO
     }
 
     fun determinaFase(numeroPartecipanti: Int): FaseTorneo {
@@ -45,27 +48,31 @@ object GestoreBattle {
 
     fun iniziaTorneo(partecipanti: List<Freestyler>) {
         is2v2 = false
+        tipoTorneoAttuale = TipoTorneo.SINGOLO
         val faseIniziale = determinaFase(partecipanti.size)
         generaFase(faseIniziale, partecipanti)
     }
 
-    fun iniziaTorneo2v2(partecipanti: List<Freestyler>) {
+    fun iniziaTorneo2v2(partecipanti: List<Freestyler>, tipo: TipoTorneo) {
         is2v2 = true
-        val shuffled = partecipanti.shuffled()
+        tipoTorneoAttuale = tipo
+
+        // Se è casuale, mischia. Altrimenti mantiene l'ordine in cui sono stati selezionati (o scritti nel notepad)
+        val lista = if (tipo == TipoTorneo.COPPIE_CASUALI) partecipanti.shuffled() else partecipanti.toList()
         val coppie = mutableListOf<Freestyler>()
 
-        for (i in 0 until (shuffled.size / 2) * 2 step 2) {
+        for (i in 0 until (lista.size / 2) * 2 step 2) {
             coppie.add(
                 Freestyler(
-                    id = "${shuffled[i].id}_${shuffled[i+1].id}",
-                    nome = "${shuffled[i].nome} & ${shuffled[i+1].nome}",
+                    id = "${lista[i].id}_${lista[i+1].id}",
+                    nome = "${lista[i].nome} & ${lista[i+1].nome}",
                     immagineId = R.drawable.due_contro_due
                 )
             )
         }
 
-        if (shuffled.size % 2 != 0) {
-            coppie.add(shuffled.last())
+        if (lista.size % 2 != 0) {
+            coppie.add(lista.last())
         }
 
         val faseIniziale = determinaFase(coppie.size)
@@ -103,6 +110,7 @@ object GestoreBattle {
         val gson = Gson()
         sharedPref.edit().apply {
             putString("fase", faseAttuale.name)
+            putString("tipoTorneo", tipoTorneoAttuale.name)
             putString("rounds", gson.toJson(roundsAttuali.toList()))
             putBoolean("is2v2", is2v2)
             apply()
@@ -115,6 +123,7 @@ object GestoreBattle {
         val sharedPref = context.getSharedPreferences("battle_pref", Context.MODE_PRIVATE)
         val gson = Gson()
         faseAttuale = FaseTorneo.valueOf(sharedPref.getString("fase", "OTTAVI") ?: "OTTAVI")
+        tipoTorneoAttuale = TipoTorneo.valueOf(sharedPref.getString("tipoTorneo", "SINGOLO") ?: "SINGOLO")
         is2v2 = sharedPref.getBoolean("is2v2", false)
         val roundsJson = sharedPref.getString("rounds", null)
         if (roundsJson != null) {

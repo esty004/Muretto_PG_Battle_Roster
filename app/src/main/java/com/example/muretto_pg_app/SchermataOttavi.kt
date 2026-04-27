@@ -33,7 +33,7 @@ fun SchermataOttavi(
     onVaiAiQuarti: () -> Unit,
     onRoundClick: (String) -> Unit
 ) {
-    val MioFont = FontFamily(Font(R.font.jackboa))
+    val MioFont = FontFamily(Font(R.font.komtit__))
     val context = LocalContext.current
     val listaRounds = GestoreBattle.roundsAttuali
     val tuttiFiniti = listaRounds.isNotEmpty() && listaRounds.all { it.completato }
@@ -95,9 +95,15 @@ fun SchermataOttavi(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(0.8f).padding(bottom = 20.dp).height(60.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text(testoBottone, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+                    shape = CircleShape, // Applica lo stile arrotondato
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth(0.8f)
+                        .padding(bottom = 20.dp)
+                        .height(60.dp)
+                ) {
+                    Text(testoBottone, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
