@@ -46,6 +46,12 @@ fun SchermataOttavi(
     val listaRounds = GestoreBattle.roundsAttuali
     val tuttiFiniti = listaRounds.isNotEmpty() && listaRounds.all { it.completato }
 
+    val titoloSchermata = if (GestoreBattle.is2v2) {
+        "2 VS 2 - ${GestoreBattle.faseAttuale.name}"
+    } else {
+        GestoreBattle.faseAttuale.name
+    }
+
     var mostraDialogAggiunta by remember { mutableStateOf(false) }
     var nomeNuovoMc by remember { mutableStateOf("") }
 
@@ -72,11 +78,20 @@ fun SchermataOttavi(
             }
 
             if (tuttiFiniti) {
-                val testoBottone = when(GestoreBattle.faseAttuale) {
-                    FaseTorneo.OTTAVI -> "PASSAGGIO AI QUARTI"
-                    FaseTorneo.QUARTI -> "PASSAGGIO IN SEMIFINALE"
-                    FaseTorneo.SEMIFINALE -> "VAI ALLA FINALE"
-                    FaseTorneo.FINALE -> "CONCLUDI TORNEO"
+                val vincitori = GestoreBattle.roundsAttuali.mapNotNull { r ->
+                    r.partecipanti.find { it.id == r.vincitoreId }
+                }
+                val prossimaFase = GestoreBattle.determinaFase(vincitori.size)
+
+                val testoBottone = if (GestoreBattle.faseAttuale == FaseTorneo.FINALE) {
+                    "CONCLUDI TORNEO"
+                } else {
+                    when(prossimaFase) {
+                        FaseTorneo.QUARTI -> "PASSAGGIO AI QUARTI"
+                        FaseTorneo.SEMIFINALE -> "PASSAGGIO IN SEMIFINALE"
+                        FaseTorneo.FINALE -> "VAI ALLA FINALE"
+                        else -> "PROSSIMA FASE"
+                    }
                 }
 
                 Button(

@@ -75,6 +75,14 @@ object GestoreBattle {
             teams.size < 16 -> generaFase(FaseTorneo.QUARTI, teams)     // 8-15 Team = Quarti
             else -> generaFase(FaseTorneo.OTTAVI, teams)                // 16+ Team = Ottavi completi!
         }
+
+        // Se c'è un MC dispari, lo aggiungiamo come "singolo"
+        if (shuffled.size % 2 != 0) {
+            coppie.add(shuffled.last())
+        }
+
+        val faseIniziale = determinaFase(coppie.size)
+        generaFase(faseIniziale, coppie)
     }
 
     fun generaFase(fase: FaseTorneo, teams: List<Team>) {
@@ -93,10 +101,6 @@ object GestoreBattle {
         teams.shuffled().forEachIndexed { i, team ->
             liste[i % numRound].add(team)
         }
-
-        roundsAttuali.addAll(liste.mapIndexed { i, p ->
-            Round("r_${fase.name}_$i", i + 1, p)
-        })
     }
 
     fun salvaProgresso(context: Context) {
@@ -106,6 +110,7 @@ object GestoreBattle {
             putString("fase", faseAttuale.name)
             putString("tipoTorneo", tipoTorneoAttuale.name)
             putString("rounds", gson.toJson(roundsAttuali.toList()))
+            putBoolean("is2v2", is2v2)
             apply()
         }
     }
