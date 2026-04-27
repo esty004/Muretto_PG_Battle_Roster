@@ -39,6 +39,7 @@ import kotlin.math.roundToInt
 
 data class ModalitaSpareggio(val nome: String, val colore: Color)
 
+// Le 21 Modalità definitive (senza doppioni)
 val listaModalitaSpareggio = listOf(
     ModalitaSpareggio("4/4", Color(0xFFE53935)),
     ModalitaSpareggio("4/4\nArgomenti", Color(0xFFF4511E)),
@@ -54,7 +55,13 @@ val listaModalitaSpareggio = listOf(
     ModalitaSpareggio("Linker", Color(0xFF3949AB)),
     ModalitaSpareggio("Taboo", Color(0xFF5E35B1)),
     ModalitaSpareggio("Modalità\nPersonaggi", Color(0xFF8E24AA)),
-    ModalitaSpareggio("Modalità\nSituazioni", Color(0xFFD81B60))
+    ModalitaSpareggio("Modalità\nSituazioni", Color(0xFFD81B60)),
+    ModalitaSpareggio("Cypher\nTecniche", Color(0xFFE91E63)),
+    ModalitaSpareggio("Oggetti", Color(0xFF9C27B0)),
+    ModalitaSpareggio("Immagini", Color(0xFF673AB7)),
+    ModalitaSpareggio("4/4 Tecniche\nPerfette", Color(0xFF3F51B5)),
+    ModalitaSpareggio("Handicap\nMatch", Color(0xFF009688)),
+    ModalitaSpareggio("1 vs 1", Color(0xFF795548))
 )
 
 @Composable
@@ -111,12 +118,12 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
                         modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
                     ) {
-                        round.partecipanti.forEachIndexed { index, mc ->
+                        round.partecipanti.forEachIndexed { index, team ->
                             Box(
-                                modifier = Modifier.clickable { vincitoreTemporaneoId = if (vincitoreTemporaneoId == mc.id) null else mc.id }.padding(vertical = 8.dp),
+                                modifier = Modifier.clickable { vincitoreTemporaneoId = if (vincitoreTemporaneoId == team.id) null else team.id }.padding(vertical = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                BoxMC(mc = mc, isVincitore = vincitoreTemporaneoId == mc.id, isSconfitto = vincitoreTemporaneoId != null && vincitoreTemporaneoId != mc.id, width = 160.dp, height = 200.dp)
+                                BoxTeam(team = team, isVincitore = vincitoreTemporaneoId == team.id, isSconfitto = vincitoreTemporaneoId != null && vincitoreTemporaneoId != team.id, width = 160.dp, height = 200.dp)
                             }
                             if (index < round.partecipanti.size - 1) {
                                 Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(60.dp).padding(vertical = 4.dp))
@@ -211,7 +218,8 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
                             listaModalitaSpareggio.forEachIndexed { i, mod ->
                                 Box(modifier = Modifier.matchParentSize().rotate(i * sweepAngle)) {
                                     Text(
-                                        text = mod.nome, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 9.sp, lineHeight = 10.sp, textAlign = TextAlign.Center,
+                                        // Font ridotto a 7.sp per far stare comodamente le 21 modalità
+                                        text = mod.nome, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 7.sp, lineHeight = 8.sp, textAlign = TextAlign.Center,
                                         modifier = Modifier.align(Alignment.TopCenter).padding(top = 10.dp)
                                     )
                                 }

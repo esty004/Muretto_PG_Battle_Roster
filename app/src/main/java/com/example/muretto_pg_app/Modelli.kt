@@ -9,88 +9,71 @@ import androidx.compose.runtime.setValue
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
-/**
- * Modello dati per un Freestyler (MC).
- */
 data class Freestyler(val id: String, val nome: String, val immagineId: Int)
 
-/**
- * Modello dati per un Round del torneo.
- */
+// Nuovo modello: Il partecipante di un round è ora un "Team" (può essere singolo o coppia)
+data class Team(
+    val id: String,
+    val nome: String,
+    val membri: List<Freestyler>
+)
+
 data class Round(
     val id: String,
     val numero: Int,
-    var partecipanti: List<Freestyler>,
+    var partecipanti: List<Team>,
     var completato: Boolean = false,
     var vincitoreId: String? = null
 )
 
-/**
- * Fasi disponibili nel torneo.
- */
 enum class FaseTorneo { OTTAVI, QUARTI, SEMIFINALE, FINALE }
+enum class TipoTorneo { SINGOLO, COPPIE_CASUALI, COPPIE_PREDEFINITE }
 
-/**
- * Singleton che gestisce lo stato del Torneo Classico.
- * Gestisce la logica di generazione dei tabelloni e il salvataggio persistente.
- */
 object GestoreBattle {
-    var mcsSelezionati = mutableStateListOf<Freestyler>()
+    var mcsSelezionati = mutableStateListOf<Freestyler>() // Usato temporaneamente per la selezione
     var roundsAttuali = mutableStateListOf<Round>()
     var faseAttuale = FaseTorneo.OTTAVI
-    var is2v2 = false
+    var tipoTorneoAttuale = TipoTorneo.SINGOLO
 
-    /**
-     * Resetta completamente il torneo.
-     */
     fun resetSelezione() {
         mcsSelezionati.clear()
         roundsAttuali.clear()
         faseAttuale = FaseTorneo.OTTAVI
-        is2v2 = false
+        tipoTorneoAttuale = TipoTorneo.SINGOLO
     }
 
-    /**
-     * Determina il nome della fase appropriato in base al numero di partecipanti.
-     */
-    fun determinaFase(numeroPartecipanti: Int): FaseTorneo {
-        return when {
-            numeroPartecipanti > 12 -> FaseTorneo.OTTAVI
-            numeroPartecipanti > 6 -> FaseTorneo.QUARTI
-            numeroPartecipanti > 3 -> FaseTorneo.SEMIFINALE
-            else -> FaseTorneo.FINALE
+    // Trasforma la lista di Freestyler selezionati in Team e avvia
+    fun preparaEIniziaTorneo(tipo: TipoTorneo, mcs: List<Freestyler>) {
+        tipoTorneoAttuale = tipo
+        val teams = when (tipo) {
+            TipoTorneo.SINGOLO -> mcs.map { Team(it.id, it.nome, listOf(it)) }
+            TipoTorneo.COPPIE_CASUALI -> {
+                // Scarta l'ultimo MC se il numero è dispari
+                val mcsPari = if (mcs.size % 2 != 0) mcs.dropLast(1) else mcs
+                mcsPari.shuffled().chunked(2).mapIndexed { index, chunk ->
+                    val nome = chunk.joinToString(" & ") { it.nome }
+                    Team("team_cas_$index", nome, chunk)
+                }
+            }
+            TipoTorneo.COPPIE_PREDEFINITE -> {
+                // Scarta l'ultimo MC se il numero è dispari
+                val mcsPari = if (mcs.size % 2 != 0) mcs.dropLast(1) else mcs
+                mcsPari.chunked(2).mapIndexed { index, chunk ->
+                    val nome = chunk.joinToString(" & ") { it.nome }
+                    Team("team_pre_$index", nome, chunk)
+                }
+            }
         }
+        iniziaTorneo(teams)
     }
 
-    /**
-     * Avvia il torneo decidendo la fase iniziale in base al numero di MC selezionati.
-     */
-    fun iniziaTorneo(partecipanti: List<Freestyler>) {
-        is2v2 = false
-        val faseIniziale = determinaFase(partecipanti.size)
-        generaFase(faseIniziale, partecipanti)
-    }
-
-    /**
-     * Avvia il torneo in modalità 2v2.
-     * Crea coppie casuali e poi genera la fase.
-     */
-    fun iniziaTorneo2v2(partecipanti: List<Freestyler>) {
-        is2v2 = true
-        val shuffled = partecipanti.shuffled()
-        val coppie = mutableListOf<Freestyler>()
-
-        // Accoppia i partecipanti
-        for (i in 0 until (shuffled.size / 2) * 2 step 2) {
-            val p1 = shuffled[i]
-            val p2 = shuffled[i + 1]
-            coppie.add(
-                Freestyler(
-                    id = "${p1.id}_${p2.id}",
-                    nome = "${p1.nome} & ${p2.nome}",
-                    immagineId = R.drawable.due_contro_due
-                )
-            )
+    // --- LA MATEMATICA CORRETTA DEL MURETTO ---
+    fun iniziaTorneo(teams: List<Team>) {
+        when {
+            teams.size < 4 -> generaFase(FaseTorneo.FINALE, teams)      // 2 o 3 Team = Finale diretta
+            teams.size < 8 -> generaFase(FaseTorneo.SEMIFINALE, teams)  // 4-7 Team = Semifinale
+            teams.size < 16 -> generaFase(FaseTorneo.QUARTI, teams)     // 8-15 Team = Quarti
+            else -> generaFase(FaseTorneo.OTTAVI, teams)                // 16+ Team = Ottavi completi!
         }
 
         // Se c'è un MC dispari, lo aggiungiamo come "singolo"
@@ -102,53 +85,30 @@ object GestoreBattle {
         generaFase(faseIniziale, coppie)
     }
 
-    /**
-     * Crea i round per una specifica fase distribuendo gli MC in modo casuale.
-     */
-    fun generaFase(fase: FaseTorneo, partecipanti: List<Freestyler>) {
+    fun generaFase(fase: FaseTorneo, teams: List<Team>) {
         faseAttuale = fase
         roundsAttuali.clear()
 
-        if (partecipanti.isEmpty()) return
+        val numRound = when(fase) {
+            FaseTorneo.OTTAVI -> 8
+            FaseTorneo.QUARTI -> 4
+            FaseTorneo.SEMIFINALE -> 2
+            FaseTorneo.FINALE -> 1
+        }
 
-        val shuffled = partecipanti.shuffled()
-        val total = shuffled.size
+        val liste = List(numRound) { mutableListOf<Team>() }
 
-        if (total % 2 == 0) {
-            // Pari: tutti 1v1
-            for (i in 0 until total step 2) {
-                roundsAttuali.add(Round("r_${fase.name}_${i / 2}", (i / 2) + 1, listOf(shuffled[i], shuffled[i + 1])))
-            }
-        } else {
-            // Dispari: massimizza gli 1v1 e crea esattamente un 3-person rumble
-            if (total >= 3) {
-                val num1v1 = (total - 3) / 2
-                for (i in 0 until num1v1) {
-                    roundsAttuali.add(Round("r_${fase.name}_$i", i + 1, listOf(shuffled[i * 2], shuffled[i * 2 + 1])))
-                }
-                // Aggiunge la rumble da 3 alla fine
-                val startIndexForRumble = num1v1 * 2
-                roundsAttuali.add(
-                    Round(
-                        "r_${fase.name}_$num1v1",
-                        num1v1 + 1,
-                        listOf(shuffled[startIndexForRumble], shuffled[startIndexForRumble + 1], shuffled[startIndexForRumble + 2])
-                    )
-                )
-            } else {
-                // Caso limite con 1 solo partecipante
-                roundsAttuali.add(Round("r_${fase.name}_0", 1, listOf(shuffled[0])))
-            }
+        teams.shuffled().forEachIndexed { i, team ->
+            liste[i % numRound].add(team)
         }
     }
-
-    // --- LOGICA DI PERSISTENZA (SharedPreferences + GSON) ---
 
     fun salvaProgresso(context: Context) {
         val sharedPref = context.getSharedPreferences("battle_pref", Context.MODE_PRIVATE)
         val gson = Gson()
         sharedPref.edit().apply {
             putString("fase", faseAttuale.name)
+            putString("tipoTorneo", tipoTorneoAttuale.name)
             putString("rounds", gson.toJson(roundsAttuali.toList()))
             putBoolean("is2v2", is2v2)
             apply()
@@ -163,8 +123,9 @@ object GestoreBattle {
         val sharedPref = context.getSharedPreferences("battle_pref", Context.MODE_PRIVATE)
         val gson = Gson()
         val faseStr = sharedPref.getString("fase", "OTTAVI")
+        val tipoStr = sharedPref.getString("tipoTorneo", "SINGOLO")
         faseAttuale = FaseTorneo.valueOf(faseStr ?: "OTTAVI")
-        is2v2 = sharedPref.getBoolean("is2v2", false)
+        tipoTorneoAttuale = TipoTorneo.valueOf(tipoStr ?: "SINGOLO")
 
         val roundsJson = sharedPref.getString("rounds", null)
         if (roundsJson != null) {
@@ -181,20 +142,14 @@ object GestoreBattle {
     }
 }
 
-/**
- * Singleton che mantiene lo stato della sezione Allenamento.
- * Essendo globale, i dati (MC selezionati, battle generate, tab attiva) 
- * non vengono persi navigando tra le schermate.
- */
 object GestoreAllenamento {
-    var tabSelezionata by mutableIntStateOf(0) // 0: Matchmaking, 1: Generatori
+    var tabSelezionata by mutableIntStateOf(0)
     var mcsSelezionatiIds by mutableStateOf(setOf<String>())
     var mostraRisultatiMatchmaking by mutableStateOf(false)
     var battleGenerate by mutableStateOf(listOf<Pair<Freestyler, Freestyler>>())
     var mcSingolo by mutableStateOf<Freestyler?>(null)
     var testoRicerca by mutableStateOf("")
-    
-    // Lista caricata una sola volta per tutto il ciclo di vita dell'app
+
     var listaMcsAllenamento = mutableStateListOf<Freestyler>()
 
     fun inizializzaSeVuoto() {
@@ -236,9 +191,6 @@ object GestoreAllenamento {
     )
 }
 
-/**
- * Dataset statici per i generatori.
- */
 object DatiAllenamento {
     val argomenti = listOf(
         "Intelligenza Artificiale", "criptovalute", "viaggi nel tempo", "italia", "videogiochi",
@@ -260,26 +212,6 @@ object DatiAllenamento {
     val modalita = listOf(
         "4/4", "4/4 Argomento", "3/4", "3/4 Argomento", "8/4", "8/4 Argomento", "Kickback Minuti", "Kickback 4/4",
         "Minuto Libero", "Minuto Beat Scelta", "Minuto Beat Argomento", "Linker", "Taboo", "Modalità Personaggi", "Modalità Situazioni", "Universi Paralleli",
-        "Sono il tuo più grande fan", "Cover Battle"
+        "Sono il tuo più grande fan", "Cover Battle", "Cypher Tecniche", "Oggetti", "Immagini", "4/4 Tecniche Perfette 1vs1", "Handicap Match", "1 VS 1"
     )
-
-    fun caricaArgomenti(context: Context): List<String> {
-        return try {
-            val json = context.resources.openRawResource(R.raw.topics).bufferedReader().use { it.readText() }
-            val type = object : TypeToken<List<String>>() {}.type
-            Gson().fromJson(json, type)
-        } catch (e: Exception) {
-            argomenti
-        }
-    }
-
-    fun caricaModalita(context: Context): List<String> {
-        return try {
-            val json = context.resources.openRawResource(R.raw.modes).bufferedReader().use { it.readText() }
-            val type = object : TypeToken<List<String>>() {}.type
-            Gson().fromJson(json, type)
-        } catch (e: Exception) {
-            modalita
-        }
-    }
 }
