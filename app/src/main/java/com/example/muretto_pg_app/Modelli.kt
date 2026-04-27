@@ -11,72 +11,59 @@ import com.google.gson.reflect.TypeToken
 
 data class Freestyler(val id: String, val nome: String, val immagineId: Int)
 
-// Nuovo modello: Il partecipante di un round è ora un "Team" (può essere singolo o coppia)
-data class Team(
-    val id: String,
-    val nome: String,
-    val membri: List<Freestyler>
-)
-
 data class Round(
     val id: String,
     val numero: Int,
-    var partecipanti: List<Team>,
+    var partecipanti: List<Freestyler>,
     var completato: Boolean = false,
     var vincitoreId: String? = null
 )
 
 enum class FaseTorneo { OTTAVI, QUARTI, SEMIFINALE, FINALE }
-enum class TipoTorneo { SINGOLO, COPPIE_CASUALI, COPPIE_PREDEFINITE }
 
 object GestoreBattle {
-    var mcsSelezionati = mutableStateListOf<Freestyler>() // Usato temporaneamente per la selezione
+    var mcsSelezionati = mutableStateListOf<Freestyler>()
     var roundsAttuali = mutableStateListOf<Round>()
     var faseAttuale = FaseTorneo.OTTAVI
-    var tipoTorneoAttuale = TipoTorneo.SINGOLO
+    var is2v2 = false
 
     fun resetSelezione() {
         mcsSelezionati.clear()
         roundsAttuali.clear()
         faseAttuale = FaseTorneo.OTTAVI
-        tipoTorneoAttuale = TipoTorneo.SINGOLO
+        is2v2 = false
     }
 
-    // Trasforma la lista di Freestyler selezionati in Team e avvia
-    fun preparaEIniziaTorneo(tipo: TipoTorneo, mcs: List<Freestyler>) {
-        tipoTorneoAttuale = tipo
-        val teams = when (tipo) {
-            TipoTorneo.SINGOLO -> mcs.map { Team(it.id, it.nome, listOf(it)) }
-            TipoTorneo.COPPIE_CASUALI -> {
-                // Scarta l'ultimo MC se il numero è dispari
-                val mcsPari = if (mcs.size % 2 != 0) mcs.dropLast(1) else mcs
-                mcsPari.shuffled().chunked(2).mapIndexed { index, chunk ->
-                    val nome = chunk.joinToString(" & ") { it.nome }
-                    Team("team_cas_$index", nome, chunk)
-                }
-            }
-            TipoTorneo.COPPIE_PREDEFINITE -> {
-                // Scarta l'ultimo MC se il numero è dispari
-                val mcsPari = if (mcs.size % 2 != 0) mcs.dropLast(1) else mcs
-                mcsPari.chunked(2).mapIndexed { index, chunk ->
-                    val nome = chunk.joinToString(" & ") { it.nome }
-                    Team("team_pre_$index", nome, chunk)
-                }
-            }
+    fun determinaFase(numeroPartecipanti: Int): FaseTorneo {
+        return when {
+            numeroPartecipanti > 12 -> FaseTorneo.OTTAVI
+            numeroPartecipanti > 6 -> FaseTorneo.QUARTI
+            numeroPartecipanti > 3 -> FaseTorneo.SEMIFINALE
+            else -> FaseTorneo.FINALE
         }
-        iniziaTorneo(teams)
     }
 
-    // --- LA MATEMATICA CORRETTA DEL MURETTO ---
-    fun iniziaTorneo(teams: List<Team>) {
-        when {
-            teams.size < 4 -> generaFase(FaseTorneo.FINALE, teams)      // 2 o 3 Team = Finale diretta
-            teams.size < 8 -> generaFase(FaseTorneo.SEMIFINALE, teams)  // 4-7 Team = Semifinale
-            teams.size < 16 -> generaFase(FaseTorneo.QUARTI, teams)     // 8-15 Team = Quarti
-            else -> generaFase(FaseTorneo.OTTAVI, teams)                // 16+ Team = Ottavi completi!
+    fun iniziaTorneo(partecipanti: List<Freestyler>) {
+        is2v2 = false
+        val faseIniziale = determinaFase(partecipanti.size)
+        generaFase(faseIniziale, partecipanti)
+    }
+
+    fun iniziaTorneo2v2(partecipanti: List<Freestyler>) {
+        is2v2 = true
+        val shuffled = partecipanti.shuffled()
+        val coppie = mutableListOf<Freestyler>()
+
+        for (i in 0 until (shuffled.size / 2) * 2 step 2) {
+            coppie.add(
+                Freestyler(
+                    id = "${shuffled[i].id}_${shuffled[i+1].id}",
+                    nome = "${shuffled[i].nome} & ${shuffled[i+1].nome}",
+                    immagineId = R.drawable.due_contro_due
+                )
+            )
         }
 
-        // Se c'è un MC dispari, lo aggiungiamo come "singolo"
         if (shuffled.size % 2 != 0) {
             coppie.add(shuffled.last())
         }
@@ -85,21 +72,29 @@ object GestoreBattle {
         generaFase(faseIniziale, coppie)
     }
 
-    fun generaFase(fase: FaseTorneo, teams: List<Team>) {
+    fun generaFase(fase: FaseTorneo, partecipanti: List<Freestyler>) {
         faseAttuale = fase
         roundsAttuali.clear()
+        if (partecipanti.isEmpty()) return
 
-        val numRound = when(fase) {
-            FaseTorneo.OTTAVI -> 8
-            FaseTorneo.QUARTI -> 4
-            FaseTorneo.SEMIFINALE -> 2
-            FaseTorneo.FINALE -> 1
-        }
+        val shuffled = partecipanti.shuffled()
+        val total = shuffled.size
 
-        val liste = List(numRound) { mutableListOf<Team>() }
-
-        teams.shuffled().forEachIndexed { i, team ->
-            liste[i % numRound].add(team)
+        if (total % 2 == 0) {
+            for (i in 0 until total step 2) {
+                roundsAttuali.add(Round("r_${fase.name}_${i / 2}", (i / 2) + 1, listOf(shuffled[i], shuffled[i + 1])))
+            }
+        } else {
+            if (total >= 3) {
+                val num1v1 = (total - 3) / 2
+                for (i in 0 until num1v1) {
+                    roundsAttuali.add(Round("r_${fase.name}_$i", i + 1, listOf(shuffled[i * 2], shuffled[i * 2 + 1])))
+                }
+                val startRumble = num1v1 * 2
+                roundsAttuali.add(Round("r_${fase.name}_$num1v1", num1v1 + 1, listOf(shuffled[startRumble], shuffled[startRumble + 1], shuffled[startRumble + 2])))
+            } else {
+                roundsAttuali.add(Round("r_${fase.name}_0", 1, listOf(shuffled[0])))
+            }
         }
     }
 
@@ -108,25 +103,19 @@ object GestoreBattle {
         val gson = Gson()
         sharedPref.edit().apply {
             putString("fase", faseAttuale.name)
-            putString("tipoTorneo", tipoTorneoAttuale.name)
             putString("rounds", gson.toJson(roundsAttuali.toList()))
             putBoolean("is2v2", is2v2)
             apply()
         }
     }
 
-    fun haProgresso(context: Context): Boolean {
-        return context.getSharedPreferences("battle_pref", Context.MODE_PRIVATE).contains("rounds")
-    }
+    fun haProgresso(context: Context): Boolean = context.getSharedPreferences("battle_pref", Context.MODE_PRIVATE).contains("rounds")
 
     fun caricaProgresso(context: Context) {
         val sharedPref = context.getSharedPreferences("battle_pref", Context.MODE_PRIVATE)
         val gson = Gson()
-        val faseStr = sharedPref.getString("fase", "OTTAVI")
-        val tipoStr = sharedPref.getString("tipoTorneo", "SINGOLO")
-        faseAttuale = FaseTorneo.valueOf(faseStr ?: "OTTAVI")
-        tipoTorneoAttuale = TipoTorneo.valueOf(tipoStr ?: "SINGOLO")
-
+        faseAttuale = FaseTorneo.valueOf(sharedPref.getString("fase", "OTTAVI") ?: "OTTAVI")
+        is2v2 = sharedPref.getBoolean("is2v2", false)
         val roundsJson = sharedPref.getString("rounds", null)
         if (roundsJson != null) {
             val type = object : TypeToken<List<Round>>() {}.type
@@ -137,8 +126,7 @@ object GestoreBattle {
     }
 
     fun pulisciSalvataggio(context: Context) {
-        val sharedPref = context.getSharedPreferences("battle_pref", Context.MODE_PRIVATE)
-        sharedPref.edit().clear().apply()
+        context.getSharedPreferences("battle_pref", Context.MODE_PRIVATE).edit().clear().apply()
     }
 }
 
@@ -192,26 +180,17 @@ object GestoreAllenamento {
 }
 
 object DatiAllenamento {
-    val argomenti = listOf(
-        "Intelligenza Artificiale", "criptovalute", "viaggi nel tempo", "italia", "videogiochi",
-        "anime", "lavoro", "famiglia", "cucina", "sport", "casa", "tecnologia", "musica",
-        "cartoni", "sagre", "scuola", "trasporti pubblici", "figa", "politica", "amicizia",
-        "viaggi", "schiavismo", "guerra", "razzismo", "religione", "cinema", "calcio",
-        "basket", "alcol", "beatmaking", "poeti", "attori", "black humor", "imitazioni",
-        "geografia", "storia", "serie tv", "fortuna", "crimini", "serial killer", "harry potter",
-        "libri", "forme", "esami", "palestra", "vestiti", "emozioni", "giardinaggio", "animali",
-        "ludopatia", "modi di dire", "alfabeto", "numeri", "arte", "ricorrenze/feste", "insetti",
-        "meme", "laghi/fiumi", "fenomeni naturali", "attentati", "diritti delle donne",
-        "malattie", "violenza di genere", "dittatura", "moda", "bevande", "porno", "spazio",
-        "robot", "droga", "tempo libero", "supereroi", "soldi", "pokemon", "legge",
-        "forze dell'ordine", "motori", "complimenti all'avversario", "social", "dialetti",
-        "circo", "cosa non dire al primo appuntamento", "strumenti musicali", "catene fast food",
-        "animali che puoi cavalcare", "giocattoli", "hip hop italiano", "conscious", "yu-gi-oh"
-    )
+    fun caricaArgomenti(context: Context): List<String> {
+        return try {
+            val json = context.resources.openRawResource(R.raw.topics).bufferedReader().use { it.readText() }
+            Gson().fromJson(json, object : TypeToken<List<String>>() {}.type)
+        } catch (e: Exception) { listOf("Errore Caricamento") }
+    }
 
-    val modalita = listOf(
-        "4/4", "4/4 Argomento", "3/4", "3/4 Argomento", "8/4", "8/4 Argomento", "Kickback Minuti", "Kickback 4/4",
-        "Minuto Libero", "Minuto Beat Scelta", "Minuto Beat Argomento", "Linker", "Taboo", "Modalità Personaggi", "Modalità Situazioni", "Universi Paralleli",
-        "Sono il tuo più grande fan", "Cover Battle", "Cypher Tecniche", "Oggetti", "Immagini", "4/4 Tecniche Perfette 1vs1", "Handicap Match", "1 VS 1"
-    )
+    fun caricaModalita(context: Context): List<String> {
+        return try {
+            val json = context.resources.openRawResource(R.raw.modes).bufferedReader().use { it.readText() }
+            Gson().fromJson(json, object : TypeToken<List<String>>() {}.type)
+        } catch (e: Exception) { listOf("Errore Caricamento") }
+    }
 }

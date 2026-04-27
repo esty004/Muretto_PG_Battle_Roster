@@ -124,16 +124,23 @@ fun AppNavigation() {
         composable("generatore_modalita") { SchermataGeneratoreModalita(onTornaIndietro = { navController.popBackStack() }) }
         composable("generatore_parole") { SchermataGeneratoreParole(onTornaIndietro = { navController.popBackStack() }) }
 
-        // Rotta unificata per la selezione degli MC. Accetta il parametro TipoTorneo
-        composable("selezione_mcs/{tipoTorneo}") { backStackEntry ->
-            val tipoTorneoStr = backStackEntry.arguments?.getString("tipoTorneo") ?: "SINGOLO"
-            val tipoTorneo = TipoTorneo.valueOf(tipoTorneoStr)
-
+        composable("muretto_classico") {
             SchermataMurettoClassico(
-                tipoTorneo = tipoTorneo,
+                is2v2 = false,
                 onTornaAlMenu = { navController.popBackStack() },
                 onIniziaBattle = {
-                    GestoreBattle.preparaEIniziaTorneo(tipoTorneo, GestoreBattle.mcsSelezionati)
+                    GestoreBattle.iniziaTorneo(GestoreBattle.mcsSelezionati)
+                    navController.navigate("ottavi")
+                }
+            )
+        }
+
+        composable("due_contro_due") {
+            SchermataMurettoClassico(
+                is2v2 = true,
+                onTornaAlMenu = { navController.popBackStack() },
+                onIniziaBattle = {
+                    GestoreBattle.iniziaTorneo2v2(GestoreBattle.mcsSelezionati)
                     navController.navigate("ottavi")
                 }
             )

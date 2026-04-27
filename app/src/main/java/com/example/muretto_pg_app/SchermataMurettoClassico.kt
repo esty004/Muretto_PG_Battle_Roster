@@ -33,24 +33,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// Colori dinamici per le coppie
-val coloriCoppie = listOf(
-    Color(0xFF9C27B0), // Viola
-    Color(0xFFF44336), // Rosso
-    Color(0xFF2196F3), // Blu
-    Color(0xFFFF9800), // Arancione
-    Color(0xFF00BCD4), // Ciano
-    Color(0xFF8BC34A), // Verde Chiaro
-    Color(0xFFE91E63), // Rosa
-    Color(0xFFFFEB3B), // Giallo
-    Color(0xFF795548), // Marrone
-    Color(0xFF607D8B)  // Grigio Bluastro
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SchermataMurettoClassico(
-    tipoTorneo: TipoTorneo,
+    is2v2: Boolean,
     onTornaAlMenu: () -> Unit,
     onIniziaBattle: () -> Unit
 ) {
@@ -75,14 +61,14 @@ fun SchermataMurettoClassico(
     }
 
     var testoRicerca by remember { mutableStateOf("") }
-    var searchFocused by remember { mutableStateOf(false) } // Controlla se stai digitando
+    var searchFocused by remember { mutableStateOf(false) }
     var mcsSelezionati by remember { mutableStateOf(listOf<String>()) }
     var mostraDialogAggiunta by remember { mutableStateOf(false) }
     var nomeNuovoMc by remember { mutableStateOf("") }
 
     val listaFiltrata = listaMcs.filter { it.nome.contains(testoRicerca, ignoreCase = true) }
 
-    // Intercetta il tasto "Indietro" di sistema del telefono per chiudere solo la tastiera
+    // Intercetta il tasto "Indietro" di sistema per chiudere solo la tastiera
     BackHandler(enabled = searchFocused) {
         focusManager.clearFocus()
     }
@@ -94,7 +80,6 @@ fun SchermataMurettoClassico(
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 10.dp)) {
                     IconButton(
                         onClick = {
-                            // Se la barra di ricerca è attiva, chiude solo la tastiera. Altrimenti torna al menu.
                             if (searchFocused) {
                                 focusManager.clearFocus()
                             } else {
@@ -108,14 +93,8 @@ fun SchermataMurettoClassico(
                     Text("SELEZIONA GLI MC", color = Color.White, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center).offset(x = 15.dp))
                 }
 
-                if (tipoTorneo == TipoTorneo.COPPIE_PREDEFINITE) {
-                    Text("Seleziona gli MC nell'ordine esatto per formare le coppie.", color = Color.Gray, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
-                } else if (tipoTorneo == TipoTorneo.COPPIE_CASUALI) {
-                    Text("Gli MC verranno accoppiati in modo totalmente casuale.", color = Color.Gray, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
-                }
-
-                if (tipoTorneo != TipoTorneo.SINGOLO && mcsSelezionati.size % 2 != 0) {
-                    Text("⚠️ NUMERO DISPARI: L'ultimo MC selezionato verrà escluso!", color = Color(0xFFFFB300), fontSize = 13.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
+                if (is2v2 && mcsSelezionati.size % 2 != 0) {
+                    Text("⚠️ NUMERO DISPARI: L'ultimo MC verrà aggiunto da solo!", color = Color(0xFFFFB300), fontSize = 13.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp))
                 }
 
                 OutlinedTextField(
@@ -125,7 +104,7 @@ fun SchermataMurettoClassico(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .onFocusChanged { searchFocused = it.isFocused }, // Registra quando ci clicchi sopra
+                        .onFocusChanged { searchFocused = it.isFocused },
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFFD32F2F), unfocusedBorderColor = Color.DarkGray, focusedTextColor = Color.White, unfocusedTextColor = Color.White, cursorColor = Color.White),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp)
@@ -141,17 +120,9 @@ fun SchermataMurettoClassico(
                     items(listaFiltrata) { mc ->
                         val isSelezionato = mcsSelezionati.contains(mc.id)
 
-                        // I colori si attivano a coppie SOLO se siamo nella modalità Predefinita
-                        val indiceColore = if (isSelezionato && tipoTorneo == TipoTorneo.COPPIE_PREDEFINITE) {
-                            (mcsSelezionati.indexOf(mc.id) / 2) % coloriCoppie.size
-                        } else 0
-
-                        val coloreSelezione = if (tipoTorneo == TipoTorneo.COPPIE_PREDEFINITE) coloriCoppie[indiceColore] else Color.Green
-
                         CardFreestylerTorneo(
                             freestyler = mc,
                             isSelezionato = isSelezionato,
-                            coloreSelezione = coloreSelezione,
                             onClick = {
                                 mcsSelezionati = if (isSelezionato) {
                                     mcsSelezionati - mc.id
@@ -174,12 +145,12 @@ fun SchermataMurettoClassico(
                     val selezionatiVeri = mcsSelezionati.mapNotNull { id -> listaMcs.find { it.id == id } }
                     GestoreBattle.mcsSelezionati.addAll(selezionatiVeri)
 
-                    val minimoRichiesto = if (tipoTorneo == TipoTorneo.SINGOLO) 2 else 4
+                    val minimoRichiesto = if (is2v2) 4 else 2
                     if (GestoreBattle.mcsSelezionati.size >= minimoRichiesto) {
                         onIniziaBattle()
                     }
                 },
-                enabled = mcsSelezionati.size >= 2,
+                enabled = mcsSelezionati.size >= (if (is2v2) 4 else 2),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFFD32F2F),
                     disabledContainerColor = Color.DarkGray
@@ -219,18 +190,18 @@ fun SchermataMurettoClassico(
 }
 
 @Composable
-fun CardFreestylerTorneo(freestyler: Freestyler, isSelezionato: Boolean, coloreSelezione: Color, onClick: () -> Unit) {
+fun CardFreestylerTorneo(freestyler: Freestyler, isSelezionato: Boolean, onClick: () -> Unit) {
     val colorMatrix = remember(isSelezionato) { if (isSelezionato) ColorMatrix().apply { setToSaturation(0f) } else null }
 
     Box(
-        modifier = Modifier.fillMaxWidth().aspectRatio(0.8f).clip(RoundedCornerShape(12.dp)).border(3.dp, if(isSelezionato) coloreSelezione else Color(0xFFD32F2F), RoundedCornerShape(12.dp)).background(Color(0xFF111111)).clickable { onClick() },
+        modifier = Modifier.fillMaxWidth().aspectRatio(0.8f).clip(RoundedCornerShape(12.dp)).border(3.dp, if(isSelezionato) Color.Green else Color(0xFFD32F2F), RoundedCornerShape(12.dp)).background(Color(0xFF111111)).clickable { onClick() },
         contentAlignment = Alignment.BottomCenter
     ) {
         Image(painter = painterResource(id = freestyler.immagineId), contentDescription = null, modifier = Modifier.fillMaxSize(), alignment = Alignment.TopCenter, contentScale = ContentScale.Crop, colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null)
 
         if (isSelezionato) {
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.CheckCircle, contentDescription = "Selezionato", tint = coloreSelezione, modifier = Modifier.size(60.dp))
+                Icon(Icons.Default.CheckCircle, contentDescription = "Selezionato", tint = Color.Green, modifier = Modifier.size(60.dp))
             }
         }
 

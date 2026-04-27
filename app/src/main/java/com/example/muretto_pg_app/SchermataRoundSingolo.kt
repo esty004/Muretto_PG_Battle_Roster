@@ -39,7 +39,6 @@ import kotlin.math.roundToInt
 
 data class ModalitaSpareggio(val nome: String, val colore: Color)
 
-// Le 21 Modalità definitive (senza doppioni)
 val listaModalitaSpareggio = listOf(
     ModalitaSpareggio("4/4", Color(0xFFE53935)),
     ModalitaSpareggio("4/4\nArgomenti", Color(0xFFF4511E)),
@@ -118,15 +117,36 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
                         modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
                     ) {
-                        round.partecipanti.forEachIndexed { index, team ->
-                            Box(
-                                modifier = Modifier.clickable { vincitoreTemporaneoId = if (vincitoreTemporaneoId == team.id) null else team.id }.padding(vertical = 8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                BoxTeam(team = team, isVincitore = vincitoreTemporaneoId == team.id, isSconfitto = vincitoreTemporaneoId != null && vincitoreTemporaneoId != team.id, width = 160.dp, height = 200.dp)
+
+                        val righe = round.partecipanti.chunked(2)
+
+                        righe.forEachIndexed { index, riga ->
+                            if (index > 0) {
+                                Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(50.dp).padding(vertical = 8.dp))
                             }
-                            if (index < round.partecipanti.size - 1) {
-                                Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(60.dp).padding(vertical = 4.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier.clickable { vincitoreTemporaneoId = if (vincitoreTemporaneoId == riga[0].id) null else riga[0].id }.padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    BoxMC(mc = riga[0], isVincitore = vincitoreTemporaneoId == riga[0].id, isSconfitto = vincitoreTemporaneoId != null && vincitoreTemporaneoId != riga[0].id, width = 140.dp, height = 180.dp)
+                                }
+
+                                if (riga.size == 2) {
+                                    Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(50.dp))
+
+                                    Box(
+                                        modifier = Modifier.clickable { vincitoreTemporaneoId = if (vincitoreTemporaneoId == riga[1].id) null else riga[1].id }.padding(vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        BoxMC(mc = riga[1], isVincitore = vincitoreTemporaneoId == riga[1].id, isSconfitto = vincitoreTemporaneoId != null && vincitoreTemporaneoId != riga[1].id, width = 140.dp, height = 180.dp)
+                                    }
+                                }
                             }
                         }
                     }
@@ -218,7 +238,6 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
                             listaModalitaSpareggio.forEachIndexed { i, mod ->
                                 Box(modifier = Modifier.matchParentSize().rotate(i * sweepAngle)) {
                                     Text(
-                                        // Font ridotto a 7.sp per far stare comodamente le 21 modalità
                                         text = mod.nome, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 7.sp, lineHeight = 8.sp, textAlign = TextAlign.Center,
                                         modifier = Modifier.align(Alignment.TopCenter).padding(top = 10.dp)
                                     )

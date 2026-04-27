@@ -28,9 +28,6 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
     val MioFontPersonalizzato = FontFamily(Font(R.font.jackboa))
     val listaModalita = listOf("Muretto classico", "2 VS 2", "Evento", "Allenamento")
 
-    // Stato per il PopUp del 2vs2
-    var mostraDialog2vs2 by remember { mutableStateOf(false) }
-
     Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
         Column(modifier = Modifier.fillMaxSize()) {
 
@@ -50,8 +47,8 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
                 items(listaModalita) { nome ->
                     CardModalita(nomeModalita = nome, onClick = {
                         when (nome) {
-                            "Muretto classico" -> onSelezionaModalita("selezione_mcs/${TipoTorneo.SINGOLO.name}")
-                            "2 VS 2" -> mostraDialog2vs2 = true
+                            "Muretto classico" -> onSelezionaModalita("muretto_classico")
+                            "2 VS 2" -> onSelezionaModalita("due_contro_due")
                             "Allenamento" -> onSelezionaModalita("allenamento")
                             else -> {}
                         }
@@ -59,34 +56,6 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
                 }
             }
         }
-    }
-
-    // Dialog per decidere le coppie 2 VS 2
-    if (mostraDialog2vs2) {
-        AlertDialog(
-            onDismissRequest = { mostraDialog2vs2 = false },
-            containerColor = Color(0xFF222222),
-            title = { Text("CREAZIONE COPPIE", color = Color.White, fontFamily = MioFontPersonalizzato, fontSize = 24.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
-            text = { Text("Vuoi che le coppie vengano estratte casualmente oppure vuoi deciderle tu predefinite?", color = Color.LightGray, textAlign = TextAlign.Center) },
-            confirmButton = {
-                Button(
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-                    onClick = {
-                        mostraDialog2vs2 = false
-                        onSelezionaModalita("selezione_mcs/${TipoTorneo.COPPIE_CASUALI.name}")
-                    }
-                ) { Text("CASUALI", color = Color.White, fontWeight = FontWeight.Bold) }
-            },
-            dismissButton = {
-                Button(
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-                    onClick = {
-                        mostraDialog2vs2 = false
-                        onSelezionaModalita("selezione_mcs/${TipoTorneo.COPPIE_PREDEFINITE.name}")
-                    }
-                ) { Text("PREDEFINITE", color = Color.White, fontWeight = FontWeight.Bold) }
-            }
-        )
     }
 }
 

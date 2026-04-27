@@ -303,6 +303,8 @@ fun BattleCardMatchmaking(mc1: Freestyler, mc2: Freestyler) {
 @Composable
 fun BoxMC(mc: Freestyler, isVincitore: Boolean = false, isSconfitto: Boolean = false, width: Dp = 100.dp, height: Dp = 130.dp) {
     val colorMatrix = remember(isSconfitto) { if (isSconfitto) ColorMatrix().apply { setToSaturation(0f) } else null }
+    // Rimpicciolisce il testo se è una coppia 2vs2 (es. "Mogio & Bisca")
+    val fontSize = if (mc.nome.contains("&")) 11.sp else 13.sp
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
@@ -316,7 +318,7 @@ fun BoxMC(mc: Freestyler, isVincitore: Boolean = false, isSconfitto: Boolean = f
             if (isVincitore) Box(modifier = Modifier.matchParentSize().background(Color.Green.copy(alpha = 0.3f)))
             if (isSconfitto) Icon(Icons.Default.Close, null, tint = Color.Red.copy(alpha = 0.8f), modifier = Modifier.fillMaxSize().padding(16.dp))
         }
-        Text(text = mc.nome.uppercase(), color = if (isVincitore) Color.Green else if(isSconfitto) Color.Gray else Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp), textAlign = TextAlign.Center)
+        Text(text = mc.nome.uppercase(), color = if (isVincitore) Color.Green else if(isSconfitto) Color.Gray else Color.White, fontSize = fontSize, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp), textAlign = TextAlign.Center)
     }
 }
 
