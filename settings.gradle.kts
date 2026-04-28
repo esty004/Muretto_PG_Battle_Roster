@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Muretto_PG_APP"
+rootProject.name = "freestAPP"
 include(":app")

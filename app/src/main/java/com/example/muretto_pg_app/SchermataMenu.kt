@@ -98,7 +98,7 @@ fun CardModalita(nomeModalita: String, onClick: () -> Unit) {
                 "Muretto classico" -> Image(painter = painterResource(id = R.drawable.muretto_classico_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "2 VS 2" -> Image(painter = painterResource(id = R.drawable.due_contro_due_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "Evento" -> Image(painter = painterResource(id = R.drawable.evento_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                "Trasferte" -> Image(painter = painterResource(id = R.drawable.sfondo_schermata_iniziale_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                "Trasferte" -> Image(painter = painterResource(id = R.drawable.trasferte), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "Allenamento" -> Image(painter = painterResource(id = R.drawable.allenamento_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             }
         } else {
@@ -106,7 +106,7 @@ fun CardModalita(nomeModalita: String, onClick: () -> Unit) {
                 "Muretto classico" -> Image(painter = painterResource(id = R.drawable.muretto_classico), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "2 VS 2" -> Image(painter = painterResource(id = R.drawable.due_contro_due), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "Evento" -> Image(painter = painterResource(id = R.drawable.evento), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                "Trasferte" -> Image(painter = painterResource(id = R.drawable.sfondo_schermata_iniziale), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                "Trasferte" -> Image(painter = painterResource(id = R.drawable.trasferte), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "Allenamento" -> Image(painter = painterResource(id = R.drawable.allenamento), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             }
         }
