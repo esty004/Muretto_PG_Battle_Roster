@@ -16,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -38,26 +37,22 @@ fun SchermataOttavi(
     val listaRounds = GestoreBattle.roundsAttuali
     val tuttiFiniti = listaRounds.isNotEmpty() && listaRounds.all { it.completato }
 
-    val titoloSchermata = if (GestoreBattle.is2v2) {
-        "2 VS 2 - ${GestoreBattle.faseAttuale.name}"
-    } else {
-        GestoreBattle.faseAttuale.name
-    }
+    val titoloSchermata = if (GestoreBattle.is2v2) "2 VS 2 - ${GestoreBattle.faseAttuale.name}" else GestoreBattle.faseAttuale.name
 
     var mostraDialogAggiunta by remember { mutableStateOf(false) }
     var nomeNuovoMc by remember { mutableStateOf("") }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+    Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Box(modifier = Modifier.fillMaxSize()) {
 
             Column(modifier = Modifier.fillMaxSize().padding(bottom = 100.dp)) {
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
                     IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)) {
-                        Text("<", color = Color.White, fontSize = 45.sp, fontFamily = MioFont)
+                        Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFont)
                     }
                     Text(
                         titoloSchermata,
-                        color = Color.White, fontSize = 32.sp, fontFamily = MioFont, fontWeight = FontWeight.Bold,
+                        color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFont, fontWeight = FontWeight.Bold,
                         modifier = Modifier.align(Alignment.Center).offset(x = 15.dp)
                     )
                 }
@@ -70,8 +65,8 @@ fun SchermataOttavi(
             if (!tuttiFiniti) {
                 FloatingActionButton(
                     onClick = { mostraDialogAggiunta = true },
-                    containerColor = Color.White,
-                    contentColor = Color.Black,
+                    containerColor = Tema.colorePrincipale,
+                    contentColor = Color.White,
                     shape = CircleShape,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
                 ) {
@@ -94,13 +89,9 @@ fun SchermataOttavi(
                             GestoreBattle.salvaProgresso(context)
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-                    shape = CircleShape, // Applica lo stile arrotondato
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth(0.8f)
-                        .padding(bottom = 20.dp)
-                        .height(60.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
+                    shape = CircleShape,
+                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(0.8f).padding(bottom = 20.dp).height(60.dp)
                 ) {
                     Text(testoBottone, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 }
@@ -111,20 +102,27 @@ fun SchermataOttavi(
     if (mostraDialogAggiunta) {
         AlertDialog(
             onDismissRequest = { mostraDialogAggiunta = false },
-            containerColor = Color(0xFF222222),
-            title = { Text("Aggiungi partecipante", color = Color.White) },
+            containerColor = Tema.coloreSfondoCard,
+            title = { Text("Aggiungi partecipante", color = Tema.coloreTesto) },
             text = {
                 OutlinedTextField(
                     value = nomeNuovoMc, onValueChange = { nomeNuovoMc = it },
-                    placeholder = { Text("Nome Freestyler o Team", color = Color.Gray) },
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White),
+                    placeholder = { Text("Nome Freestyler o Team", color = Tema.coloreTestoSecondario) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto),
                     singleLine = true
                 )
             },
             confirmButton = {
-                Button(colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)), onClick = {
+                Button(colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), onClick = {
                     if (nomeNuovoMc.isNotBlank()) {
-                        val nuovoMembro = Freestyler(UUID.randomUUID().toString(), nomeNuovoMc.trim(), R.drawable.no_pic)
+                        val nome = nomeNuovoMc.trim()
+
+                        // --- MECCANICA GLOBALE (Aggiunta in corsa) ---
+                        // Cerca se il nome esiste nell'ALTRO muretto
+                        val mcGlobale = DatabaseMcs.cercaMcGlobale(nome)
+
+                        // Se esiste usa quello globale (con foto), altrimenti crea il classico "no pic"
+                        val nuovoMembro = mcGlobale ?: Freestyler(UUID.randomUUID().toString(), nome, R.drawable.no_pic)
 
                         val roundAperti = GestoreBattle.roundsAttuali.filter { !it.completato }
                         if (roundAperti.isNotEmpty()) {
@@ -141,17 +139,15 @@ fun SchermataOttavi(
                     }
                 }) { Text("Aggiungi", color = Color.White) }
             },
-            dismissButton = { TextButton(onClick = { mostraDialogAggiunta = false }) { Text("Annulla", color = Color.Gray) } }
+            dismissButton = { TextButton(onClick = { mostraDialogAggiunta = false }) { Text("Annulla", color = Tema.coloreTestoSecondario) } }
         )
     }
 }
 
 @Composable
 fun RoundCard(round: Round, onClick: () -> Unit) {
-    val backgroundBrush = Brush.horizontalGradient(colors = listOf(Color(0xFF3A0000), Color(0xFF00003A)))
-
     Box(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).border(3.dp, Color(0xFFD32F2F), RoundedCornerShape(24.dp)).background(brush = backgroundBrush).clickable { onClick() }.padding(20.dp)
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).border(3.dp, Tema.colorePrincipale, RoundedCornerShape(24.dp)).background(brush = Tema.gradienteCard).clickable { onClick() }.padding(20.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
             Text("Round ${round.numero}", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(bottom = 16.dp))
@@ -160,9 +156,7 @@ fun RoundCard(round: Round, onClick: () -> Unit) {
                 val righe = round.partecipanti.chunked(2)
 
                 righe.forEachIndexed { index, riga ->
-                    if (index > 0) {
-                        Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(40.dp).padding(vertical = 8.dp))
-                    }
+                    if (index > 0) Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(40.dp).padding(vertical = 8.dp))
 
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
                         BoxMC(mc = riga[0], isVincitore = round.vincitoreId == riga[0].id, isSconfitto = round.completato && round.vincitoreId != riga[0].id)

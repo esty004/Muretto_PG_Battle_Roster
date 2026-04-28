@@ -53,22 +53,8 @@ fun SchermataMurettoClassico(
     val focusManager = LocalFocusManager.current
     val is2v2 = tipoTorneo != TipoTorneo.SINGOLO
 
-    var listaMcs by remember {
-        mutableStateOf(
-            listOf(
-                Freestyler("1", "Bahmes", R.drawable.bahmes), Freestyler("2", "Big", R.drawable.big), Freestyler("3", "Bisca", R.drawable.bisca),
-                Freestyler("4", "Brage", R.drawable.brage), Freestyler("5", "Chapel", R.drawable.chapel), Freestyler("6", "Deku", R.drawable.deku),
-                Freestyler("7", "Esty", R.drawable.esty), Freestyler("8", "Fist", R.drawable.fist), Freestyler("9", "Fto", R.drawable.fto),
-                Freestyler("10", "Ganesh", R.drawable.ganesh), Freestyler("11", "Gross", R.drawable.gross), Freestyler("12", "Henker", R.drawable.henker),
-                Freestyler("13", "Koko", R.drawable.koko), Freestyler("14", "Lil Dik", R.drawable.lil_dik), Freestyler("15", "Lordao", R.drawable.lordao),
-                Freestyler("16", "Lyl Dark", R.drawable.lyl_dark), Freestyler("17", "Madra", R.drawable.madra), Freestyler("18", "Mogio", R.drawable.mogio),
-                Freestyler("19", "Monkey", R.drawable.monkey), Freestyler("20", "Mt", R.drawable.mt), Freestyler("21", "Olegan", R.drawable.olegan),
-                Freestyler("22", "Rein", R.drawable.rein), Freestyler("23", "Samyr", R.drawable.samyr), Freestyler("24", "Schiaccia", R.drawable.schiaccia),
-                Freestyler("25", "Shock", R.drawable.shock), Freestyler("26", "Sockold", R.drawable.sockold), Freestyler("27", "Stiwi", R.drawable.stiwi),
-                Freestyler("28", "Tchain", R.drawable.tchain), Freestyler("29", "Yama", R.drawable.yama)
-            )
-        )
-    }
+    // Lista dipendente dal tema attuale
+    var listaMcs by remember(Tema.isBarreFaul) { mutableStateOf(DatabaseMcs.getListaAttuale()) }
 
     var testoRicerca by remember { mutableStateOf("") }
     var searchFocused by remember { mutableStateOf(false) }
@@ -77,13 +63,11 @@ fun SchermataMurettoClassico(
     var mostraDialogAggiunta by remember { mutableStateOf(false) }
     var nomeNuovoMc by remember { mutableStateOf("") }
 
-    // Stati per il Blocco Note (Lista)
     var mostraNotepad by remember { mutableStateOf(false) }
     var testoNotepad by remember { mutableStateOf("") }
 
     val listaFiltrata = listaMcs.filter { it.nome.contains(testoRicerca, ignoreCase = true) }
 
-    // Intercetta il tasto "Indietro" di sistema
     BackHandler(enabled = searchFocused || mostraNotepad) {
         if (mostraNotepad) {
             mostraNotepad = false
@@ -92,30 +76,24 @@ fun SchermataMurettoClassico(
         }
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+    Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Box(modifier = Modifier.fillMaxSize()) {
 
-            // --- SCHERMATA PRINCIPALE (GRIGLIA) ---
             Column(modifier = Modifier.fillMaxSize().padding(bottom = 80.dp)) {
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 10.dp)) {
                     IconButton(
                         onClick = {
-                            if (searchFocused) {
-                                focusManager.clearFocus()
-                            } else {
-                                onTornaAlMenu()
-                            }
+                            if (searchFocused) focusManager.clearFocus() else onTornaAlMenu()
                         },
                         modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)
                     ) {
-                        Text("<", color = Color.White, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
+                        Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
                     }
-                    Text("SELEZIONA GLI MC", color = Color.White, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center).offset(x = 15.dp))
+                    Text("SELEZIONA GLI MC", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center).offset(x = 15.dp))
                 }
 
-                // AVVISI UTILI PER L'UTENTE
                 if (tipoTorneo == TipoTorneo.COPPIE_PREDEFINITE) {
-                    Text("ℹ️ PREDEFINITE: Seleziona gli MC nell'ordine delle coppie (1° con 2°, 3° con 4°...)", color = Color.Cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp))
+                    Text("ℹ️ PREDEFINITE: Seleziona gli MC nell'ordine delle coppie (1° con 2°, 3° con 4°...)", color = Tema.colorePrincipale, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp))
                 }
 
                 if (is2v2 && mcsSelezionati.size % 2 != 0) {
@@ -125,12 +103,18 @@ fun SchermataMurettoClassico(
                 OutlinedTextField(
                     value = testoRicerca,
                     onValueChange = { testoRicerca = it },
-                    placeholder = { Text("Cerca un MC...", color = Color.Gray) },
+                    placeholder = { Text("Cerca un MC...", color = Tema.coloreTestoSecondario) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                         .onFocusChanged { searchFocused = it.isFocused },
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFFD32F2F), unfocusedBorderColor = Color.DarkGray, focusedTextColor = Color.White, unfocusedTextColor = Color.White, cursorColor = Color.White),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Tema.colorePrincipale,
+                        unfocusedBorderColor = Color.DarkGray,
+                        focusedTextColor = Tema.coloreTesto,
+                        unfocusedTextColor = Tema.coloreTesto,
+                        cursorColor = Tema.colorePrincipale
+                    ),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -149,36 +133,23 @@ fun SchermataMurettoClassico(
                             freestyler = mc,
                             isSelezionato = isSelezionato,
                             onClick = {
-                                mcsSelezionati = if (isSelezionato) {
-                                    mcsSelezionati - mc.id
-                                } else {
-                                    mcsSelezionati + mc.id
-                                }
+                                mcsSelezionati = if (isSelezionato) mcsSelezionati - mc.id else mcsSelezionati + mc.id
                             }
                         )
                     }
                 }
             }
 
-            // --- PULSANTI FLOTTANTI ---
-
-            // Bottone LISTA (Notepad) circolare VERDE con testo "TxT", posizionato sopra al bottone +
             FloatingActionButton(
                 onClick = { mostraNotepad = true },
-                containerColor = Color(0xFF4CAF50), // Verde come il tasto +
+                containerColor = Color(0xFF4CAF50),
                 contentColor = Color.White,
                 shape = CircleShape,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 170.dp)
             ) {
-                Text(
-                    text = "TxT",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = Color.White
-                )
+                Text("TxT", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
             }
 
-            // Bottone + (Aggiungi singolo MC) a destra
             FloatingActionButton(
                 onClick = { mostraDialogAggiunta = true },
                 containerColor = Color(0xFF4CAF50),
@@ -189,77 +160,71 @@ fun SchermataMurettoClassico(
                 Icon(Icons.Default.Add, contentDescription = "Aggiungi MC", modifier = Modifier.size(30.dp))
             }
 
-            // Bottone INIZIA BATTLE al centro in basso
             Button(
                 onClick = {
                     GestoreBattle.resetSelezione()
-                    // L'uso di mapNotNull preserva l'ordine esatto di mcsSelezionati (fondamentale per Predefinite)
                     val selezionatiVeri = mcsSelezionati.mapNotNull { id -> listaMcs.find { it.id == id } }
                     GestoreBattle.mcsSelezionati.addAll(selezionatiVeri)
 
                     val minimoRichiesto = if (is2v2) 4 else 2
-                    if (GestoreBattle.mcsSelezionati.size >= minimoRichiesto) {
-                        onIniziaBattle()
-                    }
+                    if (GestoreBattle.mcsSelezionati.size >= minimoRichiesto) onIniziaBattle()
                 },
                 enabled = mcsSelezionati.size >= (if (is2v2) 4 else 2),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFD32F2F),
+                    containerColor = Tema.colorePrincipale,
                     disabledContainerColor = Color.DarkGray
                 ),
-                shape = CircleShape, // Trasforma il rettangolo in una pillola
+                shape = CircleShape,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .fillMaxWidth(0.85f) // Leggermente più stretto per evidenziare la curvatura
+                    .fillMaxWidth(0.85f)
                     .padding(vertical = 20.dp)
                     .height(60.dp)
             ) {
                 Text("INIZIA BATTLE", color = Color.White, fontSize = 22.sp, fontFamily = FontFamily(Font(R.font.jackboa)))
             }
 
-            // --- SCHERMATA BLOCCO NOTE (Stile BandLab) ---
             AnimatedVisibility(
                 visible = mostraNotepad,
                 enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
                 exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
                 modifier = Modifier.fillMaxSize()
             ) {
-                Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF121212)) {
+                Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
                     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
 
-                        // Header del Notepad
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(top = 40.dp, bottom = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             IconButton(onClick = { mostraNotepad = false }) {
-                                Text("<", color = Color.White, fontSize = 40.sp, fontFamily = MioFontPersonalizzato)
+                                Text("<", color = Tema.coloreTesto, fontSize = 40.sp, fontFamily = MioFontPersonalizzato)
                             }
 
-                            Text("BLOCCO NOTE", color = Color.White, fontSize = 24.sp, fontFamily = MioFontPersonalizzato)
+                            Text("BLOCCO NOTE", color = Tema.coloreTesto, fontSize = 24.sp, fontFamily = MioFontPersonalizzato)
 
                             Button(
                                 onClick = {
-                                    // LOGICA DI PARSING MANTIENE L'ORDINE (Ottimo per COPPIE_PREDEFINITE)
                                     val lines = testoNotepad.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
                                     val nuoviIdSelezionati = mutableListOf<String>()
                                     var listaAggiornata = listaMcs.toList()
 
                                     for (line in lines) {
-                                        // Se 2vs2, divide la riga usando " e " come separatore
-                                        val nomiDaProcessare = if (is2v2) {
-                                            line.split(Regex("(?i)\\s+e\\s+")).map { it.trim() }.filter { it.isNotEmpty() }
-                                        } else {
-                                            listOf(line)
-                                        }
+                                        val nomiDaProcessare = if (is2v2) line.split(Regex("(?i)\\s+e\\s+")).map { it.trim() }.filter { it.isNotEmpty() } else listOf(line)
 
                                         for (nome in nomiDaProcessare) {
                                             val esistente = listaAggiornata.find { it.nome.equals(nome, ignoreCase = true) }
                                             if (esistente != null) {
                                                 nuoviIdSelezionati.add(esistente.id)
                                             } else {
-                                                val nuovoMc = Freestyler(UUID.randomUUID().toString(), nome, R.drawable.no_pic)
+                                                // --- MECCANICA GLOBALE (TxT) ---
+                                                // Cerca se il nome esiste nell'ALTRO muretto
+                                                val mcGlobale = DatabaseMcs.cercaMcGlobale(nome)
+
+                                                // Se esiste usa quello globale (con foto), altrimenti crea il classico "no pic"
+                                                val nuovoMc = mcGlobale ?: Freestyler(UUID.randomUUID().toString(), nome, R.drawable.no_pic)
+
                                                 listaAggiornata = listaAggiornata + nuovoMc
                                                 nuoviIdSelezionati.add(nuovoMc.id)
                                             }
@@ -267,28 +232,27 @@ fun SchermataMurettoClassico(
                                     }
 
                                     listaMcs = listaAggiornata
-                                    mcsSelezionati = (mcsSelezionati + nuoviIdSelezionati).distinct() // Mantiene ordine originale
+                                    mcsSelezionati = (mcsSelezionati + nuoviIdSelezionati).distinct()
                                     testoNotepad = ""
                                     mostraNotepad = false
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                                colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
                                 shape = CircleShape
                             ) {
                                 Text("PROSEGUI", color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
 
-                        // Area di Testo
                         Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp)) {
                             if (testoNotepad.isEmpty()) {
                                 val placeholder = if (is2v2) "Scrivi qui...\n(Es. Mogio e Bisca)" else "Scrivi qui...\n(Un nome per riga)"
-                                Text(placeholder, color = Color.DarkGray, fontSize = 20.sp, lineHeight = 30.sp)
+                                Text(placeholder, color = Tema.coloreTestoSecondario, fontSize = 20.sp, lineHeight = 30.sp)
                             }
                             BasicTextField(
                                 value = testoNotepad,
                                 onValueChange = { testoNotepad = it },
-                                textStyle = TextStyle(color = Color.White, fontSize = 20.sp, lineHeight = 30.sp),
-                                cursorBrush = SolidColor(Color.White),
+                                textStyle = TextStyle(color = Tema.coloreTesto, fontSize = 20.sp, lineHeight = 30.sp),
+                                cursorBrush = SolidColor(Tema.coloreTesto),
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
@@ -299,29 +263,39 @@ fun SchermataMurettoClassico(
         }
     }
 
-    // --- POPUP AGGIUNTA SINGOLA ---
     if (mostraDialogAggiunta) {
         AlertDialog(
             onDismissRequest = { mostraDialogAggiunta = false },
-            containerColor = Color(0xFF222222),
-            title = { Text("Nuovo MC", color = Color.White, fontWeight = FontWeight.Bold) },
+            containerColor = Tema.coloreSfondoCard,
+            title = { Text("Nuovo MC", color = Tema.coloreTesto, fontWeight = FontWeight.Bold) },
             text = {
                 OutlinedTextField(
-                    value = nomeNuovoMc, onValueChange = { nomeNuovoMc = it }, placeholder = { Text("Nome del Freestyler", color = Color.Gray) },
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White), singleLine = true
+                    value = nomeNuovoMc, onValueChange = { nomeNuovoMc = it }, placeholder = { Text("Nome del Freestyler", color = Tema.coloreTestoSecondario) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto), singleLine = true
                 )
             },
             confirmButton = {
-                Button(colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)), onClick = {
+                Button(colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), onClick = {
                     if (nomeNuovoMc.isNotBlank()) {
-                        val nuovoMc = Freestyler(System.currentTimeMillis().toString(), nomeNuovoMc.trim(), R.drawable.no_pic)
-                        listaMcs = listaMcs + nuovoMc
+                        val nome = nomeNuovoMc.trim()
+                        val esistenteInLista = listaMcs.find { it.nome.equals(nome, ignoreCase = true) }
+
+                        if (esistenteInLista == null) {
+                            // --- MECCANICA GLOBALE (Pulsante +) ---
+                            // Cerca se il nome esiste nell'ALTRO muretto
+                            val mcGlobale = DatabaseMcs.cercaMcGlobale(nome)
+
+                            // Se esiste usa quello globale (con foto), altrimenti crea il classico "no pic"
+                            val nuovoMc = mcGlobale ?: Freestyler(System.currentTimeMillis().toString(), nome, R.drawable.no_pic)
+
+                            listaMcs = listaMcs + nuovoMc
+                        }
                         nomeNuovoMc = ""
                         mostraDialogAggiunta = false
                     }
                 }) { Text("Aggiungi", color = Color.White) }
             },
-            dismissButton = { TextButton(onClick = { mostraDialogAggiunta = false; nomeNuovoMc = "" }) { Text("Annulla", color = Color.Gray) } }
+            dismissButton = { TextButton(onClick = { mostraDialogAggiunta = false; nomeNuovoMc = "" }) { Text("Annulla", color = Tema.coloreTestoSecondario) } }
         )
     }
 }
@@ -331,7 +305,7 @@ fun CardFreestylerTorneo(freestyler: Freestyler, isSelezionato: Boolean, onClick
     val colorMatrix = remember(isSelezionato) { if (isSelezionato) ColorMatrix().apply { setToSaturation(0f) } else null }
 
     Box(
-        modifier = Modifier.fillMaxWidth().aspectRatio(0.8f).clip(RoundedCornerShape(12.dp)).border(3.dp, if(isSelezionato) Color.Green else Color(0xFFD32F2F), RoundedCornerShape(12.dp)).background(Color(0xFF111111)).clickable { onClick() },
+        modifier = Modifier.fillMaxWidth().aspectRatio(0.8f).clip(RoundedCornerShape(12.dp)).border(3.dp, if(isSelezionato) Color.Green else Tema.colorePrincipale, RoundedCornerShape(12.dp)).background(Tema.coloreSfondoCard).clickable { onClick() },
         contentAlignment = Alignment.BottomCenter
     ) {
         Image(painter = painterResource(id = freestyler.immagineId), contentDescription = null, modifier = Modifier.fillMaxSize(), alignment = Alignment.TopCenter, contentScale = ContentScale.Crop, colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null)

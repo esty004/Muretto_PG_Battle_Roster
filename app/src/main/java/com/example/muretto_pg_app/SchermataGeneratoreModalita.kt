@@ -28,45 +28,28 @@ fun SchermataGeneratoreModalita(onTornaIndietro: () -> Unit) {
     val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
     var modalitaCorrente by remember { mutableStateOf("PREMI PER\nGENERARE") }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+    Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(modifier = Modifier.fillMaxWidth().padding(top = 44.dp, bottom = 40.dp)) {
-                IconButton(
-                    onClick = { onTornaIndietro() },
-                    modifier = Modifier.align(Alignment.CenterStart)
-                ) {
-                    Text("<", color = Color.White, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
+                IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.CenterStart)) {
+                    Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
                 }
-
-                Text(
-                    text = "MODALITA'",
-                    color = Color.White, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                Text("MODALITA'", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
             }
 
             Spacer(modifier = Modifier.weight(1f))
 
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(250.dp)
-                    .border(2.dp, Color(0xFFD32F2F), RoundedCornerShape(16.dp))
-                    .background(Color(0xFF111111), RoundedCornerShape(16.dp))
-                    .padding(24.dp),
+                modifier = Modifier.fillMaxWidth().height(250.dp).border(2.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp)).background(Tema.coloreSfondoCard, RoundedCornerShape(16.dp)).padding(24.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = modalitaCorrente.uppercase(),
-                    color = Color.White,
-                    fontSize = 34.sp,
-                    fontFamily = MioFontPersonalizzato,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 40.sp
+                    color = Tema.coloreTesto,
+                    fontSize = 34.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, lineHeight = 40.sp
                 )
             }
 
@@ -74,7 +57,7 @@ fun SchermataGeneratoreModalita(onTornaIndietro: () -> Unit) {
 
             Button(
                 onClick = { modalitaCorrente = modalitaPool.random() },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
                 modifier = Modifier.fillMaxWidth().height(60.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {

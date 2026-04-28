@@ -23,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -82,14 +81,14 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
     var mostraPopupRisultato by remember { mutableStateOf(false) }
     var risultatoSpareggio by remember { mutableStateOf<ModalitaSpareggio?>(null) }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+    Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Column(modifier = Modifier.fillMaxSize()) {
 
             Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
                 IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)) {
-                    Text("<", color = Color.White, fontSize = 45.sp, fontFamily = MioFontPersonalizzato)
+                    Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato)
                 }
-                Text("ROUND ${round.numero}", color = Color.White, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+                Text("ROUND ${round.numero}", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
 
                 if (vincitoreTemporaneoId != null && GestoreBattle.faseAttuale != FaseTorneo.FINALE) {
                     IconButton(
@@ -106,10 +105,8 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
                 }
             }
 
-            val backgroundBrush = Brush.horizontalGradient(colors = listOf(Color(0xFF3A0000), Color(0xFF00003A)))
-
             Box(
-                modifier = Modifier.fillMaxWidth().weight(1f).padding(16.dp).clip(RoundedCornerShape(32.dp)).border(4.dp, Color(0xFFD32F2F), RoundedCornerShape(32.dp)).background(brush = backgroundBrush).padding(24.dp)
+                modifier = Modifier.fillMaxWidth().weight(1f).padding(16.dp).clip(RoundedCornerShape(32.dp)).border(4.dp, Tema.colorePrincipale, RoundedCornerShape(32.dp)).background(brush = Tema.gradienteCard).padding(24.dp)
             ) {
                 Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
 
@@ -117,33 +114,20 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
                         modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
                     ) {
-
                         val righe = round.partecipanti.chunked(2)
 
                         righe.forEachIndexed { index, riga ->
-                            if (index > 0) {
-                                Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(50.dp).padding(vertical = 8.dp))
-                            }
+                            if (index > 0) Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(50.dp).padding(vertical = 8.dp))
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier.clickable { vincitoreTemporaneoId = if (vincitoreTemporaneoId == riga[0].id) null else riga[0].id }.padding(vertical = 8.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.clickable { vincitoreTemporaneoId = if (vincitoreTemporaneoId == riga[0].id) null else riga[0].id }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
                                     BoxMC(mc = riga[0], isVincitore = vincitoreTemporaneoId == riga[0].id, isSconfitto = vincitoreTemporaneoId != null && vincitoreTemporaneoId != riga[0].id, width = 140.dp, height = 180.dp)
                                 }
 
                                 if (riga.size == 2) {
                                     Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(50.dp))
 
-                                    Box(
-                                        modifier = Modifier.clickable { vincitoreTemporaneoId = if (vincitoreTemporaneoId == riga[1].id) null else riga[1].id }.padding(vertical = 8.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
+                                    Box(modifier = Modifier.clickable { vincitoreTemporaneoId = if (vincitoreTemporaneoId == riga[1].id) null else riga[1].id }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
                                         BoxMC(mc = riga[1], isVincitore = vincitoreTemporaneoId == riga[1].id, isSconfitto = vincitoreTemporaneoId != null && vincitoreTemporaneoId != riga[1].id, width = 140.dp, height = 180.dp)
                                     }
                                 }
@@ -162,11 +146,7 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
                     if (GestoreBattle.faseAttuale == FaseTorneo.FINALE && vincitoreTemporaneoId != null) {
                         var mostraMessaggioFine by remember { mutableStateOf(false) }
 
-                        Button(
-                            onClick = { mostraMessaggioFine = true },
-                            modifier = Modifier.fillMaxWidth(0.8f).height(60.dp).padding(top = 8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Green)
-                        ) {
+                        Button(onClick = { mostraMessaggioFine = true }, modifier = Modifier.fillMaxWidth(0.8f).height(60.dp).padding(top = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.Green)) {
                             Text("FINE", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                         }
 
@@ -176,14 +156,12 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
 
                             AlertDialog(
                                 onDismissRequest = { mostraMessaggioFine = false },
-                                containerColor = Color(0xFF111111),
-                                title = {
-                                    Text("VIVA L'HIP HOP!", color = Color.White, fontSize = 28.sp, fontFamily = MioFontPersonalizzato, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-                                },
+                                containerColor = Tema.coloreSfondoCard,
+                                title = { Text("VIVA L'HIP HOP!", color = Tema.coloreTesto, fontSize = 28.sp, fontFamily = MioFontPersonalizzato, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
                                 text = {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                                        Text("FINALISTI:", color = Color.Gray, fontSize = 16.sp)
-                                        Text(finalisti.uppercase(), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                                        Text("FINALISTI:", color = Tema.coloreTestoSecondario, fontSize = 16.sp)
+                                        Text(finalisti.uppercase(), color = Tema.coloreTesto, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                                         Spacer(modifier = Modifier.height(16.dp))
                                         Text("VINCITORE:", color = Color.Green, fontSize = 18.sp)
                                         Text(nomeVincitore.uppercase(), color = Color.Green, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
@@ -191,7 +169,7 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
                                 },
                                 confirmButton = {
                                     Button(
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
                                         onClick = {
                                             val roundAggiornato = round.copy(completato = true, vincitoreId = vincitoreTemporaneoId)
                                             GestoreBattle.roundsAttuali[indiceRound] = roundAggiornato
@@ -218,34 +196,25 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
 
         Dialog(onDismissRequest = { if (!staGirando) mostraDialogRuota = false }) {
             Box(
-                modifier = Modifier.clip(RoundedCornerShape(24.dp)).background(Color(0xFF222222)).border(2.dp, Color.White, RoundedCornerShape(24.dp)).padding(24.dp),
+                modifier = Modifier.clip(RoundedCornerShape(24.dp)).background(Tema.coloreSfondoCard).border(2.dp, Tema.colorePrincipale, RoundedCornerShape(24.dp)).padding(24.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("ESTRAZIONE MODALITÀ", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text("ESTRAZIONE MODALITÀ", color = Tema.coloreTesto, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Box(contentAlignment = Alignment.Center) {
-                        Box(
-                            modifier = Modifier.size(240.dp).clip(CircleShape).border(4.dp, Color.White, CircleShape).rotate(rotazione.value),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(modifier = Modifier.size(240.dp).clip(CircleShape).border(4.dp, Tema.colorePrincipale, CircleShape).rotate(rotazione.value), contentAlignment = Alignment.Center) {
                             Canvas(modifier = Modifier.matchParentSize()) {
-                                listaModalitaSpareggio.forEachIndexed { i, mod ->
-                                    drawArc(color = mod.colore, startAngle = -90f - (sweepAngle / 2) + (i * sweepAngle), sweepAngle = sweepAngle, useCenter = true)
-                                }
+                                listaModalitaSpareggio.forEachIndexed { i, mod -> drawArc(color = mod.colore, startAngle = -90f - (sweepAngle / 2) + (i * sweepAngle), sweepAngle = sweepAngle, useCenter = true) }
                             }
                             listaModalitaSpareggio.forEachIndexed { i, mod ->
                                 Box(modifier = Modifier.matchParentSize().rotate(i * sweepAngle)) {
-                                    Text(
-                                        text = mod.nome, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 7.sp, lineHeight = 8.sp, textAlign = TextAlign.Center,
-                                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 10.dp)
-                                    )
+                                    Text(text = mod.nome, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 7.sp, lineHeight = 8.sp, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.TopCenter).padding(top = 10.dp))
                                 }
                             }
                         }
-
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = "Puntatore", tint = Color.White, modifier = Modifier.size(60.dp).align(Alignment.TopCenter).offset(y = (-30).dp))
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = "Puntatore", tint = Tema.colorePrincipale, modifier = Modifier.size(60.dp).align(Alignment.TopCenter).offset(y = (-30).dp))
                     }
 
                     Spacer(modifier = Modifier.height(32.dp))
@@ -255,27 +224,18 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
                             if (staGirando) return@Button
                             staGirando = true
                             scope.launch {
-                                val giriCasuali = (5..10).random()
-                                val angoloCasuale = (0..359).random().toFloat()
-                                val targetFinale = rotazione.value + (giriCasuali * 360) + angoloCasuale
-
+                                val targetFinale = rotazione.value + ((5..10).random() * 360) + (0..359).random().toFloat()
                                 rotazione.animateTo(targetValue = targetFinale, animationSpec = tween(durationMillis = 4000, easing = FastOutSlowInEasing))
-
-                                val rotazioneNormalizzata = targetFinale % 360f
-                                val gradiEffettivi = (360f - rotazioneNormalizzata) % 360f
-                                val indiceVincente = (gradiEffettivi / sweepAngle).roundToInt() % listaModalitaSpareggio.size
-
-                                risultatoSpareggio = listaModalitaSpareggio[indiceVincente]
+                                val gradiEffettivi = (360f - (targetFinale % 360f)) % 360f
+                                risultatoSpareggio = listaModalitaSpareggio[(gradiEffettivi / sweepAngle).roundToInt() % listaModalitaSpareggio.size]
                                 mostraDialogRuota = false
                                 mostraPopupRisultato = true
                                 staGirando = false
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                        colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
                         modifier = Modifier.height(50.dp)
-                    ) {
-                        Text(if (staGirando) "ESTRAENDO..." else "GIRA LA RUOTA", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    }
+                    ) { Text(if (staGirando) "ESTRAENDO..." else "GIRA LA RUOTA", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold) }
                 }
             }
         }
@@ -283,24 +243,14 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
 
     if (mostraPopupRisultato && risultatoSpareggio != null) {
         Dialog(onDismissRequest = { mostraPopupRisultato = false }) {
-            Box(
-                modifier = Modifier.clip(RoundedCornerShape(24.dp)).background(risultatoSpareggio!!.colore).border(4.dp, Color.White, RoundedCornerShape(24.dp)).padding(24.dp)
-            ) {
+            Box(modifier = Modifier.clip(RoundedCornerShape(24.dp)).background(risultatoSpareggio!!.colore).border(4.dp, Color.White, RoundedCornerShape(24.dp)).padding(24.dp)) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                        IconButton(onClick = { mostraPopupRisultato = false }) {
-                            Icon(Icons.Default.Close, contentDescription = "Chiudi", tint = Color.White)
-                        }
+                        IconButton(onClick = { mostraPopupRisultato = false }) { Icon(Icons.Default.Close, contentDescription = "Chiudi", tint = Color.White) }
                     }
-
                     Text("MODALITÀ:", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = risultatoSpareggio!!.nome.replace("\n", " ").uppercase(),
-                        color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center
-                    )
+                    Text(text = risultatoSpareggio!!.nome.replace("\n", " ").uppercase(), color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }

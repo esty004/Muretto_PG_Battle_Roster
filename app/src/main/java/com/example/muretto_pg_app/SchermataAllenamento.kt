@@ -23,7 +23,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
@@ -40,12 +39,14 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (String) -> Unit) {
     val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
-    
-    LaunchedEffect(Unit) {
+
+    // Aggiorniamo la lista se cambiamo universo!
+    LaunchedEffect(Tema.isBarreFaul) {
         GestoreAllenamento.inizializzaSeVuoto()
+        GestoreAllenamento.mcsSelezionatiIds = setOf()
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+    Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Column(modifier = Modifier.fillMaxSize()) {
 
             Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 10.dp)) {
@@ -53,12 +54,12 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
                     onClick = { onTornaIndietro() },
                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)
                 ) {
-                    Text("<", color = Color.White, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
+                    Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
                 }
 
                 Text(
                     text = "ALLENAMENTO",
-                    color = Color.White, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold,
+                    color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold,
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
@@ -66,11 +67,11 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
             TabRow(
                 selectedTabIndex = GestoreAllenamento.tabSelezionata,
                 containerColor = Color.Transparent,
-                contentColor = Color(0xFFD32F2F),
+                contentColor = Tema.colorePrincipale,
                 indicator = { tabPositions ->
                     TabRowDefaults.SecondaryIndicator(
                         modifier = Modifier.tabIndicatorOffset(tabPositions[GestoreAllenamento.tabSelezionata]),
-                        color = Color(0xFFD32F2F)
+                        color = Tema.colorePrincipale
                     )
                 },
                 divider = {}
@@ -78,12 +79,12 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
                 Tab(
                     selected = GestoreAllenamento.tabSelezionata == 0,
                     onClick = { GestoreAllenamento.tabSelezionata = 0 },
-                    text = { Text("MATCHMAKING", color = if (GestoreAllenamento.tabSelezionata == 0) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+                    text = { Text("MATCHMAKING", color = if (GestoreAllenamento.tabSelezionata == 0) Tema.coloreTesto else Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold, fontSize = 16.sp) }
                 )
                 Tab(
                     selected = GestoreAllenamento.tabSelezionata == 1,
                     onClick = { GestoreAllenamento.tabSelezionata = 1 },
-                    text = { Text("GENERATORI", color = if (GestoreAllenamento.tabSelezionata == 1) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+                    text = { Text("GENERATORI", color = if (GestoreAllenamento.tabSelezionata == 1) Tema.coloreTesto else Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold, fontSize = 16.sp) }
                 )
             }
 
@@ -102,9 +103,9 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
 fun SezioneMatchmaking(font: FontFamily) {
     var mostraDialogAggiunta by remember { mutableStateOf(false) }
     var nomeNuovoMc by remember { mutableStateOf("") }
-    
-    val listaFiltrata = GestoreAllenamento.listaMcsAllenamento.filter { 
-        it.nome.contains(GestoreAllenamento.testoRicerca, ignoreCase = true) 
+
+    val listaFiltrata = GestoreAllenamento.listaMcsAllenamento.filter {
+        it.nome.contains(GestoreAllenamento.testoRicerca, ignoreCase = true)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -112,7 +113,7 @@ fun SezioneMatchmaking(font: FontFamily) {
             Column(modifier = Modifier.fillMaxSize().padding(bottom = 80.dp)) {
                 Text(
                     text = "SELEZIONA GLI MC",
-                    color = Color.White, fontSize = 24.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold,
+                    color = Tema.coloreTesto, fontSize = 24.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                     textAlign = TextAlign.Center
                 )
@@ -120,13 +121,13 @@ fun SezioneMatchmaking(font: FontFamily) {
                 OutlinedTextField(
                     value = GestoreAllenamento.testoRicerca,
                     onValueChange = { GestoreAllenamento.testoRicerca = it },
-                    placeholder = { Text("Cerca un MC...", color = Color.Gray) },
+                    placeholder = { Text("Cerca un MC...", color = Tema.coloreTestoSecondario) },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFFD32F2F),
+                        focusedBorderColor = Tema.colorePrincipale,
                         unfocusedBorderColor = Color.DarkGray,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        focusedTextColor = Tema.coloreTesto,
+                        unfocusedTextColor = Tema.coloreTesto
                     ),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp)
@@ -143,9 +144,9 @@ fun SezioneMatchmaking(font: FontFamily) {
                         CardFreestyler(
                             freestyler = mc,
                             isSelezionato = GestoreAllenamento.mcsSelezionatiIds.contains(mc.id),
-                            onClick = { 
+                            onClick = {
                                 val ids = GestoreAllenamento.mcsSelezionatiIds
-                                GestoreAllenamento.mcsSelezionatiIds = if (ids.contains(mc.id)) ids - mc.id else ids + mc.id 
+                                GestoreAllenamento.mcsSelezionatiIds = if (ids.contains(mc.id)) ids - mc.id else ids + mc.id
                             }
                         )
                     }
@@ -165,7 +166,7 @@ fun SezioneMatchmaking(font: FontFamily) {
             Button(
                 onClick = { generaBattleMatchmaking() },
                 enabled = GestoreAllenamento.mcsSelezionatiIds.size >= 2,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F), disabledContainerColor = Color.DarkGray),
+                colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale, disabledContainerColor = Color.DarkGray),
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 16.dp, vertical = 20.dp).height(60.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -175,7 +176,7 @@ fun SezioneMatchmaking(font: FontFamily) {
             Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                 Text(
                     "ACCOPPIAMENTI",
-                    color = Color.White, fontSize = 28.sp, fontFamily = font,
+                    color = Tema.coloreTesto, fontSize = 28.sp, fontFamily = font,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                     textAlign = TextAlign.Center
                 )
@@ -195,7 +196,7 @@ fun SezioneMatchmaking(font: FontFamily) {
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center
                             ) {
-                                Text("RIPOSA: ", color = Color.LightGray, fontSize = 18.sp, fontFamily = font)
+                                Text("RIPOSA: ", color = Tema.coloreTestoSecondario, fontSize = 18.sp, fontFamily = font)
                                 BoxMC(mc = GestoreAllenamento.mcSingolo!!, width = 60.dp, height = 80.dp)
                             }
                         }
@@ -213,7 +214,7 @@ fun SezioneMatchmaking(font: FontFamily) {
                     }
                     Button(
                         onClick = { generaBattleMatchmaking() },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                        colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
                         modifier = Modifier.weight(1.5f).height(60.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -227,23 +228,34 @@ fun SezioneMatchmaking(font: FontFamily) {
     if (mostraDialogAggiunta) {
         AlertDialog(
             onDismissRequest = { mostraDialogAggiunta = false },
-            containerColor = Color(0xFF222222),
-            title = { Text("NUOVO MC", color = Color.White, fontWeight = FontWeight.Bold, fontFamily = font) },
+            containerColor = Tema.coloreSfondoCard,
+            title = { Text("NUOVO MC", color = Tema.coloreTesto, fontWeight = FontWeight.Bold, fontFamily = font) },
             text = {
                 OutlinedTextField(
                     value = nomeNuovoMc,
                     onValueChange = { nomeNuovoMc = it },
-                    placeholder = { Text("Nome del Freestyler", color = Color.Gray) },
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = Color(0xFFD32F2F)),
+                    placeholder = { Text("Nome del Freestyler", color = Tema.coloreTestoSecondario) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, focusedBorderColor = Tema.colorePrincipale),
                     singleLine = true
                 )
             },
             confirmButton = {
                 Button(
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
                     onClick = {
                         if (nomeNuovoMc.isNotBlank()) {
-                            GestoreAllenamento.listaMcsAllenamento.add(Freestyler(System.currentTimeMillis().toString(), nomeNuovoMc.trim(), R.drawable.no_pic))
+                            val nome = nomeNuovoMc.trim()
+                            val esistenteInLista = GestoreAllenamento.listaMcsAllenamento.find { it.nome.equals(nome, ignoreCase = true) }
+
+                            if (esistenteInLista == null) {
+                                // --- MECCANICA GLOBALE (Allenamento) ---
+                                // Cerca se il nome esiste nell'ALTRO muretto
+                                val mcGlobale = DatabaseMcs.cercaMcGlobale(nome)
+
+                                // Se esiste usa quello globale (con foto), altrimenti crea il classico "no pic"
+                                val nuovoMc = mcGlobale ?: Freestyler(System.currentTimeMillis().toString(), nome, R.drawable.no_pic)
+                                GestoreAllenamento.listaMcsAllenamento.add(nuovoMc)
+                            }
                             nomeNuovoMc = ""
                             mostraDialogAggiunta = false
                         }
@@ -251,17 +263,17 @@ fun SezioneMatchmaking(font: FontFamily) {
                 ) { Text("AGGIUNGI", color = Color.White) }
             },
             dismissButton = {
-                TextButton(onClick = { mostraDialogAggiunta = false; nomeNuovoMc = "" }) { Text("ANNULLA", color = Color.Gray) }
+                TextButton(onClick = { mostraDialogAggiunta = false; nomeNuovoMc = "" }) { Text("ANNULLA", color = Tema.coloreTestoSecondario) }
             }
         )
     }
 }
 
 private fun generaBattleMatchmaking() {
-    val selezionati = GestoreAllenamento.listaMcsAllenamento.filter { 
-        GestoreAllenamento.mcsSelezionatiIds.contains(it.id) 
+    val selezionati = GestoreAllenamento.listaMcsAllenamento.filter {
+        GestoreAllenamento.mcsSelezionatiIds.contains(it.id)
     }.shuffled()
-    
+
     if (selezionati.size >= 2) {
         val pairs = mutableListOf<Pair<Freestyler, Freestyler>>()
         for (i in 0 until (selezionati.size / 2)) {
@@ -275,50 +287,19 @@ private fun generaBattleMatchmaking() {
 
 @Composable
 fun BattleCardMatchmaking(mc1: Freestyler, mc2: Freestyler) {
-    val backgroundBrush = Brush.horizontalGradient(colors = listOf(Color(0xFF3A0000), Color(0xFF00003A)))
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
-            .border(3.dp, Color(0xFFD32F2F), RoundedCornerShape(24.dp))
-            .background(brush = backgroundBrush)
+            .border(3.dp, Tema.colorePrincipale, RoundedCornerShape(24.dp))
+            .background(brush = Tema.gradienteCard)
             .padding(16.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
             BoxMC(mc = mc1, width = 90.dp, height = 120.dp)
-            Image(
-                painter = painterResource(id = R.drawable.versus),
-                contentDescription = "Versus",
-                modifier = Modifier.size(70.dp).padding(horizontal = 8.dp)
-            )
+            Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(70.dp).padding(horizontal = 8.dp))
             BoxMC(mc = mc2, width = 90.dp, height = 120.dp)
         }
-    }
-}
-
-@Composable
-fun BoxMC(mc: Freestyler, isVincitore: Boolean = false, isSconfitto: Boolean = false, width: Dp = 100.dp, height: Dp = 130.dp) {
-    val colorMatrix = remember(isSconfitto) { if (isSconfitto) ColorMatrix().apply { setToSaturation(0f) } else null }
-    // Rimpicciolisce il testo se è una coppia 2vs2 (es. "Mogio & Bisca")
-    val fontSize = if (mc.nome.contains("&")) 11.sp else 13.sp
-
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            modifier = Modifier
-                .width(width).height(height)
-                .clip(RoundedCornerShape(16.dp))
-                .border(width = if (isVincitore) 4.dp else 1.dp, color = if (isVincitore) Color.Green else Color.Gray, shape = RoundedCornerShape(16.dp))
-                .background(Color.DarkGray)
-        ) {
-            Image(painter = painterResource(id = mc.immagineId), contentDescription = null, modifier = Modifier.fillMaxSize(), alignment = Alignment.TopCenter, contentScale = ContentScale.Crop, colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null)
-            if (isVincitore) Box(modifier = Modifier.matchParentSize().background(Color.Green.copy(alpha = 0.3f)))
-            if (isSconfitto) Icon(Icons.Default.Close, null, tint = Color.Red.copy(alpha = 0.8f), modifier = Modifier.fillMaxSize().padding(16.dp))
-        }
-        Text(text = mc.nome.uppercase(), color = if (isVincitore) Color.Green else if(isSconfitto) Color.Gray else Color.White, fontSize = fontSize, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp), textAlign = TextAlign.Center)
     }
 }
 
@@ -327,23 +308,10 @@ fun CardFreestyler(freestyler: Freestyler, isSelezionato: Boolean, onClick: () -
     val colorMatrix = remember(isSelezionato) { if (isSelezionato) ColorMatrix().apply { setToSaturation(0f) } else null }
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(0.8f)
-            .clip(RoundedCornerShape(12.dp))
-            .border(3.dp, if(isSelezionato) Color.Green else Color(0xFFD32F2F), RoundedCornerShape(12.dp))
-            .background(Color(0xFF111111))
-            .clickable { onClick() },
+        modifier = Modifier.fillMaxWidth().aspectRatio(0.8f).clip(RoundedCornerShape(12.dp)).border(3.dp, if(isSelezionato) Color.Green else Tema.colorePrincipale, RoundedCornerShape(12.dp)).background(Tema.coloreSfondoCard).clickable { onClick() },
         contentAlignment = Alignment.BottomCenter
     ) {
-        Image(
-            painter = painterResource(id = freestyler.immagineId),
-            contentDescription = "Foto di ${freestyler.nome}",
-            modifier = Modifier.fillMaxSize(),
-            alignment = Alignment.TopCenter,
-            contentScale = ContentScale.Crop,
-            colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null
-        )
+        Image(painter = painterResource(id = freestyler.immagineId), contentDescription = "Foto di ${freestyler.nome}", modifier = Modifier.fillMaxSize(), alignment = Alignment.TopCenter, contentScale = ContentScale.Crop, colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null)
 
         if (isSelezionato) {
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)), contentAlignment = Alignment.Center) {
@@ -370,10 +338,9 @@ fun SezioneGeneratori(font: FontFamily, onSelezionaAllenamento: (String) -> Unit
 @Composable
 fun CardAllenamento(nomeOpzione: String, onClick: () -> Unit, font: FontFamily) {
     Box(
-        modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(12.dp)).border(3.dp, Color(0xFFD32F2F), RoundedCornerShape(12.dp)).background(Color(0xFF111111))
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick),
+        modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(12.dp)).border(3.dp, Tema.colorePrincipale, RoundedCornerShape(12.dp)).background(Tema.coloreSfondoCard).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = nomeOpzione.uppercase(), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, fontFamily = font)
+        Text(text = nomeOpzione.uppercase(), color = Tema.coloreTesto, fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, fontFamily = font)
     }
 }

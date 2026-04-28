@@ -4,6 +4,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
@@ -50,6 +52,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -59,12 +62,21 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.delay
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.BoundingBox
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
 import java.util.Locale
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        Configuration.getInstance().load(this, getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
+
         WindowCompat.setDecorFitsSystemWindows(window, false)
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -88,30 +100,36 @@ fun AppNavigation() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val rottaCorrente = navBackStackEntry?.destination?.route
 
-    // Dialog Recupero Battle
     var mostraPopupRecupero by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { if (GestoreBattle.haProgresso(context)) mostraPopupRecupero = true }
     if (mostraPopupRecupero) {
         AlertDialog(
             onDismissRequest = { mostraPopupRecupero = false },
-            containerColor = Color(0xFF222222),
-            title = { Text("CONTINUARE BATTLE?", color = Color.White, fontFamily = MioFont) },
+            containerColor = Tema.coloreSfondoCard,
+            title = { Text("CONTINUARE BATTLE?", color = Tema.coloreTesto, fontFamily = MioFont) },
             confirmButton = {
-                Button(colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)), shape = CircleShape, onClick = {
+                Button(colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), shape = CircleShape, onClick = {
                     GestoreBattle.caricaProgresso(context)
                     mostraPopupRecupero = false
                     navController.navigate("ottavi")
                 }) { Text("SÌ", color = Color.White, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
-                TextButton(onClick = { GestoreBattle.pulisciSalvataggio(context); mostraPopupRecupero = false }) { Text("NO", color = Color.Gray) }
+                TextButton(onClick = { GestoreBattle.pulisciSalvataggio(context); mostraPopupRecupero = false }) { Text("NO", color = Tema.coloreTestoSecondario) }
             }
         )
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        NavHost(navController = navController, startDestination = "benvenuto") {
+        NavHost(navController = navController, startDestination = "mappa") {
+
+            composable("mappa") {
+                SchermataMappa(onPinClick = { rottaDestinazione -> navController.navigate(rottaDestinazione) })
+            }
+
             composable("benvenuto") { SchermataDiBenvenuto(onVaiAlMenu = { navController.navigate("menu") }) }
+            composable("benvenuto_barre_faul") { SchermataDiBenvenutoBarreFaul(onVaiAlMenu = { navController.navigate("menu") }) }
+
             composable("menu") { SchermataMenu(onTornaIndietro = { navController.popBackStack() }, onSelezionaModalita = { navController.navigate(it) }) }
 
             composable("muretto_classico") {
@@ -150,9 +168,86 @@ fun AppNavigation() {
             composable("generatore_parole") { SchermataGeneratoreParole { navController.popBackStack() } }
         }
 
-        if (rottaCorrente != "benvenuto") {
+        if (rottaCorrente != "benvenuto" && rottaCorrente != "benvenuto_barre_faul" && rottaCorrente != "mappa") {
             FloatingPlayer(MioFont)
         }
+    }
+}
+
+@Composable
+fun SchermataMappa(onPinClick: (String) -> Unit) {
+    val context = LocalContext.current
+    val italyBounds = BoundingBox(47.1, 18.3, 35.5, 6.6)
+
+    val perugiaCoords = GeoPoint(43.112056, 12.388439)
+    val barreFaulCoords = GeoPoint(42.416669, 12.100123)
+    val centroMappa = GeoPoint(42.764, 12.244)
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { ctx ->
+                MapView(ctx).apply {
+                    setTileSource(TileSourceFactory.MAPNIK)
+                    setMultiTouchControls(true)
+
+                    minZoomLevel = 6.5
+                    maxZoomLevel = 19.0
+                    controller.setZoom(8.0)
+                    controller.setCenter(centroMappa)
+
+                    setScrollableAreaLimitDouble(italyBounds)
+                    setBuiltInZoomControls(false)
+
+                    val trueDarkModeMatrix = ColorMatrix(floatArrayOf(
+                        0.0f,  0.0f, -1.0f, 0.0f, 255.0f,
+                        0.0f, -1.0f,  0.0f, 0.0f, 255.0f,
+                        -1.0f,  0.0f,  0.0f, 0.0f, 255.0f,
+                        0.0f,  0.0f,  0.0f, 1.0f, 0.0f
+                    ))
+
+                    val filter = ColorMatrixColorFilter(trueDarkModeMatrix)
+                    overlayManager.tilesOverlay.setColorFilter(filter)
+
+                    val startMarker = Marker(this)
+                    startMarker.position = perugiaCoords
+                    startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    startMarker.title = "Muretto PG"
+
+                    val bitmapOriginale = android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.logo_muretto)
+                    val larghezzaPin = 200
+                    val altezzaPin = 140
+                    val bitmapRidimensionata = android.graphics.Bitmap.createScaledBitmap(bitmapOriginale, larghezzaPin, altezzaPin, true)
+
+                    startMarker.icon = android.graphics.drawable.BitmapDrawable(ctx.resources, bitmapRidimensionata)
+
+                    startMarker.setOnMarkerClickListener { _, _ ->
+                        if (Tema.isBarreFaul) GestoreBattle.pulisciSalvataggio(context) // Evita di mischiare i salvataggi
+                        Tema.isBarreFaul = false
+                        onPinClick("benvenuto")
+                        true
+                    }
+
+                    overlays.add(startMarker)
+
+                    val markerBarreFaul = Marker(this)
+                    markerBarreFaul.position = barreFaulCoords
+                    markerBarreFaul.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    markerBarreFaul.title = "Barre Faul"
+
+                    val bmpBarreFaul = android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.pin_barre_faul)
+                    markerBarreFaul.icon = android.graphics.drawable.BitmapDrawable(ctx.resources, android.graphics.Bitmap.createScaledBitmap(bmpBarreFaul, larghezzaPin, altezzaPin, true))
+
+                    markerBarreFaul.setOnMarkerClickListener { _, _ ->
+                        if (!Tema.isBarreFaul) GestoreBattle.pulisciSalvataggio(context) // Evita di mischiare i salvataggi
+                        Tema.isBarreFaul = true
+                        onPinClick("benvenuto_barre_faul")
+                        true
+                    }
+                    overlays.add(markerBarreFaul)
+                }
+            }
+        )
     }
 }
 
@@ -162,17 +257,14 @@ fun FloatingPlayer(font: FontFamily) {
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
 
-    // Calcoliamo la dimensione dello schermo per piazzarlo a Destra e al Centro
     val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
     val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
 
-    // Offset iniziale: Margine destro e centro verticale
     var offsetX by remember { mutableFloatStateOf(screenWidthPx - 160f) }
     var offsetY by remember { mutableFloatStateOf(screenHeightPx / 2f - 100f) }
 
     var mostraMiniPlayer by remember { mutableStateOf(false) }
 
-    // Stati per i Metadati e la Durata
     var titoloCanzone by remember { mutableStateOf("Nessun Beat") }
     var artistaCanzone by remember { mutableStateOf("In riproduzione...") }
     var copertinaCanzone by remember { mutableStateOf<Bitmap?>(null) }
@@ -185,12 +277,11 @@ fun FloatingPlayer(font: FontFamily) {
 
     val mediaManager = context.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
 
-    // Formattatore del tempo (00:00)
     fun formatTime(ms: Long): String {
         val totalSecs = ms / 1000
         val mins = totalSecs / 60
         val secs = totalSecs % 60
-        return String.format(java.util.Locale.getDefault(), "%02d:%02d", mins, secs)
+        return String.format(Locale.getDefault(), "%02d:%02d", mins, secs)
     }
 
     fun aggiornaInfo() {
@@ -207,7 +298,6 @@ fun FloatingPlayer(font: FontFamily) {
                 copertinaCanzone = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
                 isPlaying = playbackState?.state == PlaybackState.STATE_PLAYING
 
-                // Aggiorniamo durata e posizione
                 durataCanzone = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
                 if (!isDraggingSlider) {
                     posizioneCorrente = playbackState?.position ?: 0L
@@ -215,24 +305,23 @@ fun FloatingPlayer(font: FontFamily) {
             } else {
                 activeController = null
             }
-        } catch (e: Exception) { /* Permesso mancante */ }
+        } catch (e: Exception) { }
     }
 
     LaunchedEffect(Unit) {
         while(true) {
             aggiornaInfo()
-            delay(1000) // Aggiorna ogni secondo per far scorrere la barra
+            delay(1000)
         }
     }
 
-    // IL PULSANTE FLOTTANTE
     Box(
         modifier = Modifier
             .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
             .pointerInput(Unit) { detectDragGestures { change, dragAmount -> change.consume(); offsetX += dragAmount.x; offsetY += dragAmount.y } }
             .size(50.dp)
             .clip(CircleShape)
-            .background(Color(0xFFD32F2F).copy(alpha = 0.9f))
+            .background(Tema.colorePrincipale.copy(alpha = 0.9f))
             .border(2.dp, Color.White, CircleShape)
             .clickable { mostraMiniPlayer = true },
         contentAlignment = Alignment.Center
@@ -251,13 +340,12 @@ fun FloatingPlayer(font: FontFamily) {
                 modifier = Modifier
                     .fillMaxWidth(0.95f)
                     .clip(RoundedCornerShape(28.dp))
-                    .background(Color(0xFF1A1A1A))
-                    .border(2.dp, Color(0xFFD32F2F), RoundedCornerShape(28.dp))
+                    .background(Tema.coloreSfondoCard)
+                    .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(28.dp))
                     .padding(24.dp)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
-                    // COPERTINA
                     Box(modifier = Modifier.size(220.dp).clip(RoundedCornerShape(16.dp)).background(Color.DarkGray)) {
                         if (copertinaCanzone != null) {
                             Image(bitmap = copertinaCanzone!!.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -267,11 +355,10 @@ fun FloatingPlayer(font: FontFamily) {
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
-                    Text(titoloCanzone, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Center)
-                    Text(artistaCanzone, color = Color.Gray, fontSize = 16.sp, maxLines = 1)
+                    Text(titoloCanzone, color = Tema.coloreTesto, fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Center)
+                    Text(artistaCanzone, color = Tema.coloreTestoSecondario, fontSize = 16.sp, maxLines = 1)
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // BARRA DELLA DURATA (SLIDER STILE SPOTIFY)
                     if (durataCanzone > 0L) {
                         Slider(
                             value = posizioneCorrente.toFloat(),
@@ -285,43 +372,42 @@ fun FloatingPlayer(font: FontFamily) {
                             },
                             valueRange = 0f..durataCanzone.toFloat(),
                             colors = SliderDefaults.colors(
-                                thumbColor = Color.White,            // Il punto scorrevole bianco
-                                activeTrackColor = Color.White,      // La traccia riempita bianca
-                                inactiveTrackColor = Color.DarkGray  // La traccia rimanente grigia
+                                thumbColor = Tema.coloreTesto,
+                                activeTrackColor = Tema.coloreTesto,
+                                inactiveTrackColor = Tema.coloreTestoSecondario
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
                         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).offset(y = (-10).dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(formatTime(posizioneCorrente), color = Color.LightGray, fontSize = 12.sp)
-                            Text(formatTime(durataCanzone), color = Color.LightGray, fontSize = 12.sp)
+                            Text(formatTime(posizioneCorrente), color = Tema.coloreTestoSecondario, fontSize = 12.sp)
+                            Text(formatTime(durataCanzone), color = Tema.coloreTestoSecondario, fontSize = 12.sp)
                         }
                     } else {
                         Spacer(modifier = Modifier.height(24.dp))
                     }
 
-                    // CONTROLLI CON TESTI PIÙ PICCOLI
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_PREVIOUS) }, modifier = Modifier.size(45.dp)) {
-                            Text("I◀", color = Color.White, fontSize = 16.sp) // Ridotto a 16.sp
+                            Text("I◀", color = Tema.coloreTesto, fontSize = 16.sp)
                         }
 
                         FloatingActionButton(
                             onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) },
-                            containerColor = Color(0xFFD32F2F),
+                            containerColor = Tema.colorePrincipale,
                             shape = CircleShape,
                             modifier = Modifier.size(60.dp)
                         ) {
-                            Text(if (isPlaying) "❚❚" else "▶", color = Color.White, fontSize = 14.sp) // Ridotto a 14.sp
+                            Text(if (isPlaying) "❚❚" else "▶", color = Color.White, fontSize = 14.sp)
                         }
 
                         IconButton(onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_NEXT) }, modifier = Modifier.size(45.dp)) {
-                            Text("▶I", color = Color.White, fontSize = 16.sp) // Ridotto a 16.sp
+                            Text("▶I", color = Tema.coloreTesto, fontSize = 16.sp)
                         }
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
                     TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }) {
-                        Text("Attiva info copertina e Slider", color = Color.Gray, fontSize = 10.sp)
+                        Text("Attiva info copertina e Slider", color = Tema.coloreTestoSecondario, fontSize = 10.sp)
                     }
                 }
             }
@@ -329,14 +415,12 @@ fun FloatingPlayer(font: FontFamily) {
     }
 }
 
-// Funzione helper per mandare i tasti
 fun mandaComando(context: Context, key: Int) {
     val am = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
     am.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, key))
     am.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, key))
 }
 
-// Classe fittizia necessaria per MediaSessionManager
 class NotificationListener : android.service.notification.NotificationListenerService()
 
 @Composable
@@ -382,11 +466,58 @@ fun SchermataDiBenvenuto(onVaiAlMenu: () -> Unit) {
     }
 }
 
+// --- SCHERMATA DI BENVENUTO BARRE FAUL ---
+@Composable
+fun SchermataDiBenvenutoBarreFaul(onVaiAlMenu: () -> Unit) {
+    var inTransizione by remember { mutableStateOf(false) }
+
+    val scalaSfondo by animateFloatAsState(targetValue = if (inTransizione) 2.8f else 1f, animationSpec = tween(1300, easing = FastOutSlowInEasing), label = "")
+    val alphaContenuto by animateFloatAsState(targetValue = if (inTransizione) 0f else 1f, animationSpec = tween(700), label = "", finishedListener = { onVaiAlMenu() })
+
+    val infiniteTransition = rememberInfiniteTransition(label = "")
+    val scalaVt by infiniteTransition.animateFloat(initialValue = 1f, targetValue = 1.15f, animationSpec = infiniteRepeatable(tween(600, easing = LinearEasing), RepeatMode.Reverse), label = "")
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                if (!inTransizione) inTransizione = true
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Box(modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scalaSfondo; scaleY = scalaSfondo; alpha = alphaContenuto }) {
+
+            Image(
+                painter = painterResource(id = R.drawable.sfondo_schermata_iniziale_barre_faul),
+                contentDescription = "Sfondo Barre Faul",
+                contentScale = ContentScale.Fit,
+                alignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            Box(modifier = Modifier.fillMaxSize().padding(top = 80.dp), contentAlignment = Alignment.TopCenter) {
+                TestoBomboletta()
+            }
+
+            Box(modifier = Modifier.fillMaxSize().padding(bottom = 90.dp), contentAlignment = Alignment.BottomCenter) {
+                Image(
+                    painter = painterResource(id = R.drawable.vt),
+                    contentDescription = "Logo VT",
+                    modifier = Modifier
+                        .size(150.dp)
+                        .graphicsLayer { scaleX = scalaVt; scaleY = scalaVt }
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun TestoBomboletta() {
     var visibile by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { delay(500); visibile = true }
-    val FontTitoli = FontFamily(Font(R.font.jackboa)) // Usiamo Jackboa qui
+    val FontTitoli = FontFamily(Font(R.font.jackboa))
 
     AnimatedVisibility(visible = visibile, enter = expandHorizontally(animationSpec = tween(durationMillis = 2000, easing = LinearOutSlowInEasing), expandFrom = Alignment.Start) + fadeIn(animationSpec = tween(durationMillis = 2000))) {
         Box(contentAlignment = Alignment.Center) {
@@ -398,7 +529,7 @@ fun TestoBomboletta() {
 
 @Composable
 fun TestoAnimatoStileMinecraft() {
-    val FontTitoli = FontFamily(Font(R.font.jackboa)) // Usiamo Jackboa qui
+    val FontTitoli = FontFamily(Font(R.font.jackboa))
     val infiniteTransition = rememberInfiniteTransition(label = "")
     val scalaTesto by infiniteTransition.animateFloat(initialValue = 1f, targetValue = 1.2f, animationSpec = infiniteRepeatable(animation = tween(400, easing = LinearEasing), repeatMode = RepeatMode.Reverse), label = "")
 
