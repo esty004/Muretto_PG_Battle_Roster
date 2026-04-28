@@ -79,12 +79,12 @@ fun SchermataMurettoClassico(
         Box(modifier = Modifier.fillMaxSize()) {
 
             Column(modifier = Modifier.fillMaxSize().padding(bottom = 80.dp)) {
-                Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 10.dp)) {
+                Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
                     IconButton(
                         onClick = { if (searchFocused) focusManager.clearFocus() else onTornaAlMenu() },
                         modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)
                     ) { Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold) }
-                    Text("SELEZIONA GLI MC", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center).offset(x = 15.dp))
+                    Text("SELEZIONA GLI MC", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
                 }
 
                 if (tipoTorneo == TipoTorneo.COPPIE_PREDEFINITE) {
@@ -164,7 +164,7 @@ fun SchermataMurettoClassico(
                     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
 
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 40.dp, bottom = 16.dp),
+                            modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 16.dp),
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             IconButton(onClick = { mostraNotepad = false }) { Text("<", color = Tema.coloreTesto, fontSize = 40.sp, fontFamily = MioFontPersonalizzato) }

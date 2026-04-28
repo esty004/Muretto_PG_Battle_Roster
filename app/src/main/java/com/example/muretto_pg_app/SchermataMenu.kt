@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> Unit) {
     val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
-    val listaModalita = listOf("Muretto classico", "2 VS 2", "Evento", "Allenamento")
+    val listaModalita = listOf("Muretto classico", "2 VS 2", "Evento", "Trasferte", "Allenamento")
 
     var mostraDialog2vs2 by remember { mutableStateOf(false) }
 
@@ -36,12 +36,12 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
             Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
                 IconButton(
                     onClick = { onTornaIndietro() },
-                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp).offset(y = -12.dp)
+                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)
                 ) {
                     Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
                 }
 
-                Text("SELEZIONA MODALITA'", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center).offset(x = 15.dp))
+                Text("SELEZIONA MODALITA'", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
             }
 
             LazyColumn(
@@ -54,6 +54,8 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
                         when (nome) {
                             "Muretto classico" -> onSelezionaModalita("muretto_classico")
                             "2 VS 2" -> mostraDialog2vs2 = true
+                            "Evento" -> onSelezionaModalita("evento") // Rotta generica o placeholder
+                            "Trasferte" -> onSelezionaModalita("trasferte")
                             "Allenamento" -> onSelezionaModalita("allenamento")
                             else -> {}
                         }
@@ -96,6 +98,7 @@ fun CardModalita(nomeModalita: String, onClick: () -> Unit) {
                 "Muretto classico" -> Image(painter = painterResource(id = R.drawable.muretto_classico_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "2 VS 2" -> Image(painter = painterResource(id = R.drawable.due_contro_due_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "Evento" -> Image(painter = painterResource(id = R.drawable.evento_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                "Trasferte" -> Image(painter = painterResource(id = R.drawable.sfondo_schermata_iniziale_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "Allenamento" -> Image(painter = painterResource(id = R.drawable.allenamento_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             }
         } else {
@@ -103,6 +106,7 @@ fun CardModalita(nomeModalita: String, onClick: () -> Unit) {
                 "Muretto classico" -> Image(painter = painterResource(id = R.drawable.muretto_classico), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "2 VS 2" -> Image(painter = painterResource(id = R.drawable.due_contro_due), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "Evento" -> Image(painter = painterResource(id = R.drawable.evento), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                "Trasferte" -> Image(painter = painterResource(id = R.drawable.sfondo_schermata_iniziale), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "Allenamento" -> Image(painter = painterResource(id = R.drawable.allenamento), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             }
         }

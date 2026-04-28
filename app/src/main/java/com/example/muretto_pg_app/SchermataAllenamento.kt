@@ -51,7 +51,7 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Column(modifier = Modifier.fillMaxSize()) {
 
-            Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 10.dp)) {
+            Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
                 IconButton(
                     onClick = { onTornaIndietro() },
                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)

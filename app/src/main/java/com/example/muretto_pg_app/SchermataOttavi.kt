@@ -48,12 +48,12 @@ fun SchermataOttavi(
             Column(modifier = Modifier.fillMaxSize().padding(bottom = 100.dp)) {
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
                     IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)) {
-                        Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFont)
+                        Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFont, fontWeight = FontWeight.Bold)
                     }
                     Text(
                         titoloSchermata,
                         color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFont, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.align(Alignment.Center).offset(x = 15.dp)
+                        modifier = Modifier.align(Alignment.Center)
                     )
                 }
 

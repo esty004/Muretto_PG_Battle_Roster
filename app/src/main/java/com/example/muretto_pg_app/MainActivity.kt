@@ -127,8 +127,8 @@ fun AppNavigation() {
                 SchermataMappa(onPinClick = { rottaDestinazione -> navController.navigate(rottaDestinazione) })
             }
 
-            composable("benvenuto") { SchermataDiBenvenuto(onVaiAlMenu = { navController.navigate("menu") }) }
-            composable("benvenuto_barre_faul") { SchermataDiBenvenutoBarreFaul(onVaiAlMenu = { navController.navigate("menu") }) }
+            composable("benvenuto") { SchermataDiBenvenuto(onTornaIndietro = { navController.popBackStack() }, onVaiAlMenu = { navController.navigate("menu") }) }
+            composable("benvenuto_barre_faul") { SchermataDiBenvenutoBarreFaul(onTornaIndietro = { navController.popBackStack() }, onVaiAlMenu = { navController.navigate("menu") }) }
 
             composable("menu") { SchermataMenu(onTornaIndietro = { navController.popBackStack() }, onSelezionaModalita = { navController.navigate(it) }) }
 
@@ -166,6 +166,7 @@ fun AppNavigation() {
             composable("generatore_argomenti") { SchermataGeneratoreArgomenti { navController.popBackStack() } }
             composable("generatore_modalita") { SchermataGeneratoreModalita { navController.popBackStack() } }
             composable("generatore_parole") { SchermataGeneratoreParole { navController.popBackStack() } }
+            composable("trasferte") { SchermataTrasferte { navController.popBackStack() } }
         }
 
         if (rottaCorrente != "benvenuto" && rottaCorrente != "benvenuto_barre_faul" && rottaCorrente != "mappa") {
@@ -424,7 +425,7 @@ fun mandaComando(context: Context, key: Int) {
 class NotificationListener : android.service.notification.NotificationListenerService()
 
 @Composable
-fun SchermataDiBenvenuto(onVaiAlMenu: () -> Unit) {
+fun SchermataDiBenvenuto(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Unit) {
     var inTransizione by remember { mutableStateOf(false) }
 
     val spostamentoVerticale = (-50).dp
@@ -455,6 +456,13 @@ fun SchermataDiBenvenuto(onVaiAlMenu: () -> Unit) {
         }
 
         if (!inTransizione) {
+            IconButton(
+                onClick = { onTornaIndietro() },
+                modifier = Modifier.align(Alignment.TopStart).padding(top = 60.dp, start = 16.dp)
+            ) {
+                Text("<", color = Color.White, fontSize = 45.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
+            }
+
             Box(modifier = Modifier.offset(y = spostamentoVerticale).size(dimensioneAura).graphicsLayer { scaleX = scalaAura; scaleY = scalaAura; alpha = alphaAura }.background(Color.Black.copy(alpha = 0.4f), CircleShape).border(4.dp, Color.Black.copy(alpha = 0.6f), CircleShape))
         }
 
@@ -468,7 +476,7 @@ fun SchermataDiBenvenuto(onVaiAlMenu: () -> Unit) {
 
 // --- SCHERMATA DI BENVENUTO BARRE FAUL ---
 @Composable
-fun SchermataDiBenvenutoBarreFaul(onVaiAlMenu: () -> Unit) {
+fun SchermataDiBenvenutoBarreFaul(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Unit) {
     var inTransizione by remember { mutableStateOf(false) }
 
     val scalaSfondo by animateFloatAsState(targetValue = if (inTransizione) 2.8f else 1f, animationSpec = tween(1300, easing = FastOutSlowInEasing), label = "")
@@ -508,6 +516,15 @@ fun SchermataDiBenvenutoBarreFaul(onVaiAlMenu: () -> Unit) {
                         .size(150.dp)
                         .graphicsLayer { scaleX = scalaVt; scaleY = scalaVt }
                 )
+            }
+        }
+
+        if (!inTransizione) {
+            IconButton(
+                onClick = { onTornaIndietro() },
+                modifier = Modifier.align(Alignment.TopStart).padding(top = 60.dp, start = 16.dp)
+            ) {
+                Text("<", color = Color.White, fontSize = 45.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
             }
         }
     }
