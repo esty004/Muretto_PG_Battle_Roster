@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "275459039012",
+    "project_id": "freestapp-2b2f8",
+    "storage_bucket": "freestapp-2b2f8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:275459039012:android:333bfd72918d3d435eddb1",
+        "android_client_info": {
+          "package_name": "com.example.muretto_pg_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEBUHRltctq_hF1JHb4lZG0qgi0yyy5Sk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.0"
 }
 
 android {
@@ -53,6 +54,17 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("org.osmdroid:osmdroid-android:6.1.18")
     implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation(platform("com.google.firebase:firebase-bom:32.8.0"))
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-storage")
+    // Supabase
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.4.0")
+
+    // Ktor (il client di rete usato da Supabase)
+    implementation("io.ktor:ktor-client-android:2.3.10")
+
+    // Kotlinx Serialization
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -118,11 +118,8 @@ fun SchermataOttavi(
                         val nome = nomeNuovoMc.trim()
 
                         // --- MECCANICA GLOBALE (Aggiunta in corsa) ---
-                        // Cerca se il nome esiste nell'ALTRO muretto
                         val mcGlobale = DatabaseMcs.cercaMcGlobale(nome)
-
-                        // Se esiste usa quello globale (con foto), altrimenti crea il classico "no pic"
-                        val nuovoMembro = mcGlobale ?: Freestyler(UUID.randomUUID().toString(), nome, R.drawable.no_pic)
+                        val nuovoMembro = mcGlobale ?: Freestyler(UUID.randomUUID().toString(), nome, "", if (Tema.isBarreFaul) "barre_faul" else "muretto_pg")
 
                         val roundAperti = GestoreBattle.roundsAttuali.filter { !it.completato }
                         if (roundAperti.isNotEmpty()) {

@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -52,7 +53,11 @@ fun SchermataMurettoClassico(
     val focusManager = LocalFocusManager.current
     val is2v2 = tipoTorneo != TipoTorneo.SINGOLO
 
-    var listaMcs by remember(Tema.isBarreFaul) { mutableStateOf(DatabaseMcs.getListaAttuale()) }
+    // --- AGGIORNAMENTO DATI DAL CLOUD ---
+    LaunchedEffect(Tema.isBarreFaul) {
+        val murettoId = if (Tema.isBarreFaul) "barre_faul" else "muretto_pg"
+        DatabaseMcs.fetchMcsDalCloud(murettoId)
+    }
 
     var testoRicerca by remember { mutableStateOf("") }
     var searchFocused by remember { mutableStateOf(false) }
@@ -64,14 +69,10 @@ fun SchermataMurettoClassico(
     var mostraNotepad by remember { mutableStateOf(false) }
     var testoNotepad by remember { mutableStateOf("") }
 
-    val listaFiltrata = listaMcs.filter { it.nome.contains(testoRicerca, ignoreCase = true) }
+    val listaFiltrata = DatabaseMcs.listaMcsCloud.filter { it.nome.contains(testoRicerca, ignoreCase = true) }
 
     BackHandler(enabled = searchFocused || mostraNotepad) {
-        if (mostraNotepad) {
-            mostraNotepad = false
-        } else {
-            focusManager.clearFocus()
-        }
+        if (mostraNotepad) mostraNotepad = false else focusManager.clearFocus()
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
@@ -80,13 +81,9 @@ fun SchermataMurettoClassico(
             Column(modifier = Modifier.fillMaxSize().padding(bottom = 80.dp)) {
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 10.dp)) {
                     IconButton(
-                        onClick = {
-                            if (searchFocused) focusManager.clearFocus() else onTornaAlMenu()
-                        },
+                        onClick = { if (searchFocused) focusManager.clearFocus() else onTornaAlMenu() },
                         modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)
-                    ) {
-                        Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
-                    }
+                    ) { Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold) }
                     Text("SELEZIONA GLI MC", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center).offset(x = 15.dp))
                 }
 
@@ -102,90 +99,65 @@ fun SchermataMurettoClassico(
                     value = testoRicerca,
                     onValueChange = { testoRicerca = it },
                     placeholder = { Text("Cerca un MC...", color = Tema.coloreTestoSecondario) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .onFocusChanged { searchFocused = it.isFocused },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Tema.colorePrincipale,
-                        unfocusedBorderColor = Color.DarkGray,
-                        focusedTextColor = Tema.coloreTesto,
-                        unfocusedTextColor = Tema.coloreTesto,
-                        cursorColor = Tema.colorePrincipale
-                    ),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).onFocusChanged { searchFocused = it.isFocused },
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Tema.colorePrincipale, unfocusedBorderColor = Color.DarkGray, focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, cursorColor = Tema.colorePrincipale),
+                    singleLine = true, shape = RoundedCornerShape(12.dp)
                 )
 
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    items(listaFiltrata) { mc ->
-                        val isSelezionato = mcsSelezionati.contains(mc.id)
-
-                        CardFreestylerTorneo(
-                            freestyler = mc,
-                            isSelezionato = isSelezionato,
-                            onClick = {
-                                mcsSelezionati = if (isSelezionato) mcsSelezionati - mc.id else mcsSelezionati + mc.id
-                            }
-                        )
+                // Rotella di caricamento se Firestore sta ancora scaricando
+                if (DatabaseMcs.staCaricando.value) {
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Tema.colorePrincipale)
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        contentPadding = PaddingValues(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        items(listaFiltrata) { mc ->
+                            val isSelezionato = mcsSelezionati.contains(mc.id)
+                            CardFreestylerTorneo(
+                                freestyler = mc,
+                                isSelezionato = isSelezionato,
+                                onClick = { mcsSelezionati = if (isSelezionato) mcsSelezionati - mc.id else mcsSelezionati + mc.id }
+                            )
+                        }
                     }
                 }
             }
 
             FloatingActionButton(
                 onClick = { mostraNotepad = true },
-                containerColor = Color(0xFF4CAF50),
-                contentColor = Color.White,
-                shape = CircleShape,
+                containerColor = Color(0xFF4CAF50), contentColor = Color.White, shape = CircleShape,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 170.dp)
-            ) {
-                Text("TxT", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
-            }
+            ) { Text("TxT", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White) }
 
             FloatingActionButton(
                 onClick = { mostraDialogAggiunta = true },
-                containerColor = Color(0xFF4CAF50),
-                contentColor = Color.White,
-                shape = CircleShape,
+                containerColor = Color(0xFF4CAF50), contentColor = Color.White, shape = CircleShape,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 100.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Aggiungi MC", modifier = Modifier.size(30.dp))
-            }
+            ) { Icon(Icons.Default.Add, contentDescription = "Aggiungi MC", modifier = Modifier.size(30.dp)) }
 
             Button(
                 onClick = {
                     GestoreBattle.resetSelezione()
-                    val selezionatiVeri = mcsSelezionati.mapNotNull { id -> listaMcs.find { it.id == id } }
+                    val selezionatiVeri = mcsSelezionati.mapNotNull { id -> DatabaseMcs.listaMcsCloud.find { it.id == id } }
                     GestoreBattle.mcsSelezionati.addAll(selezionatiVeri)
-
                     val minimoRichiesto = if (is2v2) 4 else 2
                     if (GestoreBattle.mcsSelezionati.size >= minimoRichiesto) onIniziaBattle()
                 },
                 enabled = mcsSelezionati.size >= (if (is2v2) 4 else 2),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Tema.colorePrincipale,
-                    disabledContainerColor = Color.DarkGray
-                ),
+                colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale, disabledContainerColor = Color.DarkGray),
                 shape = CircleShape,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth(0.85f)
-                    .padding(vertical = 20.dp)
-                    .height(60.dp)
-            ) {
-                Text("INIZIA BATTLE", color = Color.White, fontSize = 22.sp, fontFamily = FontFamily(Font(R.font.jackboa)))
-            }
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(0.85f).padding(vertical = 20.dp).height(60.dp)
+            ) { Text("INIZIA BATTLE", color = Color.White, fontSize = 22.sp, fontFamily = FontFamily(Font(R.font.jackboa))) }
 
             AnimatedVisibility(
                 visible = mostraNotepad,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
-                exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it }), exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
                 modifier = Modifier.fillMaxSize()
             ) {
                 Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
@@ -193,48 +165,39 @@ fun SchermataMurettoClassico(
 
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(top = 40.dp, bottom = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            IconButton(onClick = { mostraNotepad = false }) {
-                                Text("<", color = Tema.coloreTesto, fontSize = 40.sp, fontFamily = MioFontPersonalizzato)
-                            }
-
+                            IconButton(onClick = { mostraNotepad = false }) { Text("<", color = Tema.coloreTesto, fontSize = 40.sp, fontFamily = MioFontPersonalizzato) }
                             Text("BLOCCO NOTE", color = Tema.coloreTesto, fontSize = 24.sp, fontFamily = MioFontPersonalizzato)
 
                             Button(
                                 onClick = {
                                     val lines = testoNotepad.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
                                     val nuoviIdSelezionati = mutableListOf<String>()
-                                    var listaAggiornata = listaMcs.toList()
 
                                     for (line in lines) {
                                         val nomiDaProcessare = if (is2v2) line.split(Regex("(?i)\\s+e\\s+")).map { it.trim() }.filter { it.isNotEmpty() } else listOf(line)
 
                                         for (nome in nomiDaProcessare) {
-                                            val esistente = listaAggiornata.find { it.nome.equals(nome, ignoreCase = true) }
+                                            val esistente = DatabaseMcs.listaMcsCloud.find { it.nome.equals(nome, ignoreCase = true) }
                                             if (esistente != null) {
                                                 nuoviIdSelezionati.add(esistente.id)
                                             } else {
+                                                // --- MECCANICA GLOBALE ---
                                                 val mcGlobale = DatabaseMcs.cercaMcGlobale(nome)
-                                                val nuovoMc = mcGlobale ?: Freestyler(UUID.randomUUID().toString(), nome, R.drawable.no_pic)
-
-                                                listaAggiornata = listaAggiornata + nuovoMc
+                                                val nuovoMc = mcGlobale ?: Freestyler(UUID.randomUUID().toString(), nome, "", if (Tema.isBarreFaul) "barre_faul" else "muretto_pg")
+                                                DatabaseMcs.listaMcsCloud.add(nuovoMc)
                                                 nuoviIdSelezionati.add(nuovoMc.id)
                                             }
                                         }
                                     }
 
-                                    listaMcs = listaAggiornata
                                     mcsSelezionati = (mcsSelezionati + nuoviIdSelezionati).distinct()
                                     testoNotepad = ""
                                     mostraNotepad = false
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
-                                shape = CircleShape
-                            ) {
-                                Text("PROSEGUI", color = Color.White, fontWeight = FontWeight.Bold)
-                            }
+                                colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), shape = CircleShape
+                            ) { Text("PROSEGUI", color = Color.White, fontWeight = FontWeight.Bold) }
                         }
 
                         Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp)) {
@@ -243,24 +206,20 @@ fun SchermataMurettoClassico(
                                 Text(placeholder, color = Tema.coloreTestoSecondario, fontSize = 20.sp, lineHeight = 30.sp)
                             }
                             BasicTextField(
-                                value = testoNotepad,
-                                onValueChange = { testoNotepad = it },
+                                value = testoNotepad, onValueChange = { testoNotepad = it },
                                 textStyle = TextStyle(color = Tema.coloreTesto, fontSize = 20.sp, lineHeight = 30.sp),
-                                cursorBrush = SolidColor(Tema.coloreTesto),
-                                modifier = Modifier.fillMaxSize()
+                                cursorBrush = SolidColor(Tema.coloreTesto), modifier = Modifier.fillMaxSize()
                             )
                         }
                     }
                 }
             }
-
         }
     }
 
     if (mostraDialogAggiunta) {
         AlertDialog(
-            onDismissRequest = { mostraDialogAggiunta = false },
-            containerColor = Tema.coloreSfondoCard,
+            onDismissRequest = { mostraDialogAggiunta = false }, containerColor = Tema.coloreSfondoCard,
             title = { Text("Nuovo MC", color = Tema.coloreTesto, fontWeight = FontWeight.Bold) },
             text = {
                 OutlinedTextField(
@@ -272,13 +231,12 @@ fun SchermataMurettoClassico(
                 Button(colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), onClick = {
                     if (nomeNuovoMc.isNotBlank()) {
                         val nome = nomeNuovoMc.trim()
-                        val esistenteInLista = listaMcs.find { it.nome.equals(nome, ignoreCase = true) }
+                        val esistenteInLista = DatabaseMcs.listaMcsCloud.find { it.nome.equals(nome, ignoreCase = true) }
 
                         if (esistenteInLista == null) {
                             val mcGlobale = DatabaseMcs.cercaMcGlobale(nome)
-                            val nuovoMc = mcGlobale ?: Freestyler(System.currentTimeMillis().toString(), nome, R.drawable.no_pic)
-
-                            listaMcs = listaMcs + nuovoMc
+                            val nuovoMc = mcGlobale ?: Freestyler(System.currentTimeMillis().toString(), nome, "", if (Tema.isBarreFaul) "barre_faul" else "muretto_pg")
+                            DatabaseMcs.listaMcsCloud.add(nuovoMc)
                         }
                         nomeNuovoMc = ""
                         mostraDialogAggiunta = false
@@ -293,17 +251,20 @@ fun SchermataMurettoClassico(
 @Composable
 fun CardFreestylerTorneo(freestyler: Freestyler, isSelezionato: Boolean, onClick: () -> Unit) {
     val colorMatrix = remember(isSelezionato) { if (isSelezionato) ColorMatrix().apply { setToSaturation(0f) } else null }
+    val imageModel: Any = if (freestyler.immagineUrl.isBlank()) R.drawable.no_pic else freestyler.immagineUrl
 
     Box(
         modifier = Modifier.fillMaxWidth().aspectRatio(0.8f).clip(RoundedCornerShape(12.dp)).border(3.dp, if(isSelezionato) Color.Green else Tema.colorePrincipale, RoundedCornerShape(12.dp)).background(Tema.coloreSfondoCard).clickable { onClick() },
         contentAlignment = Alignment.BottomCenter
     ) {
         AsyncImage(
-            model = freestyler.immagineId,
+            model = imageModel,
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             alignment = Alignment.TopCenter,
             contentScale = ContentScale.Crop,
+            placeholder = painterResource(R.drawable.no_pic),
+            error = painterResource(R.drawable.no_pic),
             colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null
         )
 
