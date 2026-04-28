@@ -1,6 +1,5 @@
 package com.example.muretto_pg_app
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,7 +15,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -27,14 +25,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 
 @Composable
 fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (String) -> Unit) {
@@ -248,11 +245,7 @@ fun SezioneMatchmaking(font: FontFamily) {
                             val esistenteInLista = GestoreAllenamento.listaMcsAllenamento.find { it.nome.equals(nome, ignoreCase = true) }
 
                             if (esistenteInLista == null) {
-                                // --- MECCANICA GLOBALE (Allenamento) ---
-                                // Cerca se il nome esiste nell'ALTRO muretto
                                 val mcGlobale = DatabaseMcs.cercaMcGlobale(nome)
-
-                                // Se esiste usa quello globale (con foto), altrimenti crea il classico "no pic"
                                 val nuovoMc = mcGlobale ?: Freestyler(System.currentTimeMillis().toString(), nome, R.drawable.no_pic)
                                 GestoreAllenamento.listaMcsAllenamento.add(nuovoMc)
                             }
@@ -297,7 +290,7 @@ fun BattleCardMatchmaking(mc1: Freestyler, mc2: Freestyler) {
     ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
             BoxMC(mc = mc1, width = 90.dp, height = 120.dp)
-            Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(70.dp).padding(horizontal = 8.dp))
+            AsyncImage(model = R.drawable.versus, contentDescription = "Versus", modifier = Modifier.size(70.dp).padding(horizontal = 8.dp))
             BoxMC(mc = mc2, width = 90.dp, height = 120.dp)
         }
     }
@@ -311,7 +304,14 @@ fun CardFreestyler(freestyler: Freestyler, isSelezionato: Boolean, onClick: () -
         modifier = Modifier.fillMaxWidth().aspectRatio(0.8f).clip(RoundedCornerShape(12.dp)).border(3.dp, if(isSelezionato) Color.Green else Tema.colorePrincipale, RoundedCornerShape(12.dp)).background(Tema.coloreSfondoCard).clickable { onClick() },
         contentAlignment = Alignment.BottomCenter
     ) {
-        Image(painter = painterResource(id = freestyler.immagineId), contentDescription = "Foto di ${freestyler.nome}", modifier = Modifier.fillMaxSize(), alignment = Alignment.TopCenter, contentScale = ContentScale.Crop, colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null)
+        AsyncImage(
+            model = freestyler.immagineId,
+            contentDescription = "Foto di ${freestyler.nome}",
+            modifier = Modifier.fillMaxSize(),
+            alignment = Alignment.TopCenter,
+            contentScale = ContentScale.Crop,
+            colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null
+        )
 
         if (isSelezionato) {
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)), contentAlignment = Alignment.Center) {

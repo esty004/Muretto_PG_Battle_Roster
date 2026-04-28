@@ -6,7 +6,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,7 +31,6 @@ import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -40,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,7 +52,6 @@ fun SchermataMurettoClassico(
     val focusManager = LocalFocusManager.current
     val is2v2 = tipoTorneo != TipoTorneo.SINGOLO
 
-    // Lista dipendente dal tema attuale
     var listaMcs by remember(Tema.isBarreFaul) { mutableStateOf(DatabaseMcs.getListaAttuale()) }
 
     var testoRicerca by remember { mutableStateOf("") }
@@ -218,11 +216,7 @@ fun SchermataMurettoClassico(
                                             if (esistente != null) {
                                                 nuoviIdSelezionati.add(esistente.id)
                                             } else {
-                                                // --- MECCANICA GLOBALE (TxT) ---
-                                                // Cerca se il nome esiste nell'ALTRO muretto
                                                 val mcGlobale = DatabaseMcs.cercaMcGlobale(nome)
-
-                                                // Se esiste usa quello globale (con foto), altrimenti crea il classico "no pic"
                                                 val nuovoMc = mcGlobale ?: Freestyler(UUID.randomUUID().toString(), nome, R.drawable.no_pic)
 
                                                 listaAggiornata = listaAggiornata + nuovoMc
@@ -281,11 +275,7 @@ fun SchermataMurettoClassico(
                         val esistenteInLista = listaMcs.find { it.nome.equals(nome, ignoreCase = true) }
 
                         if (esistenteInLista == null) {
-                            // --- MECCANICA GLOBALE (Pulsante +) ---
-                            // Cerca se il nome esiste nell'ALTRO muretto
                             val mcGlobale = DatabaseMcs.cercaMcGlobale(nome)
-
-                            // Se esiste usa quello globale (con foto), altrimenti crea il classico "no pic"
                             val nuovoMc = mcGlobale ?: Freestyler(System.currentTimeMillis().toString(), nome, R.drawable.no_pic)
 
                             listaMcs = listaMcs + nuovoMc
@@ -308,7 +298,14 @@ fun CardFreestylerTorneo(freestyler: Freestyler, isSelezionato: Boolean, onClick
         modifier = Modifier.fillMaxWidth().aspectRatio(0.8f).clip(RoundedCornerShape(12.dp)).border(3.dp, if(isSelezionato) Color.Green else Tema.colorePrincipale, RoundedCornerShape(12.dp)).background(Tema.coloreSfondoCard).clickable { onClick() },
         contentAlignment = Alignment.BottomCenter
     ) {
-        Image(painter = painterResource(id = freestyler.immagineId), contentDescription = null, modifier = Modifier.fillMaxSize(), alignment = Alignment.TopCenter, contentScale = ContentScale.Crop, colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null)
+        AsyncImage(
+            model = freestyler.immagineId,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            alignment = Alignment.TopCenter,
+            contentScale = ContentScale.Crop,
+            colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null
+        )
 
         if (isSelezionato) {
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)), contentAlignment = Alignment.Center) {

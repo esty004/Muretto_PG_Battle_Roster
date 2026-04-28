@@ -9,7 +9,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Brush
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -23,12 +22,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage // <-- IMPORTANTE PER COIL
 
 // --- IL NUOVO MOTORE DEI TEMI ---
 object Tema {
@@ -261,8 +260,6 @@ object DatiAllenamento {
     }
 }
 
-
-
 @Composable
 fun BoxMC(
     mc: Freestyler,
@@ -287,8 +284,8 @@ fun BoxMC(
             .background(Tema.coloreSfondoCard),
         contentAlignment = Alignment.BottomCenter
     ) {
-        Image(
-            painter = painterResource(id = mc.immagineId),
+        AsyncImage(
+            model = mc.immagineId,
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
