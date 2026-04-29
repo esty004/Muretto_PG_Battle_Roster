@@ -34,10 +34,11 @@ import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.gotrue.auth
-// Import per lo Storage
 import io.github.jan.supabase.storage.Storage
 import io.github.jan.supabase.storage.storage
 import java.util.UUID
+
+// ─── TEMA ────────────────────────────────────────────────────────────────────
 
 object Tema {
     var isBarreFaul by mutableStateOf(false)
@@ -56,6 +57,8 @@ object Tema {
         }
 }
 
+// ─── MODELLI DATI ─────────────────────────────────────────────────────────────
+
 @Serializable
 data class Freestyler(
     val id: String = "",
@@ -63,6 +66,8 @@ data class Freestyler(
     val immagineUrl: String = "",
     val muretto: String = ""
 )
+
+// ─── DATABASE ─────────────────────────────────────────────────────────────────
 
 object DatabaseMcs {
     private val supabaseUrl = "https://bvzwnuxljhbxeplhbjze.supabase.co"
@@ -74,7 +79,7 @@ object DatabaseMcs {
     ) {
         install(Postgrest)
         install(Auth)
-        install(Storage) // Modulo Storage installato
+        install(Storage)
     }
 
     var listaMcsCloud = mutableStateListOf<Freestyler>()
@@ -88,9 +93,7 @@ object DatabaseMcs {
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     val adminList = supabase.postgrest["amministratori"].select {
-                        filter {
-                            eq("id", user.id)
-                        }
+                        filter { eq("id", user.id) }
                     }.data
                     withContext(Dispatchers.Main) {
                         isAdmin = adminList != "[]"
@@ -128,12 +131,10 @@ object DatabaseMcs {
         return tuttiMcsCloud.find { it.nome.equals(nomeDaCercare, ignoreCase = true) }
     }
 
-    // --- FUNZIONE PER INSERIRE L'MC ---
     suspend fun inserisciNuovoMc(nome: String, muretto: String, imageBytes: ByteArray?): Boolean {
         return try {
             var imageUrl = ""
 
-            // 1. Carica l'immagine nello storage se presente
             if (imageBytes != null) {
                 val fileName = "mc_${UUID.randomUUID()}.jpg"
                 val bucket = supabase.storage["immagini"]
@@ -141,7 +142,6 @@ object DatabaseMcs {
                 imageUrl = bucket.publicUrl(fileName)
             }
 
-            // 2. Calcola l'ID corretto
             val esistenti = supabase.postgrest["mcs"].select {
                 filter { eq("muretto", muretto) }
             }.decodeList<Freestyler>()
@@ -154,7 +154,6 @@ object DatabaseMcs {
                 (maxNum + 1).toString()
             }
 
-            // 3. Salva nella tabella mcs
             val nuovoMc = Freestyler(id = nuovoId, nome = nome, immagineUrl = imageUrl, muretto = muretto)
             supabase.postgrest["mcs"].insert(nuovoMc)
 
@@ -165,6 +164,8 @@ object DatabaseMcs {
         }
     }
 }
+
+// ─── TORNEO ───────────────────────────────────────────────────────────────────
 
 data class Round(
     val id: String,
@@ -214,7 +215,14 @@ object GestoreBattle {
         val lista = if (tipo == TipoTorneo.COPPIE_CASUALI) partecipanti.shuffled() else partecipanti.toList()
         val coppie = mutableListOf<Freestyler>()
         for (i in 0 until (lista.size / 2) * 2 step 2) {
-            coppie.add(Freestyler(id = "${lista[i].id}_${lista[i+1].id}", nome = "${lista[i].nome} & ${lista[i+1].nome}", immagineUrl = "local_2v2", muretto = if (Tema.isBarreFaul) "barre_faul" else "muretto_pg"))
+            coppie.add(
+                Freestyler(
+                    id = "${lista[i].id}_${lista[i + 1].id}",
+                    nome = "${lista[i].nome} & ${lista[i + 1].nome}",
+                    immagineUrl = "local_2v2",
+                    muretto = if (Tema.isBarreFaul) "barre_faul" else "muretto_pg"
+                )
+            )
         }
         if (lista.size % 2 != 0) coppie.add(lista.last())
         val faseIniziale = determinaFase(coppie.size)
@@ -234,7 +242,9 @@ object GestoreBattle {
         } else {
             if (total >= 3) {
                 val num1v1 = (total - 3) / 2
-                for (i in 0 until num1v1) { roundsAttuali.add(Round("r_${fase.name}_$i", i + 1, listOf(shuffled[i * 2], shuffled[i * 2 + 1]))) }
+                for (i in 0 until num1v1) {
+                    roundsAttuali.add(Round("r_${fase.name}_$i", i + 1, listOf(shuffled[i * 2], shuffled[i * 2 + 1])))
+                }
                 val startRumble = num1v1 * 2
                 roundsAttuali.add(Round("r_${fase.name}_$num1v1", num1v1 + 1, listOf(shuffled[startRumble], shuffled[startRumble + 1], shuffled[startRumble + 2])))
             } else {
@@ -255,7 +265,8 @@ object GestoreBattle {
         }
     }
 
-    fun haProgresso(context: Context): Boolean = context.getSharedPreferences("battle_pref", Context.MODE_PRIVATE).contains("rounds")
+    fun haProgresso(context: Context): Boolean =
+        context.getSharedPreferences("battle_pref", Context.MODE_PRIVATE).contains("rounds")
 
     fun caricaProgresso(context: Context) {
         val sharedPref = context.getSharedPreferences("battle_pref", Context.MODE_PRIVATE)
@@ -277,6 +288,8 @@ object GestoreBattle {
     }
 }
 
+// ─── ALLENAMENTO ──────────────────────────────────────────────────────────────
+
 object GestoreAllenamento {
     var tabSelezionata by mutableIntStateOf(0)
     var mcsSelezionatiIds by mutableStateOf(setOf<String>())
@@ -287,19 +300,23 @@ object GestoreAllenamento {
 }
 
 object DatiAllenamento {
-    fun caricaArgomenti(context: Context): List<String> {
+
+    private fun fetchValori(context: Context, rawResId: Int): List<String> {
         return try {
-            val json = context.resources.openRawResource(R.raw.topics).bufferedReader().use { it.readText() }
+            val json = context.resources.openRawResource(rawResId).bufferedReader().use { it.readText() }
             Gson().fromJson(json, object : TypeToken<List<String>>() {}.type)
-        } catch (e: Exception) { listOf("Errore Caricamento") }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
     }
-    fun caricaModalita(context: Context): List<String> {
-        return try {
-            val json = context.resources.openRawResource(R.raw.modes).bufferedReader().use { it.readText() }
-            Gson().fromJson(json, object : TypeToken<List<String>>() {}.type)
-        } catch (e: Exception) { listOf("Errore Caricamento") }
-    }
+
+    fun caricaArgomenti(context: Context): List<String> = fetchValori(context, R.raw.topics)
+    fun caricaModalita(context: Context): List<String> = fetchValori(context, R.raw.modes)
+    fun caricaParole(context: Context): List<String> = fetchValori(context, R.raw.common_words)
 }
+
+// ─── COMPONENTE BoxMC ─────────────────────────────────────────────────────────
 
 @Composable
 fun BoxMC(
@@ -348,7 +365,13 @@ fun BoxMC(
                 .padding(vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = mc.nome.uppercase(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            Text(
+                text = mc.nome.uppercase(),
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

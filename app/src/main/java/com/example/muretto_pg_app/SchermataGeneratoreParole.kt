@@ -1,6 +1,5 @@
 package com.example.muretto_pg_app
 
-import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -20,30 +19,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.delay
-
-fun caricaParoleDaJson(context: Context): List<String> {
-    return try {
-        val jsonString = context.resources.openRawResource(R.raw.common_words).bufferedReader().use { it.readText() }
-        val listType = object : TypeToken<List<String>>() {}.type
-        Gson().fromJson(jsonString, listType)
-    } catch (e: Exception) { listOf("Errore", "Caricamento") }
-}
 
 @Composable
 fun SchermataGeneratoreParole(onTornaIndietro: () -> Unit) {
     val context = LocalContext.current
-    val paroleDaJson = remember { caricaParoleDaJson(context) }
     val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
+    val paroleDaJson = remember { DatiAllenamento.caricaParole(context) }
     var tabSelezionata by remember { mutableIntStateOf(0) }
     var quantitaParole by remember { mutableIntStateOf(1) }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+
             Box(modifier = Modifier.fillMaxWidth().padding(top = 44.dp, bottom = 20.dp)) {
-                IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.CenterStart)) {
+                IconButton(
+                    onClick = { onTornaIndietro() },
+                    modifier = Modifier.align(Alignment.CenterStart)
+                ) {
                     Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
                 }
                 Text("PAROLE", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
@@ -53,29 +46,54 @@ fun SchermataGeneratoreParole(onTornaIndietro: () -> Unit) {
                 selectedTabIndex = tabSelezionata,
                 containerColor = Color.Transparent,
                 contentColor = Tema.colorePrincipale,
-                indicator = { tabPositions -> TabRowDefaults.SecondaryIndicator(modifier = Modifier.tabIndicatorOffset(tabPositions[tabSelezionata]), color = Tema.colorePrincipale) },
+                indicator = { tabPositions ->
+                    TabRowDefaults.SecondaryIndicator(
+                        modifier = Modifier.tabIndicatorOffset(tabPositions[tabSelezionata]),
+                        color = Tema.colorePrincipale
+                    )
+                },
                 divider = {}
             ) {
-                Tab(selected = tabSelezionata == 0, onClick = { tabSelezionata = 0 }, text = { Text("CLASSICO", color = if (tabSelezionata == 0) Tema.coloreTesto else Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold) })
-                Tab(selected = tabSelezionata == 1, onClick = { tabSelezionata = 1 }, text = { Text("A TEMPO", color = if (tabSelezionata == 1) Tema.coloreTesto else Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold) })
+                Tab(
+                    selected = tabSelezionata == 0,
+                    onClick = { tabSelezionata = 0 },
+                    text = { Text("CLASSICO", color = if (tabSelezionata == 0) Tema.coloreTesto else Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold) }
+                )
+                Tab(
+                    selected = tabSelezionata == 1,
+                    onClick = { tabSelezionata = 1 },
+                    text = { Text("A TEMPO", color = if (tabSelezionata == 1) Tema.coloreTesto else Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold) }
+                )
             }
 
             SelettoreQuantita(quantita = quantitaParole, onQuantitaChange = { quantitaParole = it }, font = MioFontPersonalizzato)
+
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (tabSelezionata == 0) ModalitaClassica(MioFontPersonalizzato, quantitaParole, paroleDaJson)
-            else ModalitaATempo(MioFontPersonalizzato, quantitaParole, paroleDaJson)
+            if (tabSelezionata == 0) {
+                ModalitaClassica(MioFontPersonalizzato, quantitaParole, paroleDaJson)
+            } else {
+                ModalitaATempo(MioFontPersonalizzato, quantitaParole, paroleDaJson)
+            }
         }
     }
 }
 
 @Composable
 fun SelettoreQuantita(quantita: Int, onQuantitaChange: (Int) -> Unit, font: FontFamily) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+    ) {
         Text("PAROLE: ", color = Tema.coloreTesto, fontWeight = FontWeight.Bold, fontFamily = font, fontSize = 18.sp)
-        IconButton(onClick = { if (quantita > 1) onQuantitaChange(quantita - 1) }) { Text("-", color = Tema.coloreTesto, fontSize = 28.sp, fontWeight = FontWeight.Bold, fontFamily = font) }
+        IconButton(onClick = { if (quantita > 1) onQuantitaChange(quantita - 1) }) {
+            Text("-", color = Tema.coloreTesto, fontSize = 28.sp, fontWeight = FontWeight.Bold, fontFamily = font)
+        }
         Text(quantita.toString(), color = Tema.coloreTesto, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp), fontFamily = font)
-        IconButton(onClick = { if (quantita < 10) onQuantitaChange(quantita + 1) }) { Text("+", color = Tema.coloreTesto, fontSize = 28.sp, fontWeight = FontWeight.Bold, fontFamily = font) }
+        IconButton(onClick = { if (quantita < 10) onQuantitaChange(quantita + 1) }) {
+            Text("+", color = Tema.coloreTesto, fontSize = 28.sp, fontWeight = FontWeight.Bold, fontFamily = font)
+        }
     }
 }
 
@@ -86,17 +104,40 @@ fun ModalitaClassica(font: FontFamily, quantita: Int, parolePool: List<String>) 
     Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(modifier = Modifier.height(8.dp))
         Box(
-            modifier = Modifier.fillMaxWidth().weight(1f).border(2.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp)).background(Tema.coloreSfondoCard, RoundedCornerShape(16.dp)).padding(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp))
+                .background(Tema.coloreSfondoCard, RoundedCornerShape(16.dp))
+                .padding(12.dp),
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            ) {
                 paroleCorrenti.forEach { parola ->
-                    Text(text = parola.uppercase(), color = Tema.coloreTesto, fontSize = if (quantita > 6) 32.sp else 46.sp, fontFamily = font, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, lineHeight = if (quantita > 6) 40.sp else 54.sp, modifier = Modifier.padding(vertical = 4.dp))
+                    Text(
+                        text = parola.uppercase(),
+                        color = Tema.coloreTesto,
+                        fontSize = if (quantita > 6) 32.sp else 46.sp,
+                        fontFamily = font,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        lineHeight = if (quantita > 6) 40.sp else 54.sp,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
             }
         }
         Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = { paroleCorrenti = parolePool.shuffled().take(quantita) }, colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), modifier = Modifier.fillMaxWidth().height(60.dp), shape = RoundedCornerShape(12.dp)) {
+        Button(
+            onClick = { if (parolePool.isNotEmpty()) paroleCorrenti = parolePool.shuffled().take(quantita) },
+            colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
+            modifier = Modifier.fillMaxWidth().height(60.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
             Text("ESTRAI PAROLA", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(modifier = Modifier.height(16.dp))
@@ -116,7 +157,7 @@ fun ModalitaATempo(font: FontFamily, quantita: Int, parolePool: List<String>) {
     LaunchedEffect(attivo, quantita, intervalloMillis) {
         if (attivo) {
             while (attivo) {
-                paroleCorrenti = parolePool.shuffled().take(quantita)
+                if (parolePool.isNotEmpty()) paroleCorrenti = parolePool.shuffled().take(quantita)
                 delay(intervalloMillis)
             }
         }
@@ -124,12 +165,19 @@ fun ModalitaATempo(font: FontFamily, quantita: Int, parolePool: List<String>) {
 
     Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.Center) {
-            Button(onClick = { tipoTempo = 0 }, colors = ButtonDefaults.buttonColors(containerColor = if (tipoTempo == 0) Tema.colorePrincipale else Color.DarkGray), modifier = Modifier.weight(1f).height(45.dp).padding(horizontal = 4.dp), shape = RoundedCornerShape(8.dp)) {
-                Text("10 SECONDI", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            }
-            Button(onClick = { tipoTempo = 1 }, colors = ButtonDefaults.buttonColors(containerColor = if (tipoTempo == 1) Tema.colorePrincipale else Color.DarkGray), modifier = Modifier.weight(1f).height(45.dp).padding(horizontal = 4.dp), shape = RoundedCornerShape(8.dp)) {
-                Text("BPM (4/4)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            }
+            Button(
+                onClick = { tipoTempo = 0 },
+                colors = ButtonDefaults.buttonColors(containerColor = if (tipoTempo == 0) Tema.colorePrincipale else Color.DarkGray),
+                modifier = Modifier.weight(1f).height(45.dp).padding(horizontal = 4.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) { Text("10 SECONDI", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White) }
+
+            Button(
+                onClick = { tipoTempo = 1 },
+                colors = ButtonDefaults.buttonColors(containerColor = if (tipoTempo == 1) Tema.colorePrincipale else Color.DarkGray),
+                modifier = Modifier.weight(1f).height(45.dp).padding(horizontal = 4.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) { Text("BPM (4/4)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White) }
         }
 
         if (tipoTempo == 1) {
@@ -146,29 +194,61 @@ fun ModalitaATempo(font: FontFamily, quantita: Int, parolePool: List<String>) {
                             bpm = (60000 / media).toInt().coerceIn(40, 220)
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), shape = RoundedCornerShape(8.dp), modifier = Modifier.height(40.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.height(40.dp)
                 ) { Text("TAP BPM", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp) }
             }
         }
 
         Box(
-            modifier = Modifier.fillMaxWidth().weight(1f).border(2.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp)).background(Tema.coloreSfondoCard, RoundedCornerShape(16.dp)).padding(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp))
+                .background(Tema.coloreSfondoCard, RoundedCornerShape(16.dp))
+                .padding(12.dp),
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            ) {
                 paroleCorrenti.forEach { parola ->
-                    Text(text = parola.uppercase(), color = if (attivo) Tema.coloreTesto else Tema.coloreTestoSecondario, fontSize = if (quantita > 6) 32.sp else 46.sp, fontFamily = font, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, lineHeight = if (quantita > 6) 40.sp else 54.sp, modifier = Modifier.padding(vertical = 4.dp))
+                    Text(
+                        text = parola.uppercase(),
+                        color = if (attivo) Tema.coloreTesto else Tema.coloreTestoSecondario,
+                        fontSize = if (quantita > 6) 32.sp else 46.sp,
+                        fontFamily = font,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        lineHeight = if (quantita > 6) 40.sp else 54.sp,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        Button(onClick = { attivo = !attivo }, colors = ButtonDefaults.buttonColors(containerColor = if (attivo) Color.Gray else Tema.colorePrincipale), modifier = Modifier.fillMaxWidth().height(60.dp), shape = RoundedCornerShape(12.dp)) {
-            Text(text = if (attivo) "STOP" else "START", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Button(
+            onClick = { attivo = !attivo },
+            colors = ButtonDefaults.buttonColors(containerColor = if (attivo) Color.Gray else Tema.colorePrincipale),
+            modifier = Modifier.fillMaxWidth().height(60.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(if (attivo) "STOP" else "START", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         }
 
-        if (attivo) Text(text = if (tipoTempo == 0) "Cambio ogni 10 secondi" else "Cambio ogni 4 misure ($bpm BPM)", color = Tema.coloreTestoSecondario, modifier = Modifier.padding(top = 12.dp), fontSize = 14.sp)
+        if (attivo) {
+            Text(
+                text = if (tipoTempo == 0) "Cambio ogni 10 secondi" else "Cambio ogni 4 misure ($bpm BPM)",
+                color = Tema.coloreTestoSecondario,
+                modifier = Modifier.padding(top = 12.dp),
+                fontSize = 14.sp
+            )
+        }
         Spacer(modifier = Modifier.height(8.dp))
     }
 }
