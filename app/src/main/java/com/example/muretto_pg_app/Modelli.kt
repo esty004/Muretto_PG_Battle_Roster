@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -22,6 +23,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.CoroutineScope
@@ -264,7 +266,10 @@ fun BoxMC(
     width: Dp = 100.dp,
     height: Dp = 130.dp
 ) {
-    val colorMatrix = if (isSconfitto) ColorMatrix().apply { setToSaturation(0f) } else null
+    val colorMatrix = remember(isSconfitto) {
+        if (isSconfitto) ColorMatrix().apply { setToSaturation(0f) } else null
+    }
+
     val borderColor = when {
         isVincitore -> Color.Green
         isSconfitto -> Color.DarkGray
@@ -287,7 +292,10 @@ fun BoxMC(
         contentAlignment = Alignment.BottomCenter
     ) {
         AsyncImage(
-            model = imageModel,
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(imageModel)
+                .crossfade(true)
+                .build(),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,

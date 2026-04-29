@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -36,6 +37,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 
 @Composable
 fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (String) -> Unit) {
@@ -210,7 +212,9 @@ fun BattleCardMatchmaking(mc1: Freestyler, mc2: Freestyler) {
 
 @Composable
 fun CardFreestyler(freestyler: Freestyler, isSelezionato: Boolean, onClick: () -> Unit) {
-    val colorMatrix = remember(isSelezionato) { if (isSelezionato) ColorMatrix().apply { setToSaturation(0f) } else null }
+    val colorMatrix = remember(isSelezionato) { 
+        if (isSelezionato) ColorMatrix().apply { setToSaturation(0f) } else null 
+    }
     val imageModel: Any = if (freestyler.immagineUrl.isBlank()) R.drawable.no_pic else freestyler.immagineUrl
 
     Box(
@@ -218,7 +222,10 @@ fun CardFreestyler(freestyler: Freestyler, isSelezionato: Boolean, onClick: () -
         contentAlignment = Alignment.BottomCenter
     ) {
         AsyncImage(
-            model = imageModel,
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(imageModel)
+                .crossfade(true)
+                .build(),
             contentDescription = "Foto di ${freestyler.nome}",
             modifier = Modifier.fillMaxSize(),
             alignment = Alignment.TopCenter,
