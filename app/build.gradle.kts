@@ -57,12 +57,10 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:32.8.0"))
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-storage")
-    // Supabase
-    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.4.0")
-
-    // Ktor (il client di rete usato da Supabase)
-    implementation("io.ktor:ktor-client-android:2.3.10")
-
+    implementation("io.github.jan-tennert.supabase:gotrue-kt:2.6.1")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.6.1")
+    implementation("io.github.jan-tennert.supabase:storage-kt:2.6.1")
+    implementation("io.ktor:ktor-client-okhttp:2.3.10")
     // Kotlinx Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     testImplementation(libs.junit)

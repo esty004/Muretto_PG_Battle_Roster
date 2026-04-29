@@ -32,6 +32,12 @@ import kotlinx.serialization.Serializable
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.gotrue.auth
+// Import per lo Storage
+import io.github.jan.supabase.storage.Storage
+import io.github.jan.supabase.storage.storage
+import java.util.UUID
 
 object Tema {
     var isBarreFaul by mutableStateOf(false)
@@ -59,50 +65,104 @@ data class Freestyler(
 )
 
 object DatabaseMcs {
-    // Le tue credenziali di Supabase
     private val supabaseUrl = "https://bvzwnuxljhbxeplhbjze.supabase.co"
     private val supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2endudXhsamhieGVwbGhianplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNzUwNjQsImV4cCI6MjA5Mjk1MTA2NH0.4d9ZS_87F7LcelnJMBAdbDkbXOeE2xQ7rGSehFHtMs8"
 
-    private val supabase = createSupabaseClient(
+    val supabase = createSupabaseClient(
         supabaseUrl = supabaseUrl,
         supabaseKey = supabaseKey
     ) {
         install(Postgrest)
+        install(Auth)
+        install(Storage) // Modulo Storage installato
     }
 
     var listaMcsCloud = mutableStateListOf<Freestyler>()
     var tuttiMcsCloud = mutableListOf<Freestyler>()
     var staCaricando = mutableStateOf(false)
+    var isAdmin by mutableStateOf(false)
+
+    fun controllaAdmin() {
+        val user = supabase.auth.currentUserOrNull()
+        if (user != null) {
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val adminList = supabase.postgrest["amministratori"].select {
+                        filter {
+                            eq("id", user.id)
+                        }
+                    }.data
+                    withContext(Dispatchers.Main) {
+                        isAdmin = adminList != "[]"
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) { isAdmin = false }
+                }
+            }
+        } else {
+            isAdmin = false
+        }
+    }
 
     fun fetchMcsDalCloud(nomeMuretto: String) {
         staCaricando.value = true
-
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Scarica dalla tabella 'mcs' di Supabase
                 val scaricati = supabase.postgrest["mcs"].select().decodeList<Freestyler>()
-
                 withContext(Dispatchers.Main) {
                     tuttiMcsCloud.clear()
                     tuttiMcsCloud.addAll(scaricati)
-
                     val filtrati = scaricati.filter { it.muretto == nomeMuretto }
                     listaMcsCloud.clear()
                     listaMcsCloud.addAll(filtrati)
-
                     staCaricando.value = false
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    staCaricando.value = false
-                }
+                withContext(Dispatchers.Main) { staCaricando.value = false }
             }
         }
     }
 
     fun cercaMcGlobale(nomeDaCercare: String): Freestyler? {
         return tuttiMcsCloud.find { it.nome.equals(nomeDaCercare, ignoreCase = true) }
+    }
+
+    // --- FUNZIONE PER INSERIRE L'MC ---
+    suspend fun inserisciNuovoMc(nome: String, muretto: String, imageBytes: ByteArray?): Boolean {
+        return try {
+            var imageUrl = ""
+
+            // 1. Carica l'immagine nello storage se presente
+            if (imageBytes != null) {
+                val fileName = "mc_${UUID.randomUUID()}.jpg"
+                val bucket = supabase.storage["immagini"]
+                bucket.upload(fileName, imageBytes, upsert = true)
+                imageUrl = bucket.publicUrl(fileName)
+            }
+
+            // 2. Calcola l'ID corretto
+            val esistenti = supabase.postgrest["mcs"].select {
+                filter { eq("muretto", muretto) }
+            }.decodeList<Freestyler>()
+
+            val nuovoId = if (muretto == "barre_faul") {
+                val maxNum = esistenti.mapNotNull { it.id.replace("bf", "").toIntOrNull() }.maxOrNull() ?: 0
+                "bf${maxNum + 1}"
+            } else {
+                val maxNum = esistenti.mapNotNull { it.id.toIntOrNull() }.maxOrNull() ?: 0
+                (maxNum + 1).toString()
+            }
+
+            // 3. Salva nella tabella mcs
+            val nuovoMc = Freestyler(id = nuovoId, nome = nome, immagineUrl = imageUrl, muretto = muretto)
+            supabase.postgrest["mcs"].insert(nuovoMc)
+
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
     }
 }
 
@@ -151,23 +211,12 @@ object GestoreBattle {
     fun iniziaTorneo2v2(partecipanti: List<Freestyler>, tipo: TipoTorneo) {
         is2v2 = true
         tipoTorneoAttuale = tipo
-
         val lista = if (tipo == TipoTorneo.COPPIE_CASUALI) partecipanti.shuffled() else partecipanti.toList()
         val coppie = mutableListOf<Freestyler>()
-
         for (i in 0 until (lista.size / 2) * 2 step 2) {
-            coppie.add(
-                Freestyler(
-                    id = "${lista[i].id}_${lista[i+1].id}",
-                    nome = "${lista[i].nome} & ${lista[i+1].nome}",
-                    immagineUrl = "local_2v2",
-                    muretto = if (Tema.isBarreFaul) "barre_faul" else "muretto_pg"
-                )
-            )
+            coppie.add(Freestyler(id = "${lista[i].id}_${lista[i+1].id}", nome = "${lista[i].nome} & ${lista[i+1].nome}", immagineUrl = "local_2v2", muretto = if (Tema.isBarreFaul) "barre_faul" else "muretto_pg"))
         }
-
         if (lista.size % 2 != 0) coppie.add(lista.last())
-
         val faseIniziale = determinaFase(coppie.size)
         generaFase(faseIniziale, coppie)
     }
@@ -176,10 +225,8 @@ object GestoreBattle {
         faseAttuale = fase
         roundsAttuali.clear()
         if (partecipanti.isEmpty()) return
-
         val shuffled = partecipanti.shuffled()
         val total = shuffled.size
-
         if (total % 2 == 0) {
             for (i in 0 until total step 2) {
                 roundsAttuali.add(Round("r_${fase.name}_${i / 2}", (i / 2) + 1, listOf(shuffled[i], shuffled[i + 1])))
@@ -187,9 +234,7 @@ object GestoreBattle {
         } else {
             if (total >= 3) {
                 val num1v1 = (total - 3) / 2
-                for (i in 0 until num1v1) {
-                    roundsAttuali.add(Round("r_${fase.name}_$i", i + 1, listOf(shuffled[i * 2], shuffled[i * 2 + 1])))
-                }
+                for (i in 0 until num1v1) { roundsAttuali.add(Round("r_${fase.name}_$i", i + 1, listOf(shuffled[i * 2], shuffled[i * 2 + 1]))) }
                 val startRumble = num1v1 * 2
                 roundsAttuali.add(Round("r_${fase.name}_$num1v1", num1v1 + 1, listOf(shuffled[startRumble], shuffled[startRumble + 1], shuffled[startRumble + 2])))
             } else {
@@ -303,13 +348,7 @@ fun BoxMC(
                 .padding(vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = mc.nome.uppercase(),
-                color = Color.White,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
+            Text(text = mc.nome.uppercase(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
         }
     }
 }

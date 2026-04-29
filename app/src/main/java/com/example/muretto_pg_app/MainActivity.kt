@@ -15,10 +15,14 @@ import android.provider.Settings
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -62,6 +66,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import io.github.jan.supabase.gotrue.auth
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
@@ -81,6 +87,8 @@ class MainActivity : ComponentActivity() {
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         insetsController.hide(WindowInsetsCompat.Type.systemBars())
+
+        DatabaseMcs.controllaAdmin()
 
         setContent {
             MaterialTheme {
@@ -102,6 +110,7 @@ fun AppNavigation() {
 
     var mostraPopupRecupero by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { if (GestoreBattle.haProgresso(context)) mostraPopupRecupero = true }
+
     if (mostraPopupRecupero) {
         AlertDialog(
             onDismissRequest = { mostraPopupRecupero = false },
@@ -122,53 +131,42 @@ fun AppNavigation() {
 
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(navController = navController, startDestination = "mappa") {
-
-            composable("mappa") {
-                SchermataMappa(onPinClick = { rottaDestinazione -> navController.navigate(rottaDestinazione) })
+            composable("mappa") { SchermataMappa(onPinClick = { navController.navigate(it) }) }
+            composable("login") {
+                SchermataLogin(
+                    onLoginSuccess = { navController.popBackStack() },
+                    onTornaIndietro = { navController.popBackStack() }
+                )
             }
+            composable("aggiungi_mc") { SchermataAggiungiMc(onTornaIndietro = { navController.popBackStack() }) }
 
-            composable("benvenuto") { SchermataDiBenvenuto(onVaiAlMenu = { navController.navigate("menu") }) }
-            composable("benvenuto_barre_faul") { SchermataDiBenvenutoBarreFaul(onVaiAlMenu = { navController.navigate("menu") }) }
+            // Aggiunti i tasti indietro dalle modifiche del branch
+            composable("benvenuto") { SchermataDiBenvenuto(onTornaIndietro = { navController.popBackStack() }, onVaiAlMenu = { navController.navigate("menu") }) }
+            composable("benvenuto_barre_faul") { SchermataDiBenvenutoBarreFaul(onTornaIndietro = { navController.popBackStack() }, onVaiAlMenu = { navController.navigate("menu") }) }
 
             composable("menu") { SchermataMenu(onTornaIndietro = { navController.popBackStack() }, onSelezionaModalita = { navController.navigate(it) }) }
 
-            composable("muretto_classico") {
-                SchermataMurettoClassico(
-                    tipoTorneo = TipoTorneo.SINGOLO,
-                    onTornaAlMenu = { navController.popBackStack() },
-                    onIniziaBattle = { GestoreBattle.iniziaTorneo(GestoreBattle.mcsSelezionati); navController.navigate("ottavi") }
-                )
-            }
+            // Nuova rotta TRASFERTE
+            composable("trasferte") { SchermataTrasferte(onTornaIndietro = { navController.popBackStack() }) }
 
+            composable("muretto_classico") {
+                SchermataMurettoClassico(tipoTorneo = TipoTorneo.SINGOLO, onTornaAlMenu = { navController.popBackStack() }, onIniziaBattle = { GestoreBattle.iniziaTorneo(GestoreBattle.mcsSelezionati); navController.navigate("ottavi") })
+            }
             composable("due_contro_due/{tipo}") { backStackEntry ->
                 val tipoStr = backStackEntry.arguments?.getString("tipo") ?: TipoTorneo.COPPIE_CASUALI.name
-                val tipoSelezionato = TipoTorneo.valueOf(tipoStr)
-
-                SchermataMurettoClassico(
-                    tipoTorneo = tipoSelezionato,
-                    onTornaAlMenu = { navController.popBackStack() },
-                    onIniziaBattle = { GestoreBattle.iniziaTorneo2v2(GestoreBattle.mcsSelezionati, tipoSelezionato); navController.navigate("ottavi") }
-                )
+                SchermataMurettoClassico(tipoTorneo = TipoTorneo.valueOf(tipoStr), onTornaAlMenu = { navController.popBackStack() }, onIniziaBattle = { GestoreBattle.iniziaTorneo2v2(GestoreBattle.mcsSelezionati, TipoTorneo.valueOf(tipoStr)); navController.navigate("ottavi") })
             }
-
             composable("ottavi") { SchermataOttavi(onTornaIndietro = { navController.popBackStack() }, onVaiAiQuarti = { }, onRoundClick = { navController.navigate("round_singolo/$it") }) }
             composable("round_singolo/{roundId}") { backStackEntry ->
-                val id = backStackEntry.arguments?.getString("roundId") ?: ""
-                SchermataRoundSingolo(roundId = id, onTornaIndietro = { navController.popBackStack() })
+                SchermataRoundSingolo(roundId = backStackEntry.arguments?.getString("roundId") ?: "", onTornaIndietro = { navController.popBackStack() })
             }
-            composable("allenamento") { SchermataAllenamento(onTornaIndietro = { navController.popBackStack() }, onSelezionaAllenamento = {
-                when (it) {
-                    "Generatore di argomenti" -> navController.navigate("generatore_argomenti")
-                    "Generatore di modalita" -> navController.navigate("generatore_modalita")
-                    "Generatore di parole" -> navController.navigate("generatore_parole")
-                }
-            }) }
+            composable("allenamento") { SchermataAllenamento(onTornaIndietro = { navController.popBackStack() }, onSelezionaAllenamento = { navController.navigate(it.lowercase().replace(" ", "_")) }) }
             composable("generatore_argomenti") { SchermataGeneratoreArgomenti { navController.popBackStack() } }
             composable("generatore_modalita") { SchermataGeneratoreModalita { navController.popBackStack() } }
             composable("generatore_parole") { SchermataGeneratoreParole { navController.popBackStack() } }
         }
 
-        if (rottaCorrente != "benvenuto" && rottaCorrente != "benvenuto_barre_faul" && rottaCorrente != "mappa") {
+        if (rottaCorrente != "benvenuto" && rottaCorrente != "benvenuto_barre_faul" && rottaCorrente != "mappa" && rottaCorrente != "login" && rottaCorrente != "aggiungi_mc" && rottaCorrente != "trasferte") {
             FloatingPlayer(MioFont)
         }
     }
@@ -178,10 +176,11 @@ fun AppNavigation() {
 fun SchermataMappa(onPinClick: (String) -> Unit) {
     val context = LocalContext.current
     val italyBounds = BoundingBox(47.1, 18.3, 35.5, 6.6)
-
-    val perugiaCoords = GeoPoint(43.112056, 12.388439)
-    val barreFaulCoords = GeoPoint(42.416669, 12.100123)
     val centroMappa = GeoPoint(42.764, 12.244)
+    val scope = rememberCoroutineScope()
+    var mostraMenuAdmin by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = mostraMenuAdmin) { mostraMenuAdmin = false }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
@@ -190,14 +189,10 @@ fun SchermataMappa(onPinClick: (String) -> Unit) {
                 MapView(ctx).apply {
                     setTileSource(TileSourceFactory.MAPNIK)
                     setMultiTouchControls(true)
-
                     minZoomLevel = 6.5
-                    maxZoomLevel = 19.0
                     controller.setZoom(8.0)
                     controller.setCenter(centroMappa)
-
                     setScrollableAreaLimitDouble(italyBounds)
-                    setBuiltInZoomControls(false)
 
                     val trueDarkModeMatrix = ColorMatrix(floatArrayOf(
                         0.0f,  0.0f, -1.0f, 0.0f, 255.0f,
@@ -205,49 +200,104 @@ fun SchermataMappa(onPinClick: (String) -> Unit) {
                         -1.0f,  0.0f,  0.0f, 0.0f, 255.0f,
                         0.0f,  0.0f,  0.0f, 1.0f, 0.0f
                     ))
+                    overlayManager.tilesOverlay.setColorFilter(ColorMatrixColorFilter(trueDarkModeMatrix))
 
-                    val filter = ColorMatrixColorFilter(trueDarkModeMatrix)
-                    overlayManager.tilesOverlay.setColorFilter(filter)
-
-                    val startMarker = Marker(this)
-                    startMarker.position = perugiaCoords
-                    startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    startMarker.title = "Muretto PG"
-
-                    val bitmapOriginale = android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.logo_muretto)
-                    val larghezzaPin = 200
-                    val altezzaPin = 140
-                    val bitmapRidimensionata = android.graphics.Bitmap.createScaledBitmap(bitmapOriginale, larghezzaPin, altezzaPin, true)
-
-                    startMarker.icon = android.graphics.drawable.BitmapDrawable(ctx.resources, bitmapRidimensionata)
-
-                    startMarker.setOnMarkerClickListener { _, _ ->
-                        if (Tema.isBarreFaul) GestoreBattle.pulisciSalvataggio(context) // Evita di mischiare i salvataggi
-                        Tema.isBarreFaul = false
-                        onPinClick("benvenuto")
-                        true
+                    val m1 = Marker(this).apply {
+                        position = GeoPoint(43.112056, 12.388439)
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        val bmp = android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.logo_muretto)
+                        icon = android.graphics.drawable.BitmapDrawable(ctx.resources, android.graphics.Bitmap.createScaledBitmap(bmp, 200, 140, true))
+                        setOnMarkerClickListener { _, _ ->
+                            Tema.isBarreFaul = false
+                            onPinClick("benvenuto")
+                            true
+                        }
                     }
+                    overlays.add(m1)
 
-                    overlays.add(startMarker)
-
-                    val markerBarreFaul = Marker(this)
-                    markerBarreFaul.position = barreFaulCoords
-                    markerBarreFaul.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    markerBarreFaul.title = "Barre Faul"
-
-                    val bmpBarreFaul = android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.pin_barre_faul)
-                    markerBarreFaul.icon = android.graphics.drawable.BitmapDrawable(ctx.resources, android.graphics.Bitmap.createScaledBitmap(bmpBarreFaul, larghezzaPin, altezzaPin, true))
-
-                    markerBarreFaul.setOnMarkerClickListener { _, _ ->
-                        if (!Tema.isBarreFaul) GestoreBattle.pulisciSalvataggio(context) // Evita di mischiare i salvataggi
-                        Tema.isBarreFaul = true
-                        onPinClick("benvenuto_barre_faul")
-                        true
+                    val m2 = Marker(this).apply {
+                        position = GeoPoint(42.416669, 12.100123)
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        val bmp = android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.pin_barre_faul)
+                        icon = android.graphics.drawable.BitmapDrawable(ctx.resources, android.graphics.Bitmap.createScaledBitmap(bmp, 200, 140, true))
+                        setOnMarkerClickListener { _, _ ->
+                            Tema.isBarreFaul = true
+                            onPinClick("benvenuto_barre_faul")
+                            true
+                        }
                     }
-                    overlays.add(markerBarreFaul)
+                    overlays.add(m2)
                 }
             }
         )
+
+        Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp, end = 20.dp), contentAlignment = Alignment.TopEnd) {
+            Image(
+                painter = painterResource(id = R.drawable.login_logo),
+                contentDescription = "Profilo",
+                modifier = Modifier.size(45.dp).clip(CircleShape).clickable {
+                    if (DatabaseMcs.isAdmin) mostraMenuAdmin = true else onPinClick("login")
+                }
+            )
+        }
+
+        if (mostraMenuAdmin) {
+            Box(
+                modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f))
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { mostraMenuAdmin = false }
+            )
+        }
+
+        AnimatedVisibility(
+            visible = mostraMenuAdmin,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it }),
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxHeight().fillMaxWidth(0.7f).background(Tema.coloreSfondoCard)
+                    .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp))
+                    .clip(RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp))
+            ) {
+                Box(modifier = Modifier.fillMaxWidth().height(160.dp).background(Tema.colorePrincipale), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Image(painter = painterResource(id = R.drawable.login_logo), contentDescription = null, modifier = Modifier.size(70.dp).clip(CircleShape).background(Color.White).padding(10.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text("ADMIN PANEL", color = Color.White, fontSize = 22.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                MenuItem(titolo = "INSERISCI FREESTYLER", icona = R.drawable.ic_music_note) {
+                    mostraMenuAdmin = false
+                    onPinClick("aggiungi_mc")
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                MenuItem(titolo = "LOGOUT", icona = R.drawable.versus, coloreTesto = Color.Red) {
+                    mostraMenuAdmin = false
+                    scope.launch {
+                        DatabaseMcs.supabase.auth.clearSession()
+                        DatabaseMcs.isAdmin = false
+                    }
+                }
+                Spacer(modifier = Modifier.height(40.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun MenuItem(titolo: String, icona: Int, coloreTesto: Color = Tema.coloreTesto, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 24.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(painter = painterResource(id = icona), contentDescription = null, tint = coloreTesto, modifier = Modifier.size(24.dp))
+        Spacer(modifier = Modifier.width(20.dp))
+        Text(text = titolo, color = coloreTesto, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily(Font(R.font.komtit__)))
     }
 }
 
@@ -256,158 +306,80 @@ fun FloatingPlayer(font: FontFamily) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
-
     val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
     val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
-
     var offsetX by remember { mutableFloatStateOf(screenWidthPx - 160f) }
     var offsetY by remember { mutableFloatStateOf(screenHeightPx / 2f - 100f) }
-
     var mostraMiniPlayer by remember { mutableStateOf(false) }
-
     var titoloCanzone by remember { mutableStateOf("Nessun Beat") }
     var artistaCanzone by remember { mutableStateOf("In riproduzione...") }
     var copertinaCanzone by remember { mutableStateOf<Bitmap?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
     var durataCanzone by remember { mutableLongStateOf(0L) }
     var posizioneCorrente by remember { mutableLongStateOf(0L) }
-
     var isDraggingSlider by remember { mutableStateOf(false) }
     var activeController by remember { mutableStateOf<MediaController?>(null) }
-
     val mediaManager = context.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
 
     fun formatTime(ms: Long): String {
         val totalSecs = ms / 1000
-        val mins = totalSecs / 60
-        val secs = totalSecs % 60
-        return String.format(Locale.getDefault(), "%02d:%02d", mins, secs)
-    }
-
-    fun aggiornaInfo() {
-        try {
-            val sessions = mediaManager.getActiveSessions(ComponentName(context, NotificationListener::class.java))
-            if (sessions.isNotEmpty()) {
-                val controller = sessions[0]
-                activeController = controller
-                val metadata = controller.metadata
-                val playbackState = controller.playbackState
-
-                titoloCanzone = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: "Beat Sconosciuto"
-                artistaCanzone = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: "Artista"
-                copertinaCanzone = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
-                isPlaying = playbackState?.state == PlaybackState.STATE_PLAYING
-
-                durataCanzone = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
-                if (!isDraggingSlider) {
-                    posizioneCorrente = playbackState?.position ?: 0L
-                }
-            } else {
-                activeController = null
-            }
-        } catch (e: Exception) { }
+        return String.format(Locale.getDefault(), "%02d:%02d", totalSecs / 60, totalSecs % 60)
     }
 
     LaunchedEffect(Unit) {
         while(true) {
-            aggiornaInfo()
+            try {
+                val sessions = mediaManager.getActiveSessions(ComponentName(context, NotificationListener::class.java))
+                if (sessions.isNotEmpty()) {
+                    val controller = sessions[0]
+                    activeController = controller
+                    val metadata = controller.metadata
+                    val playbackState = controller.playbackState
+                    titoloCanzone = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: "Beat Sconosciuto"
+                    artistaCanzone = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: "Artista"
+                    copertinaCanzone = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+                    isPlaying = playbackState?.state == PlaybackState.STATE_PLAYING
+                    durataCanzone = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+                    if (!isDraggingSlider) posizioneCorrente = playbackState?.position ?: 0L
+                }
+            } catch (e: Exception) { }
             delay(1000)
         }
     }
 
     Box(
-        modifier = Modifier
-            .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+        modifier = Modifier.offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
             .pointerInput(Unit) { detectDragGestures { change, dragAmount -> change.consume(); offsetX += dragAmount.x; offsetY += dragAmount.y } }
-            .size(50.dp)
-            .clip(CircleShape)
-            .background(Tema.colorePrincipale.copy(alpha = 0.9f))
-            .border(2.dp, Color.White, CircleShape)
-            .clickable { mostraMiniPlayer = true },
+            .size(50.dp).clip(CircleShape).background(Tema.colorePrincipale.copy(alpha = 0.9f)).border(2.dp, Color.White, CircleShape).clickable { mostraMiniPlayer = true },
         contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            painter = painterResource(id = R.drawable.ic_music_note),
-            contentDescription = "Apri Player",
-            tint = Color.White,
-            modifier = Modifier.size(24.dp)
-        )
-    }
+    ) { Icon(painter = painterResource(id = R.drawable.ic_music_note), contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp)) }
 
     if (mostraMiniPlayer) {
         Dialog(onDismissRequest = { mostraMiniPlayer = false }) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.95f)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(Tema.coloreSfondoCard)
-                    .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(28.dp))
-                    .padding(24.dp)
-            ) {
+            Box(modifier = Modifier.fillMaxWidth(0.95f).clip(RoundedCornerShape(28.dp)).background(Tema.coloreSfondoCard).border(2.dp, Tema.colorePrincipale, RoundedCornerShape(28.dp)).padding(24.dp)) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-
                     Box(modifier = Modifier.size(220.dp).clip(RoundedCornerShape(16.dp)).background(Color.DarkGray)) {
-                        if (copertinaCanzone != null) {
-                            Image(bitmap = copertinaCanzone!!.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                        } else {
-                            Icon(painterResource(id = R.drawable.due_contro_due), null, tint = Color.Gray, modifier = Modifier.size(100.dp).align(Alignment.Center))
-                        }
+                        if (copertinaCanzone != null) Image(bitmap = copertinaCanzone!!.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        else Icon(painterResource(id = R.drawable.due_contro_due), null, tint = Color.Gray, modifier = Modifier.size(100.dp).align(Alignment.Center))
                     }
-
                     Spacer(modifier = Modifier.height(20.dp))
                     Text(titoloCanzone, color = Tema.coloreTesto, fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Center)
                     Text(artistaCanzone, color = Tema.coloreTestoSecondario, fontSize = 16.sp, maxLines = 1)
-                    Spacer(modifier = Modifier.height(16.dp))
-
                     if (durataCanzone > 0L) {
-                        Slider(
-                            value = posizioneCorrente.toFloat(),
-                            onValueChange = {
-                                isDraggingSlider = true
-                                posizioneCorrente = it.toLong()
-                            },
-                            onValueChangeFinished = {
-                                isDraggingSlider = false
-                                activeController?.transportControls?.seekTo(posizioneCorrente)
-                            },
-                            valueRange = 0f..durataCanzone.toFloat(),
-                            colors = SliderDefaults.colors(
-                                thumbColor = Tema.coloreTesto,
-                                activeTrackColor = Tema.coloreTesto,
-                                inactiveTrackColor = Tema.coloreTestoSecondario
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Slider(value = posizioneCorrente.toFloat(), onValueChange = { isDraggingSlider = true; posizioneCorrente = it.toLong() },
+                            onValueChangeFinished = { isDraggingSlider = false; activeController?.transportControls?.seekTo(posizioneCorrente) },
+                            valueRange = 0f..durataCanzone.toFloat(), colors = SliderDefaults.colors(thumbColor = Tema.coloreTesto, activeTrackColor = Tema.coloreTesto))
                         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).offset(y = (-10).dp), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(formatTime(posizioneCorrente), color = Tema.coloreTestoSecondario, fontSize = 12.sp)
                             Text(formatTime(durataCanzone), color = Tema.coloreTestoSecondario, fontSize = 12.sp)
                         }
-                    } else {
-                        Spacer(modifier = Modifier.height(24.dp))
                     }
-
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_PREVIOUS) }, modifier = Modifier.size(45.dp)) {
-                            Text("I◀", color = Tema.coloreTesto, fontSize = 16.sp)
+                        IconButton(onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_PREVIOUS) }) { Text("I◀", color = Tema.coloreTesto) }
+                        FloatingActionButton(onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) }, containerColor = Tema.colorePrincipale, shape = CircleShape) {
+                            Text(if (isPlaying) "❚❚" else "▶", color = Color.White)
                         }
-
-                        FloatingActionButton(
-                            onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) },
-                            containerColor = Tema.colorePrincipale,
-                            shape = CircleShape,
-                            modifier = Modifier.size(60.dp)
-                        ) {
-                            Text(if (isPlaying) "❚❚" else "▶", color = Color.White, fontSize = 14.sp)
-                        }
-
-                        IconButton(onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_NEXT) }, modifier = Modifier.size(45.dp)) {
-                            Text("▶I", color = Tema.coloreTesto, fontSize = 16.sp)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-                    TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }) {
-                        Text("Attiva info copertina e Slider", color = Tema.coloreTestoSecondario, fontSize = 10.sp)
+                        IconButton(onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_NEXT) }) { Text("▶I", color = Tema.coloreTesto) }
                     }
                 }
             }
@@ -424,7 +396,7 @@ fun mandaComando(context: Context, key: Int) {
 class NotificationListener : android.service.notification.NotificationListenerService()
 
 @Composable
-fun SchermataDiBenvenuto(onVaiAlMenu: () -> Unit) {
+fun SchermataDiBenvenuto(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Unit) {
     var inTransizione by remember { mutableStateOf(false) }
 
     val spostamentoVerticale = (-50).dp
@@ -455,6 +427,13 @@ fun SchermataDiBenvenuto(onVaiAlMenu: () -> Unit) {
         }
 
         if (!inTransizione) {
+            IconButton(
+                onClick = { onTornaIndietro() },
+                modifier = Modifier.align(Alignment.TopStart).padding(top = 60.dp, start = 16.dp)
+            ) {
+                Text("<", color = Color.White, fontSize = 45.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
+            }
+
             Box(modifier = Modifier.offset(y = spostamentoVerticale).size(dimensioneAura).graphicsLayer { scaleX = scalaAura; scaleY = scalaAura; alpha = alphaAura }.background(Color.Black.copy(alpha = 0.4f), CircleShape).border(4.dp, Color.Black.copy(alpha = 0.6f), CircleShape))
         }
 
@@ -466,9 +445,8 @@ fun SchermataDiBenvenuto(onVaiAlMenu: () -> Unit) {
     }
 }
 
-// --- SCHERMATA DI BENVENUTO BARRE FAUL ---
 @Composable
-fun SchermataDiBenvenutoBarreFaul(onVaiAlMenu: () -> Unit) {
+fun SchermataDiBenvenutoBarreFaul(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Unit) {
     var inTransizione by remember { mutableStateOf(false) }
 
     val scalaSfondo by animateFloatAsState(targetValue = if (inTransizione) 2.8f else 1f, animationSpec = tween(1300, easing = FastOutSlowInEasing), label = "")
@@ -508,6 +486,15 @@ fun SchermataDiBenvenutoBarreFaul(onVaiAlMenu: () -> Unit) {
                         .size(150.dp)
                         .graphicsLayer { scaleX = scalaVt; scaleY = scalaVt }
                 )
+            }
+        }
+
+        if (!inTransizione) {
+            IconButton(
+                onClick = { onTornaIndietro() },
+                modifier = Modifier.align(Alignment.TopStart).padding(top = 60.dp, start = 16.dp)
+            ) {
+                Text("<", color = Color.White, fontSize = 45.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
             }
         }
     }
