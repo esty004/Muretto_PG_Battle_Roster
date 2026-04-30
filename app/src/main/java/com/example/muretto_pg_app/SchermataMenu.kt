@@ -25,7 +25,8 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> Unit) {
-    val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
+    val MioFontPersonalizzato = remember { FontFamily(Font(R.font.komtit__)) }
+    val FontTitoli = remember { FontFamily(Font(R.font.jackboa)) }
     val listaModalita = listOf("Muretto classico", "2 VS 2", "Evento", "Trasferte", "Allenamento")
 
     var mostraDialog2vs2 by remember { mutableStateOf(false) }
@@ -41,7 +42,7 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
                     Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
                 }
 
-                Text("SELEZIONA MODALITA'", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+                Text("SELEZIONA MODALITA'", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontTitoli, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
             }
 
             LazyColumn(

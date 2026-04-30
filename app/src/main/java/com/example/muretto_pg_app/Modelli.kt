@@ -176,28 +176,35 @@ object GestoreBattle {
 
     fun generaFase(fase: FaseTorneo, partecipanti: List<Freestyler>) {
         faseAttuale = fase
-        roundsAttuali.clear()
-        if (partecipanti.isEmpty()) return
+        if (partecipanti.isEmpty()) {
+            roundsAttuali.clear()
+            return
+        }
 
         val shuffled = partecipanti.shuffled()
         val total = shuffled.size
+        val nuoviRounds = mutableListOf<Round>()
 
         if (total % 2 == 0) {
             for (i in 0 until total step 2) {
-                roundsAttuali.add(Round("r_${fase.name}_${i / 2}", (i / 2) + 1, listOf(shuffled[i], shuffled[i + 1])))
+                nuoviRounds.add(Round("r_${fase.name}_${i / 2}", (i / 2) + 1, listOf(shuffled[i], shuffled[i + 1])))
             }
         } else {
             if (total >= 3) {
                 val num1v1 = (total - 3) / 2
                 for (i in 0 until num1v1) {
-                    roundsAttuali.add(Round("r_${fase.name}_$i", i + 1, listOf(shuffled[i * 2], shuffled[i * 2 + 1])))
+                    nuoviRounds.add(Round("r_${fase.name}_$i", i + 1, listOf(shuffled[i * 2], shuffled[i * 2 + 1])))
                 }
                 val startRumble = num1v1 * 2
-                roundsAttuali.add(Round("r_${fase.name}_$num1v1", num1v1 + 1, listOf(shuffled[startRumble], shuffled[startRumble + 1], shuffled[startRumble + 2])))
+                nuoviRounds.add(Round("r_${fase.name}_$num1v1", num1v1 + 1, listOf(shuffled[startRumble], shuffled[startRumble + 1], shuffled[startRumble + 2])))
             } else {
-                roundsAttuali.add(Round("r_${fase.name}_0", 1, listOf(shuffled[0])))
+                nuoviRounds.add(Round("r_${fase.name}_0", 1, listOf(shuffled[0])))
             }
         }
+
+        // Aggiorna la lista osservata in un colpo solo per evitare instabilità della UI
+        roundsAttuali.clear()
+        roundsAttuali.addAll(nuoviRounds)
     }
 
     fun salvaProgresso(context: Context) {
