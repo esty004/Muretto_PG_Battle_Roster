@@ -10,53 +10,87 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-// Gli import puntano a gotrue, ma usano "auth"
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import kotlinx.coroutines.launch
 
 @Composable
-fun SchermataLogin(onLoginSuccess: () -> Unit, onTornaIndietro: () -> Unit) {
+fun SchermataLogin(
+    onLoginSuccess: () -> Unit,
+    onTornaIndietro: () -> Unit,
+    onVaiARegistrazione: () -> Unit
+) {
     val MioFontKomtit = FontFamily(Font(R.font.komtit__))
-
-    // Creiamo lo scope per le coroutine QUI, così possiamo usarlo sia per il login che per il logout
     val scope = rememberCoroutineScope()
 
-    // Controlla se è già loggato
-    if (DatabaseMcs.isAdmin) {
+    // Se è già loggato mostra il pannello logout
+    if (DatabaseMcs.isAdmin || DatabaseMcs.ruoloAttuale != RuoloUtente.NESSUNO) {
+        val etichettaRuolo = when (DatabaseMcs.ruoloAttuale) {
+            RuoloUtente.ADMIN -> "ADMIN"
+            RuoloUtente.ORGANIZZATORE_MURETTO -> "ORG. MURETTO"
+            RuoloUtente.ORGANIZZATORE_EVENTI -> "ORG. EVENTI"
+            else -> "LOGGATO"
+        }
         Column(
             modifier = Modifier.fillMaxSize().background(Color(0xFF1E1E1E)).padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Text("SEI GIÀ LOGGATO COME ADMIN!", color = Color.Green, fontSize = 20.sp, fontFamily = MioFontKomtit)
+            Text(
+                "SEI GIÀ LOGGATO",
+                color = Color.Green,
+                fontSize = 20.sp,
+                fontFamily = MioFontKomtit
+            )
+            Text(
+                etichettaRuolo,
+                color = Color.Green,
+                fontSize = 16.sp,
+                fontFamily = MioFontKomtit,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            DatabaseMcs.profiloAttuale?.let {
+                Text(
+                    "${it.nome_arte}",
+                    color = Color.Gray,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
             Spacer(modifier = Modifier.height(40.dp))
             Button(
                 onClick = {
-                    // Lanciamo la coroutine per la funzione suspend
                     scope.launch {
                         DatabaseMcs.supabase.auth.clearSession()
                         DatabaseMcs.isAdmin = false
+                        DatabaseMcs.ruoloAttuale = RuoloUtente.NESSUNO
+                        DatabaseMcs.profiloAttuale = null
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
             ) { Text("LOGOUT", color = Color.White) }
-            TextButton(onClick = onTornaIndietro) { Text("INDIETRO", color = Color.Gray) }
+            TextButton(onClick = onTornaIndietro) {
+                Text("INDIETRO", color = Color.Gray)
+            }
         }
         return
     }
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisibile by remember { mutableStateOf(false) }
     var errore by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF1E1E1E)) // Sfondo grigio oscuro
+            .background(Color(0xFF1E1E1E))
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -74,7 +108,13 @@ fun SchermataLogin(onLoginSuccess: () -> Unit, onTornaIndietro: () -> Unit) {
             onValueChange = { email = it },
             label = { Text("Email", color = Color.Gray) },
             modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                focusedBorderColor = Color(0xFF4CAF50),
+                unfocusedBorderColor = Color.Gray
+            ),
+            singleLine = true
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -83,13 +123,33 @@ fun SchermataLogin(onLoginSuccess: () -> Unit, onTornaIndietro: () -> Unit) {
             value = password,
             onValueChange = { password = it },
             label = { Text("Password", color = Color.Gray) },
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation = if (passwordVisibile) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                TextButton(onClick = { passwordVisibile = !passwordVisibile }) {
+                    Text(
+                        if (passwordVisibile) "NASCONDI" else "MOSTRA",
+                        color = Color.Gray,
+                        fontSize = 11.sp
+                    )
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                focusedBorderColor = Color(0xFF4CAF50),
+                unfocusedBorderColor = Color.Gray
+            ),
+            singleLine = true
         )
 
         if (errore.isNotEmpty()) {
-            Text(errore, color = Color.Red, fontSize = 14.sp, modifier = Modifier.padding(top = 10.dp))
+            Text(
+                errore,
+                color = Color.Red,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(top = 10.dp)
+            )
         }
 
         Spacer(modifier = Modifier.height(40.dp))
@@ -100,17 +160,17 @@ fun SchermataLogin(onLoginSuccess: () -> Unit, onTornaIndietro: () -> Unit) {
                     errore = "Inserisci email e password"
                     return@Button
                 }
-
                 isLoading = true
+                errore = ""
                 scope.launch {
                     try {
                         DatabaseMcs.supabase.auth.signInWith(Email) {
                             this.email = email.trim()
                             this.password = password
                         }
-                        DatabaseMcs.controllaAdmin() // Aggiorna lo stato Admin globale
+                        DatabaseMcs.controllaRuolo()
                         isLoading = false
-                        onLoginSuccess() // Torna alla mappa
+                        onLoginSuccess()
                     } catch (e: Exception) {
                         isLoading = false
                         errore = "Accesso negato: credenziali errate"
@@ -118,18 +178,25 @@ fun SchermataLogin(onLoginSuccess: () -> Unit, onTornaIndietro: () -> Unit) {
                 }
             },
             modifier = Modifier.fillMaxWidth().height(60.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)), // Tasto verde
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
             shape = RoundedCornerShape(12.dp),
             enabled = !isLoading
         ) {
             if (isLoading) {
                 CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
             } else {
-                Text("ACCEDI", fontSize = 20.sp, color = Color.White)
+                Text("ACCEDI", fontSize = 20.sp, color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
 
-        TextButton(onClick = { onTornaIndietro() }, modifier = Modifier.padding(top = 20.dp)) {
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Link registrazione
+        TextButton(onClick = { onVaiARegistrazione() }) {
+            Text("Non hai un account? REGISTRATI", color = Color(0xFF4CAF50), fontSize = 14.sp)
+        }
+
+        TextButton(onClick = { onTornaIndietro() }) {
             Text("ANNULLA", color = Color.Gray)
         }
     }

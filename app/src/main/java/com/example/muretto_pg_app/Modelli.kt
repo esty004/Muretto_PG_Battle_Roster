@@ -37,6 +37,8 @@ import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.storage.Storage
 import io.github.jan.supabase.storage.storage
 import java.util.UUID
+import java.net.HttpURLConnection
+import java.net.URL
 
 // ─── TEMA ────────────────────────────────────────────────────────────────────
 
@@ -57,6 +59,15 @@ object Tema {
         }
 }
 
+// ─── RUOLI UTENTE ─────────────────────────────────────────────────────────────
+
+enum class RuoloUtente {
+    NESSUNO,
+    ADMIN,
+    ORGANIZZATORE_MURETTO,
+    ORGANIZZATORE_EVENTI
+}
+
 // ─── MODELLI DATI ─────────────────────────────────────────────────────────────
 
 @Serializable
@@ -65,6 +76,32 @@ data class Freestyler(
     val nome: String = "",
     val immagineUrl: String = "",
     val muretto: String = ""
+)
+
+@Serializable
+data class ProfiloUtente(
+    val id: String = "",
+    val nome: String = "",
+    val cognome: String = "",
+    val nome_arte: String = "",
+    val telefono: String = "",
+    val tipo_account: String = "",
+    val muretto: String? = null
+)
+
+@Serializable
+data class RichiestaAccount(
+    val id: String = "",
+    val nome: String = "",
+    val cognome: String = "",
+    val nome_arte: String = "",
+    val email: String = "",
+    val password_temp: String = "",
+    val telefono: String = "",
+    val tipo_account: String = "",
+    val muretto: String? = null,
+    val stato: String = "in_attesa",
+    val created_at: String = ""
 )
 
 // ─── DATABASE ─────────────────────────────────────────────────────────────────
@@ -85,27 +122,76 @@ object DatabaseMcs {
     var listaMcsCloud = mutableStateListOf<Freestyler>()
     var tuttiMcsCloud = mutableListOf<Freestyler>()
     var staCaricando = mutableStateOf(false)
-    var isAdmin by mutableStateOf(false)
 
-    fun controllaAdmin() {
+    // Stato ruolo utente corrente
+    var isAdmin by mutableStateOf(false)
+    var ruoloAttuale by mutableStateOf(RuoloUtente.NESSUNO)
+    var profiloAttuale by mutableStateOf<ProfiloUtente?>(null)
+    var richiesteInAttesa = mutableStateListOf<RichiestaAccount>()
+
+    // Ripristina la sessione al riavvio dell'app
+    fun inizializzaSessione() {
         val user = supabase.auth.currentUserOrNull()
         if (user != null) {
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    val adminList = supabase.postgrest["amministratori"].select {
-                        filter { eq("id", user.id) }
-                    }.data
-                    withContext(Dispatchers.Main) {
-                        isAdmin = adminList != "[]"
-                    }
-                } catch (e: Exception) {
-                    withContext(Dispatchers.Main) { isAdmin = false }
-                }
-            }
-        } else {
-            isAdmin = false
+            controllaRuolo()
         }
     }
+
+    fun controllaRuolo() {
+        val user = supabase.auth.currentUserOrNull() ?: run {
+            isAdmin = false
+            ruoloAttuale = RuoloUtente.NESSUNO
+            profiloAttuale = null
+            return
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Controlla prima se è admin
+                val adminList = supabase.postgrest["amministratori"].select {
+                    filter { eq("id", user.id) }
+                }.data
+
+                if (adminList != "[]") {
+                    withContext(Dispatchers.Main) {
+                        isAdmin = true
+                        ruoloAttuale = RuoloUtente.ADMIN
+                    }
+                    fetchRichiesteInAttesa()
+                    return@launch
+                }
+
+                // Altrimenti controlla il profilo
+                val profiliJson = supabase.postgrest["profili"].select {
+                    filter { eq("id", user.id) }
+                }.decodeList<ProfiloUtente>()
+
+                withContext(Dispatchers.Main) {
+                    isAdmin = false
+                    if (profiliJson.isNotEmpty()) {
+                        val profilo = profiliJson[0]
+                        profiloAttuale = profilo
+                        ruoloAttuale = when (profilo.tipo_account) {
+                            "organizzatore_muretto" -> RuoloUtente.ORGANIZZATORE_MURETTO
+                            "organizzatore_eventi" -> RuoloUtente.ORGANIZZATORE_EVENTI
+                            else -> RuoloUtente.NESSUNO
+                        }
+                    } else {
+                        ruoloAttuale = RuoloUtente.NESSUNO
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    isAdmin = false
+                    ruoloAttuale = RuoloUtente.NESSUNO
+                }
+            }
+        }
+    }
+
+    // Alias per compatibilità con il codice esistente
+    fun controllaAdmin() = controllaRuolo()
 
     fun fetchMcsDalCloud(nomeMuretto: String) {
         staCaricando.value = true
@@ -134,18 +220,15 @@ object DatabaseMcs {
     suspend fun inserisciNuovoMc(nome: String, muretto: String, imageBytes: ByteArray?): Boolean {
         return try {
             var imageUrl = ""
-
             if (imageBytes != null) {
                 val fileName = "mc_${UUID.randomUUID()}.jpg"
                 val bucket = supabase.storage["immagini"]
                 bucket.upload(fileName, imageBytes, upsert = true)
                 imageUrl = bucket.publicUrl(fileName)
             }
-
             val esistenti = supabase.postgrest["mcs"].select {
                 filter { eq("muretto", muretto) }
             }.decodeList<Freestyler>()
-
             val nuovoId = if (muretto == "barre_faul") {
                 val maxNum = esistenti.mapNotNull { it.id.replace("bf", "").toIntOrNull() }.maxOrNull() ?: 0
                 "bf${maxNum + 1}"
@@ -153,10 +236,107 @@ object DatabaseMcs {
                 val maxNum = esistenti.mapNotNull { it.id.toIntOrNull() }.maxOrNull() ?: 0
                 (maxNum + 1).toString()
             }
-
             val nuovoMc = Freestyler(id = nuovoId, nome = nome, immagineUrl = imageUrl, muretto = muretto)
             supabase.postgrest["mcs"].insert(nuovoMc)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 
+    // Invia richiesta di registrazione (senza creare account Auth)
+    suspend fun inviaRichiestaAccount(
+        nome: String, cognome: String, nomeArte: String,
+        email: String, passwordTemp: String, telefono: String,
+        tipoAccount: String, muretto: String?
+    ): Boolean {
+        return try {
+            val richiesta = RichiestaAccount(
+                id = UUID.randomUUID().toString(),
+                nome = nome,
+                cognome = cognome,
+                nome_arte = nomeArte,
+                email = email,
+                password_temp = passwordTemp,
+                telefono = telefono,
+                tipo_account = tipoAccount,
+                muretto = muretto,
+                stato = "in_attesa"
+            )
+            supabase.postgrest["richieste_account"].insert(richiesta)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    // Fetch richieste in attesa per admin
+    fun fetchRichiesteInAttesa() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val richieste = supabase.postgrest["richieste_account"].select {
+                    filter { eq("stato", "in_attesa") }
+                }.decodeList<RichiestaAccount>()
+                withContext(Dispatchers.Main) {
+                    richiesteInAttesa.clear()
+                    richiesteInAttesa.addAll(richieste)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    // Accetta richiesta: crea account Auth (il trigger SQL crea il profilo) + aggiorna stato
+    suspend fun accettaRichiesta(richiesta: RichiestaAccount): Boolean {
+        return try {
+            val serviceRoleKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2endudXhsamhieGVwbGhianplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzM3NTA2NCwiZXhwIjoyMDkyOTUxMDY0fQ.HdIa06E9UVn30zyO9cL6sR_kODfoJJ5NHlZN4VHgoe8"
+
+            val esito = withContext(Dispatchers.IO) {
+                val url = URL("https://bvzwnuxljhbxeplhbjze.supabase.co/auth/v1/admin/users")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("apikey", serviceRoleKey)
+                conn.setRequestProperty("Authorization", "Bearer $serviceRoleKey")
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.doOutput = true
+
+                // email_confirm: false → Supabase invia la mail di conferma
+                val body = """{"email":"${richiesta.email}","password":"${richiesta.password_temp}","email_confirm":false}"""
+                conn.outputStream.use { it.write(body.toByteArray()) }
+
+                val codice = conn.responseCode
+                conn.disconnect()
+                codice in 200..299
+            }
+
+            if (!esito) return false
+
+            supabase.postgrest["richieste_account"].update(
+                { set("stato", "accettata") }
+            ) { filter { eq("id", richiesta.id) } }
+
+            withContext(Dispatchers.Main) {
+                richiesteInAttesa.removeIf { it.id == richiesta.id }
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    // Rifiuta richiesta
+    suspend fun rifiutaRichiesta(richiestaId: String): Boolean {
+        return try {
+            supabase.postgrest["richieste_account"].update(
+                { set("stato", "rifiutata") }
+            ) { filter { eq("id", richiestaId) } }
+            withContext(Dispatchers.Main) {
+                richiesteInAttesa.removeIf { it.id == richiestaId }
+            }
             true
         } catch (e: Exception) {
             e.printStackTrace()
@@ -300,7 +480,6 @@ object GestoreAllenamento {
 }
 
 object DatiAllenamento {
-
     private fun fetchValori(context: Context, rawResId: Int): List<String> {
         return try {
             val json = context.resources.openRawResource(rawResId).bufferedReader().use { it.readText() }
@@ -332,13 +511,11 @@ fun BoxMC(
         isSconfitto -> Color.DarkGray
         else -> Tema.colorePrincipale
     }
-
     val imageModel: Any = when {
         mc.immagineUrl == "local_2v2" -> if (Tema.isBarreFaul) R.drawable.due_contro_due_barre_faul else R.drawable.due_contro_due
         mc.immagineUrl.isBlank() -> R.drawable.no_pic
         else -> mc.immagineUrl
     }
-
     Box(
         modifier = Modifier
             .width(width)

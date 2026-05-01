@@ -88,9 +88,9 @@ class MainActivity : ComponentActivity() {
         insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         insetsController.hide(WindowInsetsCompat.Type.systemBars())
 
-        DatabaseMcs.controllaAdmin()
+        // Ripristina la sessione salvata automaticamente da Supabase
+        DatabaseMcs.inizializzaSessione()
 
-        // Chiedi il permesso NotificationListener se non è ancora stato concesso
         if (!isNotificationListenerPermissionGranted(this)) {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
@@ -105,7 +105,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// Controlla se il permesso NotificationListener è già stato concesso
 fun isNotificationListenerPermissionGranted(context: Context): Boolean {
     val packageName = context.packageName
     val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
@@ -123,7 +122,6 @@ fun AppNavigation() {
     var mostraPopupRecupero by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { if (GestoreBattle.haProgresso(context)) mostraPopupRecupero = true }
 
-    // Popup permesso NotificationListener se mancante
     var mostraPopupPermesso by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         if (!isNotificationListenerPermissionGranted(context)) {
@@ -181,13 +179,25 @@ fun AppNavigation() {
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(navController = navController, startDestination = "mappa") {
             composable("mappa") { SchermataMappa(onPinClick = { navController.navigate(it) }) }
+
             composable("login") {
                 SchermataLogin(
                     onLoginSuccess = { navController.popBackStack() },
-                    onTornaIndietro = { navController.popBackStack() }
+                    onTornaIndietro = { navController.popBackStack() },
+                    onVaiARegistrazione = { navController.navigate("registrazione") }
                 )
             }
+
+            composable("registrazione") {
+                SchermataRegistrazione(onTornaIndietro = { navController.popBackStack() })
+            }
+
+            composable("notifiche") {
+                SchermataNotifiche(onTornaIndietro = { navController.popBackStack() })
+            }
+
             composable("aggiungi_mc") { SchermataAggiungiMc(onTornaIndietro = { navController.popBackStack() }) }
+
             composable("benvenuto") {
                 SchermataDiBenvenuto(
                     onTornaIndietro = { navController.popBackStack() },
@@ -252,15 +262,16 @@ fun AppNavigation() {
             composable("generatore_parole") { SchermataGeneratoreParole { navController.popBackStack() } }
         }
 
-        // Il FloatingPlayer è visibile su tutte le schermate tranne quelle escluse
         val schermateSenzaPlayer = setOf(
-            "benvenuto", "benvenuto_barre_faul", "mappa", "login", "aggiungi_mc", "trasferte"
+            "benvenuto", "benvenuto_barre_faul", "mappa", "login", "aggiungi_mc", "trasferte", "registrazione"
         )
         if (rottaCorrente != null && rottaCorrente !in schermateSenzaPlayer) {
             FloatingPlayer(MioFont)
         }
     }
 }
+
+// ─── FLOATING PLAYER ─────────────────────────────────────────────────────────
 
 @Composable
 fun FloatingPlayer(font: FontFamily) {
@@ -273,8 +284,6 @@ fun FloatingPlayer(font: FontFamily) {
     var offsetX by remember { mutableFloatStateOf(screenWidthPx - 160f) }
     var offsetY by remember { mutableFloatStateOf(screenHeightPx / 2f - 100f) }
     var mostraMiniPlayer by remember { mutableStateOf(false) }
-
-    // Stato media
     var titoloCanzone by remember { mutableStateOf("Nessun Beat") }
     var artistaCanzone by remember { mutableStateOf("In riproduzione...") }
     var copertinaCanzone by remember { mutableStateOf<Bitmap?>(null) }
@@ -290,7 +299,6 @@ fun FloatingPlayer(font: FontFamily) {
         return String.format(Locale.getDefault(), "%02d:%02d", totalSecs / 60, totalSecs % 60)
     }
 
-    // Polling ogni secondo per leggere la sessione media attiva
     LaunchedEffect(Unit) {
         while (true) {
             try {
@@ -299,9 +307,7 @@ fun FloatingPlayer(font: FontFamily) {
                 } else {
                     permessoMancante = false
                     val mediaManager = context.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
-                    val sessions = mediaManager.getActiveSessions(
-                        ComponentName(context, NotificationListener::class.java)
-                    )
+                    val sessions = mediaManager.getActiveSessions(ComponentName(context, NotificationListener::class.java))
                     if (sessions.isNotEmpty()) {
                         val controller = sessions[0]
                         activeController = controller
@@ -314,7 +320,6 @@ fun FloatingPlayer(font: FontFamily) {
                         durataCanzone = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
                         if (!isDraggingSlider) posizioneCorrente = playbackState?.position ?: 0L
                     } else {
-                        // Nessuna sessione attiva — reset stato
                         titoloCanzone = "Nessun Beat"
                         artistaCanzone = "Avvia la musica"
                         copertinaCanzone = null
@@ -324,14 +329,11 @@ fun FloatingPlayer(font: FontFamily) {
                         activeController = null
                     }
                 }
-            } catch (e: Exception) {
-                // Ignora errori di sessione
-            }
+            } catch (e: Exception) { }
             delay(1000)
         }
     }
 
-    // Pallino draggable
     Box(
         modifier = Modifier
             .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
@@ -344,181 +346,66 @@ fun FloatingPlayer(font: FontFamily) {
             }
             .size(50.dp)
             .clip(CircleShape)
-            .background(
-                if (isPlaying) Tema.colorePrincipale.copy(alpha = 0.95f)
-                else Tema.colorePrincipale.copy(alpha = 0.6f)
-            )
+            .background(if (isPlaying) Tema.colorePrincipale.copy(alpha = 0.95f) else Tema.colorePrincipale.copy(alpha = 0.6f))
             .border(2.dp, Color.White, CircleShape)
             .clickable { mostraMiniPlayer = true },
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            painter = painterResource(id = R.drawable.ic_music_note),
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier.size(24.dp)
-        )
+        Icon(painter = painterResource(id = R.drawable.ic_music_note), contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
     }
 
-    // Mini player dialog
     if (mostraMiniPlayer) {
         Dialog(onDismissRequest = { mostraMiniPlayer = false }) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.95f)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(Tema.coloreSfondoCard)
-                    .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(28.dp))
-                    .padding(24.dp)
+                modifier = Modifier.fillMaxWidth(0.95f).clip(RoundedCornerShape(28.dp))
+                    .background(Tema.coloreSfondoCard).border(2.dp, Tema.colorePrincipale, RoundedCornerShape(28.dp)).padding(24.dp)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-
                     if (permessoMancante) {
-                        // Schermata permesso mancante
                         Spacer(modifier = Modifier.height(16.dp))
-                        Icon(
-                            painterResource(id = R.drawable.ic_music_note),
-                            contentDescription = null,
-                            tint = Tema.coloreTestoSecondario,
-                            modifier = Modifier.size(60.dp)
-                        )
+                        Icon(painterResource(id = R.drawable.ic_music_note), contentDescription = null, tint = Tema.coloreTestoSecondario, modifier = Modifier.size(60.dp))
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            "Permesso mancante",
-                            color = Tema.coloreTesto,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
-                        )
+                        Text("Permesso mancante", color = Tema.coloreTesto, fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "Per usare il player devi abilitare l'accesso alle notifiche nelle impostazioni di sistema.",
-                            color = Tema.coloreTestoSecondario,
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Center
-                        )
+                        Text("Per usare il player devi abilitare l'accesso alle notifiche nelle impostazioni di sistema.", color = Tema.coloreTestoSecondario, fontSize = 14.sp, textAlign = TextAlign.Center)
                         Spacer(modifier = Modifier.height(20.dp))
                         Button(
-                            onClick = {
-                                mostraMiniPlayer = false
-                                context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                            },
+                            onClick = { mostraMiniPlayer = false; context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) },
                             colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("ABILITA NELLE IMPOSTAZIONI", color = Color.White, fontWeight = FontWeight.Bold)
-                        }
+                            shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()
+                        ) { Text("ABILITA NELLE IMPOSTAZIONI", color = Color.White, fontWeight = FontWeight.Bold) }
                         Spacer(modifier = Modifier.height(8.dp))
-
                     } else {
-                        // Copertina
-                        Box(
-                            modifier = Modifier
-                                .size(220.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color.DarkGray)
-                        ) {
+                        Box(modifier = Modifier.size(220.dp).clip(RoundedCornerShape(16.dp)).background(Color.DarkGray)) {
                             if (copertinaCanzone != null) {
-                                Image(
-                                    bitmap = copertinaCanzone!!.asImageBitmap(),
-                                    contentDescription = null,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
+                                Image(bitmap = copertinaCanzone!!.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                             } else {
-                                Icon(
-                                    painterResource(id = R.drawable.ic_music_note),
-                                    contentDescription = null,
-                                    tint = Color.Gray,
-                                    modifier = Modifier.size(80.dp).align(Alignment.Center)
-                                )
+                                Icon(painterResource(id = R.drawable.ic_music_note), contentDescription = null, tint = Color.Gray, modifier = Modifier.size(80.dp).align(Alignment.Center))
                             }
                         }
-
                         Spacer(modifier = Modifier.height(20.dp))
-
-                        // Titolo e artista
-                        Text(
-                            titoloCanzone,
-                            color = Tema.coloreTesto,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Text(
-                            artistaCanzone,
-                            color = Tema.coloreTestoSecondario,
-                            fontSize = 15.sp,
-                            maxLines = 1,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center
-                        )
-
+                        Text(titoloCanzone, color = Tema.coloreTesto, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                        Text(artistaCanzone, color = Tema.coloreTestoSecondario, fontSize = 15.sp, maxLines = 1, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
                         Spacer(modifier = Modifier.height(8.dp))
-
-                        // Slider progresso (solo se c'è una durata valida)
                         if (durataCanzone > 0L) {
                             Slider(
                                 value = posizioneCorrente.toFloat(),
                                 onValueChange = { isDraggingSlider = true; posizioneCorrente = it.toLong() },
-                                onValueChangeFinished = {
-                                    isDraggingSlider = false
-                                    activeController?.transportControls?.seekTo(posizioneCorrente)
-                                },
+                                onValueChangeFinished = { isDraggingSlider = false; activeController?.transportControls?.seekTo(posizioneCorrente) },
                                 valueRange = 0f..durataCanzone.toFloat(),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = Tema.colorePrincipale,
-                                    activeTrackColor = Tema.colorePrincipale,
-                                    inactiveTrackColor = Tema.colorePrincipale.copy(alpha = 0.3f)
-                                )
+                                colors = SliderDefaults.colors(thumbColor = Tema.colorePrincipale, activeTrackColor = Tema.colorePrincipale, inactiveTrackColor = Tema.colorePrincipale.copy(alpha = 0.3f))
                             )
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 4.dp)
-                                    .offset(y = (-8).dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
+                            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp).offset(y = (-8).dp), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(formatTime(posizioneCorrente), color = Tema.coloreTestoSecondario, fontSize = 12.sp)
                                 Text(formatTime(durataCanzone), color = Tema.coloreTestoSecondario, fontSize = 12.sp)
                             }
-                        } else {
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-
-                        // Controlli
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(
-                                onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_PREVIOUS) }
-                            ) {
-                                Text("⏮", color = Tema.coloreTesto, fontSize = 24.sp)
+                        } else { Spacer(modifier = Modifier.height(16.dp)) }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_PREVIOUS) }) { Text("⏮", color = Tema.coloreTesto, fontSize = 24.sp) }
+                            FloatingActionButton(onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) }, containerColor = Tema.colorePrincipale, shape = CircleShape, modifier = Modifier.size(64.dp)) {
+                                Text(if (isPlaying) "⏸" else "▶", color = Color.White, fontSize = 26.sp)
                             }
-
-                            FloatingActionButton(
-                                onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) },
-                                containerColor = Tema.colorePrincipale,
-                                shape = CircleShape,
-                                modifier = Modifier.size(64.dp)
-                            ) {
-                                Text(
-                                    if (isPlaying) "⏸" else "▶",
-                                    color = Color.White,
-                                    fontSize = 26.sp
-                                )
-                            }
-
-                            IconButton(
-                                onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_NEXT) }
-                            ) {
-                                Text("⏭", color = Tema.coloreTesto, fontSize = 24.sp)
-                            }
+                            IconButton(onClick = { mandaComando(context, KeyEvent.KEYCODE_MEDIA_NEXT) }) { Text("⏭", color = Tema.coloreTesto, fontSize = 24.sp) }
                         }
                     }
                 }
@@ -535,124 +422,7 @@ fun mandaComando(context: Context, key: Int) {
 
 class NotificationListener : android.service.notification.NotificationListenerService()
 
-// ─── SCHERMATE BENVENUTO ────────────────────────────────────────────────────
-
-@Composable
-fun SchermataDiBenvenuto(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Unit) {
-    var inTransizione by remember { mutableStateOf(false) }
-
-    val spostamentoVerticale = (-50).dp
-    val dimensioneAura = 300.dp
-    val dimensioneAreaClick = 250.dp
-    val dimensionePallinoNero = 90.dp
-
-    val scalaSfondo by animateFloatAsState(targetValue = if (inTransizione) 2.8f else 1f, animationSpec = tween(1300, easing = FastOutSlowInEasing), label = "")
-    val scalaEspansione by animateFloatAsState(targetValue = if (inTransizione) 40f else 0f, animationSpec = tween(1100, easing = FastOutSlowInEasing), label = "", finishedListener = { onVaiAlMenu() })
-    val alphaContenuto by animateFloatAsState(targetValue = if (inTransizione) 0f else 1f, animationSpec = tween(700), label = "")
-    val infiniteTransition = rememberInfiniteTransition(label = "")
-    val scalaAura by infiniteTransition.animateFloat(initialValue = 1f, targetValue = 1.15f, animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "")
-    val alphaAura by infiniteTransition.animateFloat(initialValue = 0.2f, targetValue = 0.6f, animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "")
-
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-        Box(modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scalaSfondo; scaleY = scalaSfondo; alpha = alphaContenuto }) {
-            Image(
-                painter = painterResource(id = R.drawable.sfondo_schermata_iniziale),
-                contentDescription = "Sfondo Muretto",
-                contentScale = ContentScale.Fit,
-                alignment = Alignment.Center,
-                modifier = Modifier.fillMaxSize()
-            )
-            Box(modifier = Modifier.fillMaxSize().padding(top = 80.dp), contentAlignment = Alignment.TopCenter) { TestoBomboletta() }
-            Box(modifier = Modifier.fillMaxSize().padding(bottom = 90.dp), contentAlignment = Alignment.BottomCenter) { TestoAnimatoStileMinecraft() }
-        }
-
-        if (!inTransizione) {
-            IconButton(
-                onClick = { onTornaIndietro() },
-                modifier = Modifier.align(Alignment.TopStart).padding(top = 60.dp, start = 16.dp)
-            ) {
-                Text("<", color = Color.White, fontSize = 45.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
-            }
-            Box(
-                modifier = Modifier
-                    .offset(y = spostamentoVerticale)
-                    .size(dimensioneAura)
-                    .graphicsLayer { scaleX = scalaAura; scaleY = scalaAura; alpha = alphaAura }
-                    .background(Color.Black.copy(alpha = 0.4f), CircleShape)
-                    .border(4.dp, Color.Black.copy(alpha = 0.6f), CircleShape)
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .offset(y = spostamentoVerticale)
-                .size(dimensioneAreaClick)
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                    if (!inTransizione) inTransizione = true
-                }
-        )
-
-        if (inTransizione) {
-            Box(
-                modifier = Modifier
-                    .offset(y = spostamentoVerticale)
-                    .size(dimensionePallinoNero)
-                    .graphicsLayer { scaleX = scalaEspansione; scaleY = scalaEspansione }
-                    .background(Color.Black, CircleShape)
-            )
-        }
-    }
-}
-
-@Composable
-fun SchermataDiBenvenutoBarreFaul(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Unit) {
-    var inTransizione by remember { mutableStateOf(false) }
-
-    val scalaSfondo by animateFloatAsState(targetValue = if (inTransizione) 2.8f else 1f, animationSpec = tween(1300, easing = FastOutSlowInEasing), label = "")
-    val alphaContenuto by animateFloatAsState(targetValue = if (inTransizione) 0f else 1f, animationSpec = tween(700), label = "", finishedListener = { onVaiAlMenu() })
-
-    val infiniteTransition = rememberInfiniteTransition(label = "")
-    val scalaVt by infiniteTransition.animateFloat(initialValue = 1f, targetValue = 1.15f, animationSpec = infiniteRepeatable(tween(600, easing = LinearEasing), RepeatMode.Reverse), label = "")
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                if (!inTransizione) inTransizione = true
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Box(modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scalaSfondo; scaleY = scalaSfondo; alpha = alphaContenuto }) {
-            Image(
-                painter = painterResource(id = R.drawable.sfondo_schermata_iniziale_barre_faul),
-                contentDescription = "Sfondo Barre Faul",
-                contentScale = ContentScale.Fit,
-                alignment = Alignment.Center,
-                modifier = Modifier.fillMaxSize()
-            )
-            Box(modifier = Modifier.fillMaxSize().padding(top = 80.dp), contentAlignment = Alignment.TopCenter) { TestoBomboletta() }
-            Box(modifier = Modifier.fillMaxSize().padding(bottom = 90.dp), contentAlignment = Alignment.BottomCenter) {
-                Image(
-                    painter = painterResource(id = R.drawable.vt),
-                    contentDescription = "Logo VT",
-                    modifier = Modifier.size(150.dp).graphicsLayer { scaleX = scalaVt; scaleY = scalaVt }
-                )
-            }
-        }
-
-        if (!inTransizione) {
-            IconButton(
-                onClick = { onTornaIndietro() },
-                modifier = Modifier.align(Alignment.TopStart).padding(top = 60.dp, start = 16.dp)
-            ) {
-                Text("<", color = Color.White, fontSize = 45.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
-// ─── MAPPA ──────────────────────────────────────────────────────────────────
+// ─── MAPPA ───────────────────────────────────────────────────────────────────
 
 @Composable
 fun SchermataMappa(onPinClick: (String) -> Unit) {
@@ -661,6 +431,7 @@ fun SchermataMappa(onPinClick: (String) -> Unit) {
     val centroMappa = GeoPoint(42.764, 12.244)
     val scope = rememberCoroutineScope()
     var mostraMenuAdmin by remember { mutableStateOf(false) }
+    val numNotifiche = DatabaseMcs.richiesteInAttesa.size
 
     BackHandler(enabled = mostraMenuAdmin) { mostraMenuAdmin = false }
 
@@ -675,52 +446,60 @@ fun SchermataMappa(onPinClick: (String) -> Unit) {
                     controller.setZoom(8.0)
                     controller.setCenter(centroMappa)
                     setScrollableAreaLimitDouble(italyBounds)
-
                     val trueDarkModeMatrix = ColorMatrix(floatArrayOf(
-                        0.0f,  0.0f, -1.0f, 0.0f, 255.0f,
-                        0.0f, -1.0f,  0.0f, 0.0f, 255.0f,
-                        -1.0f,  0.0f,  0.0f, 0.0f, 255.0f,
-                        0.0f,  0.0f,  0.0f, 1.0f, 0.0f
+                        0.0f, 0.0f, -1.0f, 0.0f, 255.0f,
+                        0.0f, -1.0f, 0.0f, 0.0f, 255.0f,
+                        -1.0f, 0.0f, 0.0f, 0.0f, 255.0f,
+                        0.0f, 0.0f, 0.0f, 1.0f, 0.0f
                     ))
                     overlayManager.tilesOverlay.setColorFilter(ColorMatrixColorFilter(trueDarkModeMatrix))
-
                     val m1 = Marker(this).apply {
                         position = GeoPoint(43.112056, 12.388439)
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                         val bmp = android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.logo_muretto)
                         icon = android.graphics.drawable.BitmapDrawable(ctx.resources, android.graphics.Bitmap.createScaledBitmap(bmp, 200, 140, true))
-                        setOnMarkerClickListener { _, _ ->
-                            Tema.isBarreFaul = false
-                            onPinClick("benvenuto")
-                            true
-                        }
+                        setOnMarkerClickListener { _, _ -> Tema.isBarreFaul = false; onPinClick("benvenuto"); true }
                     }
                     overlays.add(m1)
-
                     val m2 = Marker(this).apply {
                         position = GeoPoint(42.416669, 12.100123)
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                         val bmp = android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.pin_barre_faul)
                         icon = android.graphics.drawable.BitmapDrawable(ctx.resources, android.graphics.Bitmap.createScaledBitmap(bmp, 200, 140, true))
-                        setOnMarkerClickListener { _, _ ->
-                            Tema.isBarreFaul = true
-                            onPinClick("benvenuto_barre_faul")
-                            true
-                        }
+                        setOnMarkerClickListener { _, _ -> Tema.isBarreFaul = true; onPinClick("benvenuto_barre_faul"); true }
                     }
                     overlays.add(m2)
                 }
             }
         )
 
+        // Icona profilo + badge notifiche
         Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp, end = 20.dp), contentAlignment = Alignment.TopEnd) {
-            Image(
-                painter = painterResource(id = R.drawable.login_logo),
-                contentDescription = "Profilo",
-                modifier = Modifier.size(45.dp).clip(CircleShape).clickable {
-                    if (DatabaseMcs.isAdmin) mostraMenuAdmin = true else onPinClick("login")
+            Box {
+                Image(
+                    painter = painterResource(id = R.drawable.login_logo),
+                    contentDescription = "Profilo",
+                    modifier = Modifier.size(45.dp).clip(CircleShape).clickable {
+                        if (DatabaseMcs.isAdmin || DatabaseMcs.ruoloAttuale != RuoloUtente.NESSUNO) {
+                            mostraMenuAdmin = true
+                        } else {
+                            onPinClick("login")
+                        }
+                    }
+                )
+                // Badge rosso notifiche
+                if (numNotifiche > 0) {
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .background(Color.Red, CircleShape)
+                            .align(Alignment.TopEnd),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(numNotifiche.toString(), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
-            )
+            }
         }
 
         if (mostraMenuAdmin) {
@@ -744,6 +523,7 @@ fun SchermataMappa(onPinClick: (String) -> Unit) {
                     .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp))
                     .clip(RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp))
             ) {
+                // Header pannello
                 Box(
                     modifier = Modifier.fillMaxWidth().height(160.dp).background(Tema.colorePrincipale),
                     contentAlignment = Alignment.Center
@@ -754,16 +534,50 @@ fun SchermataMappa(onPinClick: (String) -> Unit) {
                             contentDescription = null,
                             modifier = Modifier.size(70.dp).clip(CircleShape).background(Color.White).padding(10.dp)
                         )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text("ADMIN PANEL", color = Color.White, fontSize = 22.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val etichettaPanel = when (DatabaseMcs.ruoloAttuale) {
+                            RuoloUtente.ADMIN -> "ADMIN PANEL"
+                            RuoloUtente.ORGANIZZATORE_MURETTO -> "ORG. MURETTO"
+                            RuoloUtente.ORGANIZZATORE_EVENTI -> "ORG. EVENTI"
+                            else -> "PANNELLO"
+                        }
+                        Text(etichettaPanel, color = Color.White, fontSize = 20.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
+                        DatabaseMcs.profiloAttuale?.nome_arte?.let {
+                            Text(it, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                MenuItem(titolo = "INSERISCI FREESTYLER", icona = R.drawable.ic_music_note) {
-                    mostraMenuAdmin = false
-                    onPinClick("aggiungi_mc")
+                // Voci menu in base al ruolo
+                if (DatabaseMcs.isAdmin || DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO) {
+                    MenuItem(titolo = "INSERISCI FREESTYLER", icona = R.drawable.ic_music_note) {
+                        mostraMenuAdmin = false
+                        onPinClick("aggiungi_mc")
+                    }
+                }
+
+                // Notifiche — solo admin, con badge
+                if (DatabaseMcs.isAdmin) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        MenuItem(titolo = "NOTIFICHE", icona = R.drawable.ic_music_note) {
+                            mostraMenuAdmin = false
+                            onPinClick("notifiche")
+                        }
+                        if (numNotifiche > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .padding(end = 20.dp)
+                                    .size(22.dp)
+                                    .background(Color.Red, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(numNotifiche.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
@@ -773,6 +587,8 @@ fun SchermataMappa(onPinClick: (String) -> Unit) {
                     scope.launch {
                         DatabaseMcs.supabase.auth.clearSession()
                         DatabaseMcs.isAdmin = false
+                        DatabaseMcs.ruoloAttuale = RuoloUtente.NESSUNO
+                        DatabaseMcs.profiloAttuale = null
                     }
                 }
                 Spacer(modifier = Modifier.height(40.dp))
@@ -793,21 +609,77 @@ fun MenuItem(titolo: String, icona: Int, coloreTesto: Color = Tema.coloreTesto, 
     }
 }
 
-// ─── TESTI ANIMATI ──────────────────────────────────────────────────────────
+// ─── SCHERMATE BENVENUTO ─────────────────────────────────────────────────────
+
+@Composable
+fun SchermataDiBenvenuto(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Unit) {
+    var inTransizione by remember { mutableStateOf(false) }
+    val spostamentoVerticale = (-50).dp
+    val dimensioneAura = 300.dp
+    val dimensioneAreaClick = 250.dp
+    val dimensionePallinoNero = 90.dp
+    val scalaSfondo by animateFloatAsState(targetValue = if (inTransizione) 2.8f else 1f, animationSpec = tween(1300, easing = FastOutSlowInEasing), label = "")
+    val scalaEspansione by animateFloatAsState(targetValue = if (inTransizione) 40f else 0f, animationSpec = tween(1100, easing = FastOutSlowInEasing), label = "", finishedListener = { onVaiAlMenu() })
+    val alphaContenuto by animateFloatAsState(targetValue = if (inTransizione) 0f else 1f, animationSpec = tween(700), label = "")
+    val infiniteTransition = rememberInfiniteTransition(label = "")
+    val scalaAura by infiniteTransition.animateFloat(initialValue = 1f, targetValue = 1.15f, animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "")
+    val alphaAura by infiniteTransition.animateFloat(initialValue = 0.2f, targetValue = 0.6f, animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "")
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scalaSfondo; scaleY = scalaSfondo; alpha = alphaContenuto }) {
+            Image(painter = painterResource(id = R.drawable.sfondo_schermata_iniziale), contentDescription = "Sfondo Muretto", contentScale = ContentScale.Fit, alignment = Alignment.Center, modifier = Modifier.fillMaxSize())
+            Box(modifier = Modifier.fillMaxSize().padding(top = 80.dp), contentAlignment = Alignment.TopCenter) { TestoBomboletta() }
+            Box(modifier = Modifier.fillMaxSize().padding(bottom = 90.dp), contentAlignment = Alignment.BottomCenter) { TestoAnimatoStileMinecraft() }
+        }
+        if (!inTransizione) {
+            IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.TopStart).padding(top = 60.dp, start = 16.dp)) {
+                Text("<", color = Color.White, fontSize = 45.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
+            }
+            Box(modifier = Modifier.offset(y = spostamentoVerticale).size(dimensioneAura).graphicsLayer { scaleX = scalaAura; scaleY = scalaAura; alpha = alphaAura }.background(Color.Black.copy(alpha = 0.4f), CircleShape).border(4.dp, Color.Black.copy(alpha = 0.6f), CircleShape))
+        }
+        Box(modifier = Modifier.offset(y = spostamentoVerticale).size(dimensioneAreaClick).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { if (!inTransizione) inTransizione = true })
+        if (inTransizione) {
+            Box(modifier = Modifier.offset(y = spostamentoVerticale).size(dimensionePallinoNero).graphicsLayer { scaleX = scalaEspansione; scaleY = scalaEspansione }.background(Color.Black, CircleShape))
+        }
+    }
+}
+
+@Composable
+fun SchermataDiBenvenutoBarreFaul(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Unit) {
+    var inTransizione by remember { mutableStateOf(false) }
+    val scalaSfondo by animateFloatAsState(targetValue = if (inTransizione) 2.8f else 1f, animationSpec = tween(1300, easing = FastOutSlowInEasing), label = "")
+    val alphaContenuto by animateFloatAsState(targetValue = if (inTransizione) 0f else 1f, animationSpec = tween(700), label = "", finishedListener = { onVaiAlMenu() })
+    val infiniteTransition = rememberInfiniteTransition(label = "")
+    val scalaVt by infiniteTransition.animateFloat(initialValue = 1f, targetValue = 1.15f, animationSpec = infiniteRepeatable(tween(600, easing = LinearEasing), RepeatMode.Reverse), label = "")
+
+    Box(
+        modifier = Modifier.fillMaxSize().background(Color.Black)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { if (!inTransizione) inTransizione = true },
+        contentAlignment = Alignment.Center
+    ) {
+        Box(modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scalaSfondo; scaleY = scalaSfondo; alpha = alphaContenuto }) {
+            Image(painter = painterResource(id = R.drawable.sfondo_schermata_iniziale_barre_faul), contentDescription = "Sfondo Barre Faul", contentScale = ContentScale.Fit, alignment = Alignment.Center, modifier = Modifier.fillMaxSize())
+            Box(modifier = Modifier.fillMaxSize().padding(top = 80.dp), contentAlignment = Alignment.TopCenter) { TestoBomboletta() }
+            Box(modifier = Modifier.fillMaxSize().padding(bottom = 90.dp), contentAlignment = Alignment.BottomCenter) {
+                Image(painter = painterResource(id = R.drawable.vt), contentDescription = "Logo VT", modifier = Modifier.size(150.dp).graphicsLayer { scaleX = scalaVt; scaleY = scalaVt })
+            }
+        }
+        if (!inTransizione) {
+            IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.TopStart).padding(top = 60.dp, start = 16.dp)) {
+                Text("<", color = Color.White, fontSize = 45.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+// ─── TESTI ANIMATI ───────────────────────────────────────────────────────────
 
 @Composable
 fun TestoBomboletta() {
     var visibile by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { delay(500); visibile = true }
     val FontTitoli = FontFamily(Font(R.font.jackboa))
-
-    AnimatedVisibility(
-        visible = visibile,
-        enter = expandHorizontally(
-            animationSpec = tween(durationMillis = 2000, easing = LinearOutSlowInEasing),
-            expandFrom = Alignment.Start
-        ) + fadeIn(animationSpec = tween(durationMillis = 2000))
-    ) {
+    AnimatedVisibility(visible = visibile, enter = expandHorizontally(animationSpec = tween(durationMillis = 2000, easing = LinearOutSlowInEasing), expandFrom = Alignment.Start) + fadeIn(animationSpec = tween(durationMillis = 2000))) {
         Box(contentAlignment = Alignment.Center) {
             Text("BATTLE ROSTER", color = Color.Black, fontSize = 42.sp, fontWeight = FontWeight.Bold, fontFamily = FontTitoli, style = TextStyle(drawStyle = Stroke(miter = 10f, width = 10f, join = StrokeJoin.Round)))
             Text("BATTLE ROSTER", color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold, fontFamily = FontTitoli)
@@ -819,16 +691,8 @@ fun TestoBomboletta() {
 fun TestoAnimatoStileMinecraft() {
     val FontTitoli = FontFamily(Font(R.font.jackboa))
     val infiniteTransition = rememberInfiniteTransition(label = "")
-    val scalaTesto by infiniteTransition.animateFloat(
-        initialValue = 1f, targetValue = 1.2f,
-        animationSpec = infiniteRepeatable(animation = tween(400, easing = LinearEasing), repeatMode = RepeatMode.Reverse),
-        label = ""
-    )
-
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier.graphicsLayer { scaleX = scalaTesto; scaleY = scalaTesto }
-    ) {
+    val scalaTesto by infiniteTransition.animateFloat(initialValue = 1f, targetValue = 1.2f, animationSpec = infiniteRepeatable(animation = tween(400, easing = LinearEasing), repeatMode = RepeatMode.Reverse), label = "")
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.graphicsLayer { scaleX = scalaTesto; scaleY = scalaTesto }) {
         Text("WHAT UUU SAYYYNNN!!!", color = Color.Black, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = FontTitoli, style = TextStyle(drawStyle = Stroke(miter = 10f, width = 12f, join = StrokeJoin.Round)))
         Text("WHAT UUU SAYYYNNN!!!", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = FontTitoli)
     }
