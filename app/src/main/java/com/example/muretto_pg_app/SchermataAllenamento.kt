@@ -36,11 +36,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (String) -> Unit) {
-    val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
-
     // Sincronizza l'allenamento col Cloud
     LaunchedEffect(Tema.isBarreFaul) {
         val murettoId = if (Tema.isBarreFaul) "barre_faul" else "muretto_pg"
@@ -55,8 +55,8 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
                 IconButton(
                     onClick = { onTornaIndietro() },
                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)
-                ) { Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold) }
-                Text("ALLENAMENTO", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+                ) { Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = Tema.fontKomtit, fontWeight = FontWeight.Bold) }
+                Text("ALLENAMENTO", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = Tema.fontJackboa, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
             }
 
             TabRow(
@@ -70,9 +70,9 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
 
             Box(modifier = Modifier.weight(1f)) {
                 if (GestoreAllenamento.tabSelezionata == 0) {
-                    SezioneMatchmaking(font = MioFontPersonalizzato)
+                    SezioneMatchmaking()
                 } else {
-                    SezioneGeneratori(MioFontPersonalizzato, onSelezionaAllenamento)
+                    SezioneGeneratori(onSelezionaAllenamento)
                 }
             }
         }
@@ -80,7 +80,7 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
 }
 
 @Composable
-fun SezioneMatchmaking(font: FontFamily) {
+fun SezioneMatchmaking() {
     var mostraDialogAggiunta by remember { mutableStateOf(false) }
     var nomeNuovoMc by remember { mutableStateOf("") }
 
@@ -89,7 +89,7 @@ fun SezioneMatchmaking(font: FontFamily) {
     Box(modifier = Modifier.fillMaxSize()) {
         if (!GestoreAllenamento.mostraRisultatiMatchmaking) {
             Column(modifier = Modifier.fillMaxSize().padding(bottom = 80.dp)) {
-                Text("SELEZIONA GLI MC", color = Tema.coloreTesto, fontSize = 24.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), textAlign = TextAlign.Center)
+                Text("SELEZIONA GLI MC", color = Tema.coloreTesto, fontSize = 24.sp, fontFamily = Tema.fontJackboa, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), textAlign = TextAlign.Center)
 
                 OutlinedTextField(
                     value = GestoreAllenamento.testoRicerca, onValueChange = { GestoreAllenamento.testoRicerca = it }, placeholder = { Text("Cerca un MC...", color = Tema.coloreTestoSecondario) },
@@ -125,17 +125,17 @@ fun SezioneMatchmaking(font: FontFamily) {
             Button(
                 onClick = { generaBattleMatchmaking() }, enabled = GestoreAllenamento.mcsSelezionatiIds.size >= 2, colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale, disabledContainerColor = Color.DarkGray),
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 16.dp, vertical = 20.dp).height(60.dp), shape = RoundedCornerShape(12.dp)
-            ) { Text("GENERA BATTLE", color = Color.White, fontSize = 22.sp, fontFamily = font) }
+            ) { Text("GENERA BATTLE", color = Color.White, fontSize = 22.sp, fontFamily = Tema.fontKomtit) }
         } else {
             Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                Text("ACCOPPIAMENTI", color = Tema.coloreTesto, fontSize = 28.sp, fontFamily = font, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), textAlign = TextAlign.Center)
+                Text("ACCOPPIAMENTI", color = Tema.coloreTesto, fontSize = 28.sp, fontFamily = Tema.fontKomtit, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), textAlign = TextAlign.Center)
 
                 LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
                     items(GestoreAllenamento.battleGenerate) { pair -> BattleCardMatchmaking(mc1 = pair.first, mc2 = pair.second) }
                     if (GestoreAllenamento.mcSingolo != null) {
                         item {
                             Row(modifier = Modifier.fillMaxWidth().padding(8.dp).background(Color.DarkGray.copy(alpha = 0.3f), RoundedCornerShape(8.dp)).padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                                Text("RIPOSA: ", color = Tema.coloreTestoSecondario, fontSize = 18.sp, fontFamily = font)
+                                Text("RIPOSA: ", color = Tema.coloreTestoSecondario, fontSize = 18.sp, fontFamily = Tema.fontKomtit)
                                 BoxMC(mc = GestoreAllenamento.mcSingolo!!, width = 60.dp, height = 80.dp)
                             }
                         }
@@ -143,8 +143,8 @@ fun SezioneMatchmaking(font: FontFamily) {
                 }
 
                 Row(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(onClick = { GestoreAllenamento.mostraRisultatiMatchmaking = false }, colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray), modifier = Modifier.weight(1f).height(60.dp), shape = RoundedCornerShape(12.dp)) { Text("INDIETRO", color = Color.White, fontSize = 18.sp, fontFamily = font) }
-                    Button(onClick = { generaBattleMatchmaking() }, colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), modifier = Modifier.weight(1.5f).height(60.dp), shape = RoundedCornerShape(12.dp)) { Text("REROLL", color = Color.White, fontSize = 20.sp, fontFamily = font) }
+                    Button(onClick = { GestoreAllenamento.mostraRisultatiMatchmaking = false }, colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray), modifier = Modifier.weight(1f).height(60.dp), shape = RoundedCornerShape(12.dp)) { Text("INDIETRO", color = Color.White, fontSize = 18.sp, fontFamily = Tema.fontKomtit) }
+                    Button(onClick = { generaBattleMatchmaking() }, colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), modifier = Modifier.weight(1.5f).height(60.dp), shape = RoundedCornerShape(12.dp)) { Text("REROLL", color = Color.White, fontSize = 20.sp, fontFamily = Tema.fontKomtit) }
                 }
             }
         }
@@ -153,7 +153,7 @@ fun SezioneMatchmaking(font: FontFamily) {
     if (mostraDialogAggiunta) {
         AlertDialog(
             onDismissRequest = { mostraDialogAggiunta = false }, containerColor = Tema.coloreSfondoCard,
-            title = { Text("NUOVO MC", color = Tema.coloreTesto, fontWeight = FontWeight.Bold, fontFamily = font) },
+            title = { Text("NUOVO MC", color = Tema.coloreTesto, fontWeight = FontWeight.Bold, fontFamily = Tema.fontKomtit) },
             text = {
                 OutlinedTextField(
                     value = nomeNuovoMc, onValueChange = { nomeNuovoMc = it }, placeholder = { Text("Nome del Freestyler", color = Tema.coloreTestoSecondario) },
@@ -202,7 +202,14 @@ fun BattleCardMatchmaking(mc1: Freestyler, mc2: Freestyler) {
     ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
             BoxMC(mc = mc1, width = 90.dp, height = 120.dp)
-            Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(70.dp).padding(horizontal = 8.dp))
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(R.drawable.versus)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "Versus",
+                modifier = Modifier.size(70.dp).padding(horizontal = 8.dp)
+            )
             BoxMC(mc = mc2, width = 90.dp, height = 120.dp)
         }
     }
@@ -239,17 +246,17 @@ fun CardFreestyler(freestyler: Freestyler, isSelezionato: Boolean, onClick: () -
 }
 
 @Composable
-fun SezioneGeneratori(font: FontFamily, onSelezionaAllenamento: (String) -> Unit) {
+fun SezioneGeneratori(onSelezionaAllenamento: (String) -> Unit) {
     val opzioniAllenamento = listOf("Generatore argomenti", "Generatore modalita", "Generatore parole")
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(24.dp), modifier = Modifier.fillMaxSize()) {
-        items(opzioniAllenamento) { nome -> CardAllenamento(nomeOpzione = nome, onClick = { onSelezionaAllenamento(nome) }, font = font) }
+        items(opzioniAllenamento) { nome -> CardAllenamento(nomeOpzione = nome, onClick = { onSelezionaAllenamento(nome) }) }
     }
 }
 
 @Composable
-fun CardAllenamento(nomeOpzione: String, onClick: () -> Unit, font: FontFamily) {
+fun CardAllenamento(nomeOpzione: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(12.dp)).border(3.dp, Tema.colorePrincipale, RoundedCornerShape(12.dp)).background(Tema.coloreSfondoCard).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center
-    ) { Text(text = nomeOpzione.uppercase(), color = Tema.coloreTesto, fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, fontFamily = font) }
+    ) { Text(text = nomeOpzione.uppercase(), color = Tema.coloreTesto, fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, fontFamily = Tema.fontKomtit) }
 }

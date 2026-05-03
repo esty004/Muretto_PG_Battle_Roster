@@ -24,7 +24,6 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun SchermataGeneratoreArgomenti(onTornaIndietro: () -> Unit) {
     val context = LocalContext.current
-    val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
     val argomentiPool = remember { DatiAllenamento.caricaArgomenti(context) }
     var argomentoCorrente by remember { mutableStateOf("PREMI PER\nGENERARE") }
 
@@ -38,9 +37,9 @@ fun SchermataGeneratoreArgomenti(onTornaIndietro: () -> Unit) {
                     onClick = { onTornaIndietro() },
                     modifier = Modifier.align(Alignment.CenterStart)
                 ) {
-                    Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
+                    Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = Tema.fontKomtit, fontWeight = FontWeight.Bold)
                 }
-                Text("ARGOMENTI", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+                Text("ARGOMENTI", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = Tema.fontKomtit, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
             }
 
             Spacer(modifier = Modifier.weight(1f))
@@ -58,7 +57,7 @@ fun SchermataGeneratoreArgomenti(onTornaIndietro: () -> Unit) {
                     text = argomentoCorrente.uppercase(),
                     color = Tema.coloreTesto,
                     fontSize = 38.sp,
-                    fontFamily = MioFontPersonalizzato,
+                    fontFamily = Tema.fontKomtit,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
                     lineHeight = 44.sp

@@ -27,7 +27,6 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SchermataNotifiche(onTornaIndietro: () -> Unit) {
-    val MioFont = FontFamily(Font(R.font.komtit__))
     val richieste = DatabaseMcs.richiesteInAttesa
     var richiestaSelezionata by remember { mutableStateOf<RichiestaAccount?>(null) }
 
@@ -58,13 +57,13 @@ fun SchermataNotifiche(onTornaIndietro: () -> Unit) {
                     onClick = onTornaIndietro,
                     modifier = Modifier.align(Alignment.CenterStart)
                 ) {
-                    Text("<", color = Color.White, fontSize = 45.sp, fontFamily = MioFont)
+                    Text("<", color = Color.White, fontSize = 45.sp, fontFamily = Tema.fontKomtit)
                 }
                 Text(
                     "NOTIFICHE",
                     color = Color.White,
                     fontSize = 28.sp,
-                    fontFamily = MioFont,
+                    fontFamily = Tema.fontKomtit,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.align(Alignment.Center)
                 )

@@ -25,7 +25,6 @@ fun SchermataLogin(
     onTornaIndietro: () -> Unit,
     onVaiARegistrazione: () -> Unit
 ) {
-    val MioFontKomtit = FontFamily(Font(R.font.komtit__))
     val scope = rememberCoroutineScope()
 
     // Se è già loggato mostra il pannello logout
@@ -45,13 +44,13 @@ fun SchermataLogin(
                 "SEI GIÀ LOGGATO",
                 color = Color.Green,
                 fontSize = 20.sp,
-                fontFamily = MioFontKomtit
+                fontFamily = Tema.fontKomtit
             )
             Text(
                 etichettaRuolo,
                 color = Color.Green,
                 fontSize = 16.sp,
-                fontFamily = MioFontKomtit,
+                fontFamily = Tema.fontKomtit,
                 modifier = Modifier.padding(top = 4.dp)
             )
             DatabaseMcs.profiloAttuale?.let {
@@ -97,7 +96,7 @@ fun SchermataLogin(
     ) {
         Text(
             text = "LOGIN",
-            fontFamily = MioFontKomtit,
+            fontFamily = Tema.fontKomtit,
             fontSize = 50.sp,
             color = Color.White,
             modifier = Modifier.padding(bottom = 40.dp)

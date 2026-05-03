@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> Unit) {
-    val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
     val listaModalita = listOf("Muretto classico", "2 VS 2", "Evento", "Trasferte", "Allenamento")
 
     var mostraDialog2vs2 by remember { mutableStateOf(false) }
@@ -38,10 +37,10 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
                     onClick = { onTornaIndietro() },
                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)
                 ) {
-                    Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
+                    Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = Tema.fontKomtit, fontWeight = FontWeight.Bold)
                 }
 
-                Text("SELEZIONA MODALITA'", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+                Text("SELEZIONA MODALITA'", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = Tema.fontJackboa, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
             }
 
             LazyColumn(
@@ -69,7 +68,7 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
         AlertDialog(
             onDismissRequest = { mostraDialog2vs2 = false },
             containerColor = Tema.coloreSfondoCard,
-            title = { Text("MODALITÀ 2 VS 2", color = Tema.coloreTesto, fontFamily = MioFontPersonalizzato, fontSize = 24.sp) },
+            title = { Text("MODALITÀ 2 VS 2", color = Tema.coloreTesto, fontFamily = Tema.fontKomtit, fontSize = 24.sp) },
             text = { Text("Come vuoi formare le coppie?", color = Tema.coloreTestoSecondario, fontSize = 16.sp) },
             confirmButton = {
                 Button(colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), onClick = {

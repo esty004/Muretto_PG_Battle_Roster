@@ -16,6 +16,8 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -44,6 +46,9 @@ import java.net.URL
 
 object Tema {
     var isBarreFaul by mutableStateOf(false)
+
+    val fontKomtit = FontFamily(Font(R.font.komtit__))
+    val fontJackboa = FontFamily(Font(R.font.jackboa))
 
     val colorePrincipale: Color get() = if (isBarreFaul) Color(0xFF1E88E5) else Color(0xFFD32F2F)
     val coloreSfondo: Color get() = if (isBarreFaul) Color(0xFFDCDCDC) else Color.Black
@@ -75,7 +80,7 @@ data class Freestyler(
     val id: String = "",
     val nome: String = "",
     val immagineUrl: String = "",
-    val muretto: String = ""
+    val muretto: String = "",
 )
 
 @Serializable
@@ -190,9 +195,6 @@ object DatabaseMcs {
         }
     }
 
-    // Alias per compatibilità con il codice esistente
-    fun controllaAdmin() = controllaRuolo()
-
     fun fetchMcsDalCloud(nomeMuretto: String) {
         staCaricando.value = true
         CoroutineScope(Dispatchers.IO).launch {
@@ -289,34 +291,59 @@ object DatabaseMcs {
         }
     }
 
-    // Accetta richiesta: crea account Auth (il trigger SQL crea il profilo) + aggiorna stato
+    // Accetta richiesta: crea account Auth + aggiorna stato.
+    // NOTA: Se ricevi Errore 500 "Database error creating new user", controlla i TRIGGER SQL su Supabase (tabella auth.users).
     suspend fun accettaRichiesta(richiesta: RichiestaAccount): Boolean {
+        val serviceRoleKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2endudXhsamhieGVwbGhianplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzM3NTA2NCwiZXhwIjoyMDkyOTUxMDY0fQ.HdIa06E9UVn30zyO9cL6sR_kODfoJJ5NHlZN4VHgoe8"
+
         return try {
-            val serviceRoleKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2endudXhsamhieGVwbGhianplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzM3NTA2NCwiZXhwIjoyMDkyOTUxMDY0fQ.HdIa06E9UVn30zyO9cL6sR_kODfoJJ5NHlZN4VHgoe8"
+            val esitoAuth = withContext(Dispatchers.IO) {
+                try {
+                    val url = URL("$supabaseUrl/auth/v1/admin/users")
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.requestMethod = "POST"
+                    conn.setRequestProperty("apikey", serviceRoleKey)
+                    conn.setRequestProperty("Authorization", "Bearer $serviceRoleKey")
+                    conn.setRequestProperty("Content-Type", "application/json")
+                    conn.doOutput = true
 
-            val esito = withContext(Dispatchers.IO) {
-                val url = URL("https://bvzwnuxljhbxeplhbjze.supabase.co/auth/v1/admin/users")
-                val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("apikey", serviceRoleKey)
-                conn.setRequestProperty("Authorization", "Bearer $serviceRoleKey")
-                conn.setRequestProperty("Content-Type", "application/json")
-                conn.doOutput = true
+                    // Corpo JSON minimale per ridurre al minimo i trigger di errore lato server
+                    val body = """{"email":"${richiesta.email.trim()}","password":"${richiesta.password_temp}","email_confirm":true}"""
+                    conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
 
-                // email_confirm: false → Supabase invia la mail di conferma
-                val body = """{"email":"${richiesta.email}","password":"${richiesta.password_temp}","email_confirm":false}"""
-                conn.outputStream.use { it.write(body.toByteArray()) }
+                    val codice = conn.responseCode
+                    val responseBody = if (codice in 200..299) {
+                        conn.inputStream.bufferedReader().use { it.readText() }
+                    } else {
+                        conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "Nessun corpo errore"
+                    }
 
-                val codice = conn.responseCode
-                conn.disconnect()
-                codice in 200..299
+                    println("DEBUG_AUTH_VERDI: Codice $codice - Risposta: $responseBody")
+                    conn.disconnect()
+
+                    // Successo se creato (201/200) o se già esistente (422)
+                    codice == 201 || codice == 200 || (codice == 422 && responseBody.contains("already registered"))
+                } catch (e: Exception) {
+                    println("DEBUG_AUTH_EXCEPTION: ${e.message}")
+                    false
+                }
             }
 
-            if (!esito) return false
+            if (!esitoAuth) return false
 
-            supabase.postgrest["richieste_account"].update(
-                { set("stato", "accettata") }
-            ) { filter { eq("id", richiesta.id) } }
+            // Se Auth OK o utente già esistente, forziamo l'aggiornamento dello stato della richiesta nel DB
+            withContext(Dispatchers.IO) {
+                try {
+                    supabase.postgrest["richieste_account"].update(
+                        { set("stato", "accettata") }
+                    ) {
+                        filter { eq("id", richiesta.id) }
+                    }
+                } catch (e: Exception) {
+                    println("DEBUG_DB_UPDATE_EXCEPTION: ${e.message}")
+                    throw e
+                }
+            }
 
             withContext(Dispatchers.Main) {
                 richiesteInAttesa.removeIf { it.id == richiesta.id }
@@ -360,14 +387,14 @@ enum class TipoTorneo { SINGOLO, COPPIE_CASUALI, COPPIE_PREDEFINITE }
 
 object GestoreBattle {
     var mcsSelezionati = mutableStateListOf<Freestyler>()
-    var roundsAttuali = mutableStateListOf<Round>()
+    var roundsAttuali by mutableStateOf<List<Round>>(emptyList())
     var faseAttuale = FaseTorneo.OTTAVI
     var is2v2 = false
     var tipoTorneoAttuale = TipoTorneo.SINGOLO
 
     fun resetSelezione() {
         mcsSelezionati.clear()
-        roundsAttuali.clear()
+        roundsAttuali = emptyList()
         faseAttuale = FaseTorneo.OTTAVI
         is2v2 = false
         tipoTorneoAttuale = TipoTorneo.SINGOLO
@@ -411,26 +438,31 @@ object GestoreBattle {
 
     fun generaFase(fase: FaseTorneo, partecipanti: List<Freestyler>) {
         faseAttuale = fase
-        roundsAttuali.clear()
-        if (partecipanti.isEmpty()) return
+        if (partecipanti.isEmpty()) {
+            roundsAttuali = emptyList()
+            return
+        }
         val shuffled = partecipanti.shuffled()
         val total = shuffled.size
+        val nuoviRounds = mutableListOf<Round>()
+
         if (total % 2 == 0) {
             for (i in 0 until total step 2) {
-                roundsAttuali.add(Round("r_${fase.name}_${i / 2}", (i / 2) + 1, listOf(shuffled[i], shuffled[i + 1])))
+                nuoviRounds.add(Round("r_${fase.name}_${i / 2}", (i / 2) + 1, listOf(shuffled[i], shuffled[i + 1])))
             }
         } else {
             if (total >= 3) {
                 val num1v1 = (total - 3) / 2
                 for (i in 0 until num1v1) {
-                    roundsAttuali.add(Round("r_${fase.name}_$i", i + 1, listOf(shuffled[i * 2], shuffled[i * 2 + 1])))
+                    nuoviRounds.add(Round("r_${fase.name}_$i", i + 1, listOf(shuffled[i * 2], shuffled[i * 2 + 1])))
                 }
                 val startRumble = num1v1 * 2
-                roundsAttuali.add(Round("r_${fase.name}_$num1v1", num1v1 + 1, listOf(shuffled[startRumble], shuffled[startRumble + 1], shuffled[startRumble + 2])))
+                nuoviRounds.add(Round("r_${fase.name}_$num1v1", num1v1 + 1, listOf(shuffled[startRumble], shuffled[startRumble + 1], shuffled[startRumble + 2])))
             } else {
-                roundsAttuali.add(Round("r_${fase.name}_0", 1, listOf(shuffled[0])))
+                nuoviRounds.add(Round("r_${fase.name}_0", 1, listOf(shuffled[0])))
             }
         }
+        roundsAttuali = nuoviRounds
     }
 
     fun salvaProgresso(context: Context) {
@@ -458,8 +490,7 @@ object GestoreBattle {
         if (roundsJson != null) {
             val type = object : TypeToken<List<Round>>() {}.type
             val list: List<Round> = gson.fromJson(roundsJson, type)
-            roundsAttuali.clear()
-            roundsAttuali.addAll(list)
+            roundsAttuali = list
         }
     }
 

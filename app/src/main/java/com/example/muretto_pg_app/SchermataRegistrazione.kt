@@ -26,7 +26,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SchermataRegistrazione(onTornaIndietro: () -> Unit) {
-    val MioFont = FontFamily(Font(R.font.komtit__))
     val scope = rememberCoroutineScope()
 
     var nome by remember { mutableStateOf("") }
@@ -80,7 +79,7 @@ fun SchermataRegistrazione(onTornaIndietro: () -> Unit) {
                         "RICHIESTA INVIATA",
                         color = verdePrimario,
                         fontSize = 22.sp,
-                        fontFamily = MioFont,
+                        fontFamily = Tema.fontKomtit,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -122,13 +121,13 @@ fun SchermataRegistrazione(onTornaIndietro: () -> Unit) {
                 onClick = onTornaIndietro,
                 modifier = Modifier.align(Alignment.CenterStart)
             ) {
-                Text("<", color = Color.White, fontSize = 45.sp, fontFamily = MioFont)
+                Text("<", color = Color.White, fontSize = 45.sp, fontFamily = Tema.fontKomtit)
             }
             Text(
                 "REGISTRATI",
                 color = Color.White,
                 fontSize = 28.sp,
-                fontFamily = MioFont,
+                fontFamily = Tema.fontKomtit,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.Center)
             )

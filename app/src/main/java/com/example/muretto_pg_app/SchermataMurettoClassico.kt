@@ -49,7 +49,6 @@ fun SchermataMurettoClassico(
     onTornaAlMenu: () -> Unit,
     onIniziaBattle: () -> Unit
 ) {
-    val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
     val focusManager = LocalFocusManager.current
     val is2v2 = tipoTorneo != TipoTorneo.SINGOLO
 
@@ -83,8 +82,8 @@ fun SchermataMurettoClassico(
                     IconButton(
                         onClick = { if (searchFocused) focusManager.clearFocus() else onTornaAlMenu() },
                         modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)
-                    ) { Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold) }
-                    Text("SELEZIONA GLI MC", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center).offset(x = 15.dp))
+                    ) { Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = Tema.fontKomtit, fontWeight = FontWeight.Bold) }
+                    Text("SELEZIONA GLI MC", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = Tema.fontJackboa, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center).offset(x = 15.dp))
                 }
 
                 if (tipoTorneo == TipoTorneo.COPPIE_PREDEFINITE) {
@@ -153,7 +152,7 @@ fun SchermataMurettoClassico(
                 colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale, disabledContainerColor = Color.DarkGray),
                 shape = CircleShape,
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(0.85f).padding(vertical = 20.dp).height(60.dp)
-            ) { Text("INIZIA BATTLE", color = Color.White, fontSize = 22.sp, fontFamily = FontFamily(Font(R.font.jackboa))) }
+            ) { Text("INIZIA BATTLE", color = Color.White, fontSize = 22.sp, fontFamily = Tema.fontJackboa) }
 
             AnimatedVisibility(
                 visible = mostraNotepad,
@@ -167,8 +166,8 @@ fun SchermataMurettoClassico(
                             modifier = Modifier.fillMaxWidth().padding(top = 40.dp, bottom = 16.dp),
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            IconButton(onClick = { mostraNotepad = false }) { Text("<", color = Tema.coloreTesto, fontSize = 40.sp, fontFamily = MioFontPersonalizzato) }
-                            Text("BLOCCO NOTE", color = Tema.coloreTesto, fontSize = 24.sp, fontFamily = MioFontPersonalizzato)
+                            IconButton(onClick = { mostraNotepad = false }) { Text("<", color = Tema.coloreTesto, fontSize = 40.sp, fontFamily = Tema.fontKomtit) }
+                            Text("BLOCCO NOTE", color = Tema.coloreTesto, fontSize = 24.sp, fontFamily = Tema.fontKomtit)
 
                             Button(
                                 onClick = {

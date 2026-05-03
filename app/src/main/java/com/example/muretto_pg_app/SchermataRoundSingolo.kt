@@ -33,6 +33,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -64,7 +66,6 @@ val listaModalitaSpareggio = listOf(
 
 @Composable
 fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
-    val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
     val context = LocalContext.current
 
     val indiceRound = GestoreBattle.roundsAttuali.indexOfFirst { it.id == roundId }
@@ -86,15 +87,19 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
 
             Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
                 IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)) {
-                    Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato)
+                    Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = Tema.fontKomtit)
                 }
-                Text("ROUND ${round.numero}", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+                Text("ROUND ${round.numero}", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = Tema.fontKomtit, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
 
                 if (vincitoreTemporaneoId != null && GestoreBattle.faseAttuale != FaseTorneo.FINALE) {
                     IconButton(
                         onClick = {
+                            val listaCorrente = GestoreBattle.roundsAttuali.toMutableList()
                             val roundAggiornato = round.copy(completato = true, vincitoreId = vincitoreTemporaneoId)
-                            GestoreBattle.roundsAttuali[indiceRound] = roundAggiornato
+                            if (indiceRound != -1) {
+                                listaCorrente[indiceRound] = roundAggiornato
+                                GestoreBattle.roundsAttuali = listaCorrente
+                            }
                             GestoreBattle.salvaProgresso(context)
                             onTornaIndietro()
                         },
@@ -117,7 +122,16 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
                         val righe = round.partecipanti.chunked(2)
 
                         righe.forEachIndexed { index, riga ->
-                            if (index > 0) Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(50.dp).padding(vertical = 8.dp))
+                            if (index > 0) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(R.drawable.versus)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = "Versus",
+                                    modifier = Modifier.size(50.dp).padding(vertical = 8.dp)
+                                )
+                            }
 
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                                 Box(modifier = Modifier.clickable { vincitoreTemporaneoId = if (vincitoreTemporaneoId == riga[0].id) null else riga[0].id }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
@@ -125,7 +139,14 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
                                 }
 
                                 if (riga.size == 2) {
-                                    Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(50.dp))
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(LocalContext.current)
+                                            .data(R.drawable.versus)
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = "Versus",
+                                        modifier = Modifier.size(50.dp)
+                                    )
 
                                     Box(modifier = Modifier.clickable { vincitoreTemporaneoId = if (vincitoreTemporaneoId == riga[1].id) null else riga[1].id }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
                                         BoxMC(mc = riga[1], isVincitore = vincitoreTemporaneoId == riga[1].id, isSconfitto = vincitoreTemporaneoId != null && vincitoreTemporaneoId != riga[1].id, width = 140.dp, height = 180.dp)
@@ -157,7 +178,7 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
                             AlertDialog(
                                 onDismissRequest = { mostraMessaggioFine = false },
                                 containerColor = Tema.coloreSfondoCard,
-                                title = { Text("VIVA L'HIP HOP!", color = Tema.coloreTesto, fontSize = 28.sp, fontFamily = MioFontPersonalizzato, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
+                                title = { Text("VIVA L'HIP HOP!", color = Tema.coloreTesto, fontSize = 28.sp, fontFamily = Tema.fontKomtit, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
                                 text = {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                                         Text("FINALISTI:", color = Tema.coloreTestoSecondario, fontSize = 16.sp)
@@ -171,8 +192,12 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
                                     Button(
                                         colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
                                         onClick = {
+                                            val listaCorrente = GestoreBattle.roundsAttuali.toMutableList()
                                             val roundAggiornato = round.copy(completato = true, vincitoreId = vincitoreTemporaneoId)
-                                            GestoreBattle.roundsAttuali[indiceRound] = roundAggiornato
+                                            if (indiceRound != -1) {
+                                                listaCorrente[indiceRound] = roundAggiornato
+                                                GestoreBattle.roundsAttuali = listaCorrente
+                                            }
                                             GestoreBattle.salvaProgresso(context)
                                             mostraMessaggioFine = false
                                             onTornaIndietro()

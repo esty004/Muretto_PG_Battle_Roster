@@ -24,6 +24,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import java.util.UUID
 
 @Composable
@@ -32,7 +34,6 @@ fun SchermataOttavi(
     onVaiAiQuarti: () -> Unit,
     onRoundClick: (String) -> Unit
 ) {
-    val MioFont = FontFamily(Font(R.font.komtit__))
     val context = LocalContext.current
     val listaRounds = GestoreBattle.roundsAttuali
     val tuttiFiniti = listaRounds.isNotEmpty() && listaRounds.all { it.completato }
@@ -48,11 +49,11 @@ fun SchermataOttavi(
             Column(modifier = Modifier.fillMaxSize().padding(bottom = 100.dp)) {
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
                     IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)) {
-                        Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFont)
+                        Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = Tema.fontKomtit)
                     }
                     Text(
                         titoloSchermata,
-                        color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFont, fontWeight = FontWeight.Bold,
+                        color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = Tema.fontKomtit, fontWeight = FontWeight.Bold,
                         modifier = Modifier.align(Alignment.Center).offset(x = 15.dp)
                     )
                 }
@@ -124,10 +125,11 @@ fun SchermataOttavi(
                         val roundAperti = GestoreBattle.roundsAttuali.filter { !it.completato }
                         if (roundAperti.isNotEmpty()) {
                             val roundPiuVuoto = roundAperti.minByOrNull { it.partecipanti.size }
-                            val indice = GestoreBattle.roundsAttuali.indexOfFirst { it.id == roundPiuVuoto?.id }
+                            val listaCorrente = GestoreBattle.roundsAttuali.toMutableList()
+                            val indice = listaCorrente.indexOfFirst { it.id == roundPiuVuoto?.id }
                             if (indice != -1) {
-                                val roundModificato = GestoreBattle.roundsAttuali[indice].copy(partecipanti = GestoreBattle.roundsAttuali[indice].partecipanti + nuovoMembro)
-                                GestoreBattle.roundsAttuali[indice] = roundModificato
+                                listaCorrente[indice] = listaCorrente[indice].copy(partecipanti = listaCorrente[indice].partecipanti + nuovoMembro)
+                                GestoreBattle.roundsAttuali = listaCorrente
                             }
                         }
 
@@ -153,13 +155,29 @@ fun RoundCard(round: Round, onClick: () -> Unit) {
                 val righe = round.partecipanti.chunked(2)
 
                 righe.forEachIndexed { index, riga ->
-                    if (index > 0) Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(40.dp).padding(vertical = 8.dp))
+                    if (index > 0) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(R.drawable.versus)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Versus",
+                            modifier = Modifier.size(40.dp).padding(vertical = 8.dp)
+                        )
+                    }
 
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
                         BoxMC(mc = riga[0], isVincitore = round.vincitoreId == riga[0].id, isSconfitto = round.completato && round.vincitoreId != riga[0].id)
 
                         if (riga.size == 2) {
-                            Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(85.dp).padding(horizontal = 10.dp))
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(R.drawable.versus)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Versus",
+                                modifier = Modifier.size(85.dp).padding(horizontal = 10.dp)
+                            )
                             BoxMC(mc = riga[1], isVincitore = round.vincitoreId == riga[1].id, isSconfitto = round.completato && round.vincitoreId != riga[1].id)
                         }
                     }

@@ -115,7 +115,6 @@ fun isNotificationListenerPermissionGranted(context: Context): Boolean {
 fun AppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
-    val MioFont = FontFamily(Font(R.font.komtit__))
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val rottaCorrente = navBackStackEntry?.destination?.route
 
@@ -133,7 +132,7 @@ fun AppNavigation() {
         AlertDialog(
             onDismissRequest = { mostraPopupPermesso = false },
             containerColor = Tema.coloreSfondoCard,
-            title = { Text("PERMESSO PLAYER", color = Tema.coloreTesto, fontFamily = MioFont) },
+            title = { Text("PERMESSO PLAYER", color = Tema.coloreTesto, fontFamily = Tema.fontKomtit) },
             text = { Text("Per usare il mini player musicale, abilita l'accesso alle notifiche nelle impostazioni.", color = Tema.coloreTestoSecondario) },
             confirmButton = {
                 Button(
@@ -156,7 +155,7 @@ fun AppNavigation() {
         AlertDialog(
             onDismissRequest = { mostraPopupRecupero = false },
             containerColor = Tema.coloreSfondoCard,
-            title = { Text("CONTINUARE BATTLE?", color = Tema.coloreTesto, fontFamily = MioFont) },
+            title = { Text("CONTINUARE BATTLE?", color = Tema.coloreTesto, fontFamily = Tema.fontKomtit) },
             confirmButton = {
                 Button(
                     colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
@@ -266,7 +265,7 @@ fun AppNavigation() {
             "benvenuto", "benvenuto_barre_faul", "mappa", "login", "aggiungi_mc", "trasferte", "registrazione"
         )
         if (rottaCorrente != null && rottaCorrente !in schermateSenzaPlayer) {
-            FloatingPlayer(MioFont)
+            FloatingPlayer()
         }
     }
 }
@@ -274,7 +273,7 @@ fun AppNavigation() {
 // ─── FLOATING PLAYER ─────────────────────────────────────────────────────────
 
 @Composable
-fun FloatingPlayer(font: FontFamily) {
+fun FloatingPlayer() {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
@@ -541,7 +540,7 @@ fun SchermataMappa(onPinClick: (String) -> Unit) {
                             RuoloUtente.ORGANIZZATORE_EVENTI -> "ORG. EVENTI"
                             else -> "PANNELLO"
                         }
-                        Text(etichettaPanel, color = Color.White, fontSize = 20.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
+                        Text(etichettaPanel, color = Color.White, fontSize = 20.sp, fontFamily = Tema.fontKomtit, fontWeight = FontWeight.Bold)
                         DatabaseMcs.profiloAttuale?.nome_arte?.let {
                             Text(it, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
                         }
@@ -605,7 +604,7 @@ fun MenuItem(titolo: String, icona: Int, coloreTesto: Color = Tema.coloreTesto, 
     ) {
         Icon(painter = painterResource(id = icona), contentDescription = null, tint = coloreTesto, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.width(20.dp))
-        Text(text = titolo, color = coloreTesto, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily(Font(R.font.komtit__)))
+        Text(text = titolo, color = coloreTesto, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Tema.fontKomtit)
     }
 }
 
@@ -633,7 +632,7 @@ fun SchermataDiBenvenuto(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Unit) {
         }
         if (!inTransizione) {
             IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.TopStart).padding(top = 60.dp, start = 16.dp)) {
-                Text("<", color = Color.White, fontSize = 45.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
+                Text("<", color = Color.White, fontSize = 45.sp, fontFamily = Tema.fontKomtit, fontWeight = FontWeight.Bold)
             }
             Box(modifier = Modifier.offset(y = spostamentoVerticale).size(dimensioneAura).graphicsLayer { scaleX = scalaAura; scaleY = scalaAura; alpha = alphaAura }.background(Color.Black.copy(alpha = 0.4f), CircleShape).border(4.dp, Color.Black.copy(alpha = 0.6f), CircleShape))
         }
@@ -666,7 +665,7 @@ fun SchermataDiBenvenutoBarreFaul(onTornaIndietro: () -> Unit, onVaiAlMenu: () -
         }
         if (!inTransizione) {
             IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.TopStart).padding(top = 60.dp, start = 16.dp)) {
-                Text("<", color = Color.White, fontSize = 45.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
+                Text("<", color = Color.White, fontSize = 45.sp, fontFamily = Tema.fontKomtit, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -678,22 +677,20 @@ fun SchermataDiBenvenutoBarreFaul(onTornaIndietro: () -> Unit, onVaiAlMenu: () -
 fun TestoBomboletta() {
     var visibile by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { delay(500); visibile = true }
-    val FontTitoli = FontFamily(Font(R.font.jackboa))
     AnimatedVisibility(visible = visibile, enter = expandHorizontally(animationSpec = tween(durationMillis = 2000, easing = LinearOutSlowInEasing), expandFrom = Alignment.Start) + fadeIn(animationSpec = tween(durationMillis = 2000))) {
         Box(contentAlignment = Alignment.Center) {
-            Text("BATTLE ROSTER", color = Color.Black, fontSize = 42.sp, fontWeight = FontWeight.Bold, fontFamily = FontTitoli, style = TextStyle(drawStyle = Stroke(miter = 10f, width = 10f, join = StrokeJoin.Round)))
-            Text("BATTLE ROSTER", color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold, fontFamily = FontTitoli)
+            Text("BATTLE ROSTER", color = Color.Black, fontSize = 42.sp, fontWeight = FontWeight.Bold, fontFamily = Tema.fontJackboa, style = TextStyle(drawStyle = Stroke(miter = 10f, width = 10f, join = StrokeJoin.Round)))
+            Text("BATTLE ROSTER", color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold, fontFamily = Tema.fontJackboa)
         }
     }
 }
 
 @Composable
 fun TestoAnimatoStileMinecraft() {
-    val FontTitoli = FontFamily(Font(R.font.jackboa))
     val infiniteTransition = rememberInfiniteTransition(label = "")
     val scalaTesto by infiniteTransition.animateFloat(initialValue = 1f, targetValue = 1.2f, animationSpec = infiniteRepeatable(animation = tween(400, easing = LinearEasing), repeatMode = RepeatMode.Reverse), label = "")
     Box(contentAlignment = Alignment.Center, modifier = Modifier.graphicsLayer { scaleX = scalaTesto; scaleY = scalaTesto }) {
-        Text("WHAT UUU SAYYYNNN!!!", color = Color.Black, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = FontTitoli, style = TextStyle(drawStyle = Stroke(miter = 10f, width = 12f, join = StrokeJoin.Round)))
-        Text("WHAT UUU SAYYYNNN!!!", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = FontTitoli)
+        Text("WHAT UUU SAYYYNNN!!!", color = Color.Black, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = Tema.fontJackboa, style = TextStyle(drawStyle = Stroke(miter = 10f, width = 12f, join = StrokeJoin.Round)))
+        Text("WHAT UUU SAYYYNNN!!!", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = Tema.fontJackboa)
     }
 }

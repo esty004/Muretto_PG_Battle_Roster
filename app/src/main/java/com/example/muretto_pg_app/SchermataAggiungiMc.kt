@@ -30,7 +30,6 @@ import kotlinx.coroutines.launch
 fun SchermataAggiungiMc(onTornaIndietro: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val MioFont = FontFamily(Font(R.font.komtit__))
 
     var nomeMc by remember { mutableStateOf("") }
     var murettoSelezionato by remember { mutableStateOf("muretto_pg") }
@@ -52,9 +51,9 @@ fun SchermataAggiungiMc(onTornaIndietro: () -> Unit) {
             // Header
             Box(modifier = Modifier.fillMaxWidth().padding(top = 44.dp, bottom = 20.dp)) {
                 IconButton(onClick = onTornaIndietro, modifier = Modifier.align(Alignment.CenterStart)) {
-                    Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFont)
+                    Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = Tema.fontKomtit)
                 }
-                Text("NUOVO MC", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFont, modifier = Modifier.align(Alignment.Center))
+                Text("NUOVO MC", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = Tema.fontKomtit, modifier = Modifier.align(Alignment.Center))
             }
 
             Spacer(modifier = Modifier.height(20.dp))

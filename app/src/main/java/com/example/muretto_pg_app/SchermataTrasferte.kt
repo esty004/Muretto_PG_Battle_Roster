@@ -65,7 +65,6 @@ val mockEvents = listOf(
 @Composable
 fun SchermataTrasferte(onTornaIndietro: () -> Unit) {
     val context = LocalContext.current
-    val MioFont = FontFamily(Font(R.font.komtit__))
 
     val sheetState = rememberModalBottomSheetState()
     var selectedEvent by remember { mutableStateOf<FreestyleEvent?>(null) }
@@ -100,7 +99,7 @@ fun SchermataTrasferte(onTornaIndietro: () -> Unit) {
                 shape = CircleShape,
                 modifier = Modifier.padding(top = 40.dp)
             ) {
-                Text("<", fontSize = 30.sp, fontFamily = MioFont, fontWeight = FontWeight.Bold)
+                Text("<", fontSize = 30.sp, fontFamily = Tema.fontKomtit, fontWeight = FontWeight.Bold)
             }
         },
         floatingActionButtonPosition = FabPosition.Start
@@ -168,7 +167,7 @@ fun SchermataTrasferte(onTornaIndietro: () -> Unit) {
                         Text(
                             text = selectedEvent!!.title.uppercase(),
                             fontSize = 26.sp,
-                            fontFamily = FontFamily(Font(R.font.jackboa)),
+                            fontFamily = Tema.fontJackboa,
                             fontWeight = FontWeight.Bold,
                             color = Tema.colorePrincipale
                         )
