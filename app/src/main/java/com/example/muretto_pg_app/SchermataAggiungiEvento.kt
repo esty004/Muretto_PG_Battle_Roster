@@ -2,12 +2,14 @@ package com.example.muretto_pg_app
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -19,7 +21,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -29,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -46,12 +54,11 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
     val MioFont = FontFamily(Font(R.font.komtit__))
 
     var titolo by remember { mutableStateOf("") }
-    var indirizzo by remember { mutableStateOf("") } // L'utente scrive qui, noi troviamo le coordinate
+    var indirizzo by remember { mutableStateOf("") }
     var dataSelezionata by remember { mutableStateOf("") }
     var oraSelezionata by remember { mutableStateOf("") }
     var prezzo by remember { mutableStateOf("Gratis") }
 
-    // Dropdown Tipo
     var tipo by remember { mutableStateOf("Battle 1v1") }
     var menuTipoAperto by remember { mutableStateOf(false) }
 
@@ -63,7 +70,6 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
         imageUri = uri
     }
 
-    // Picker Data e Ora nativi Android
     val calendar = Calendar.getInstance()
     val datePickerDialog = android.app.DatePickerDialog(
         context,
@@ -81,7 +87,6 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
             modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header
             Box(modifier = Modifier.fillMaxWidth().padding(top = 44.dp, bottom = 20.dp)) {
                 IconButton(onClick = onTornaIndietro, modifier = Modifier.align(Alignment.CenterStart)) {
                     Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFont)
@@ -89,14 +94,13 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
                 Text("NUOVO EVENTO", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFont, modifier = Modifier.align(Alignment.Center))
             }
 
-            // Box Immagine Locandina
+            // Box Locandina con indicatore circolare visivo del Pin
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .height(180.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .size(180.dp)
+                    .clip(CircleShape)
                     .background(Tema.coloreSfondoCard)
-                    .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp))
+                    .border(4.dp, Tema.colorePrincipale, CircleShape)
                     .clickable { selettoreImmagine.launch("image/*") },
                 contentAlignment = Alignment.Center
             ) {
@@ -105,7 +109,7 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
                 } else {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(painterResource(id = R.drawable.ic_music_note), contentDescription = null, tint = Tema.coloreTestoSecondario, modifier = Modifier.size(40.dp))
-                        Text("Carica la locandina", color = Tema.coloreTestoSecondario, textAlign = TextAlign.Center)
+                        Text("Immagine Pin", color = Tema.coloreTestoSecondario, textAlign = TextAlign.Center)
                     }
                 }
             }
@@ -114,7 +118,7 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
 
             OutlinedTextField(
                 value = titolo, onValueChange = { titolo = it },
-                label = { Text("Titolo Evento (es. Tritolo Battle)", color = Tema.coloreTestoSecondario) },
+                label = { Text("Titolo Evento", color = Tema.coloreTestoSecondario) },
                 colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, focusedBorderColor = Tema.colorePrincipale),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -123,15 +127,14 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
 
             OutlinedTextField(
                 value = indirizzo, onValueChange = { indirizzo = it },
-                label = { Text("Indirizzo (Città, Via, Luogo)", color = Tema.coloreTestoSecondario) },
-                placeholder = { Text("Es. Perugia, Piazza IV Novembre", color = Tema.coloreTestoSecondario) },
+                label = { Text("Indirizzo Esatto", color = Tema.coloreTestoSecondario) },
+                placeholder = { Text("Es. Via Roma 1, Milano", color = Tema.coloreTestoSecondario) },
                 colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, focusedBorderColor = Tema.colorePrincipale),
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Data e Ora
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = dataSelezionata, onValueChange = {}, readOnly = true,
@@ -151,34 +154,24 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Tipo e Prezzo
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                ExposedDropdownMenuBox(
-                    expanded = menuTipoAperto, onExpandedChange = { menuTipoAperto = !menuTipoAperto },
-                    modifier = Modifier.weight(1f)
-                ) {
+                ExposedDropdownMenuBox(expanded = menuTipoAperto, onExpandedChange = { menuTipoAperto = !menuTipoAperto }, modifier = Modifier.weight(1f)) {
                     OutlinedTextField(
-                        value = tipo, onValueChange = {}, readOnly = true,
-                        label = { Text("Tipo", color = Tema.coloreTestoSecondario) },
+                        value = tipo, onValueChange = {}, readOnly = true, label = { Text("Tipo", color = Tema.coloreTestoSecondario) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuTipoAperto) },
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, focusedBorderColor = Tema.colorePrincipale),
                         modifier = Modifier.menuAnchor()
                     )
                     ExposedDropdownMenu(expanded = menuTipoAperto, onDismissRequest = { menuTipoAperto = false }, modifier = Modifier.background(Tema.coloreSfondoCard)) {
                         listOf("Battle 1v1", "Battle 2v2", "Jam / Cypher", "Open Mic", "Evento Misto").forEach { opzione ->
-                            DropdownMenuItem(
-                                text = { Text(opzione, color = Tema.coloreTesto) },
-                                onClick = { tipo = opzione; menuTipoAperto = false }
-                            )
+                            DropdownMenuItem(text = { Text(opzione, color = Tema.coloreTesto) }, onClick = { tipo = opzione; menuTipoAperto = false })
                         }
                     }
                 }
 
                 OutlinedTextField(
-                    value = prezzo, onValueChange = { prezzo = it },
-                    label = { Text("Prezzo (es. 5€)", color = Tema.coloreTestoSecondario) },
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, focusedBorderColor = Tema.colorePrincipale),
-                    modifier = Modifier.weight(1f)
+                    value = prezzo, onValueChange = { prezzo = it }, label = { Text("Prezzo", color = Tema.coloreTestoSecondario) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, focusedBorderColor = Tema.colorePrincipale), modifier = Modifier.weight(1f)
                 )
             }
 
@@ -199,39 +192,26 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
                     messaggioEsito = ""
 
                     scope.launch {
-                        // 1. Geocoding con Nominatim (OpenStreetMap)
                         val coordinate = ottieniCoordinate(indirizzo.trim())
                         if (coordinate == null) {
                             staCaricando = false
-                            messaggioEsito = "Errore: Non riesco a trovare l'indirizzo sulla mappa. Sii più specifico (es. Via Roma 1, Milano)."
+                            messaggioEsito = "Errore: Non riesco a trovare l'indirizzo sulla mappa. Sii più specifico."
                             return@launch
                         }
 
-                        // 2. Upload Locandina (se presente)
-                        val bytesImmagine = imageUri?.let { uri ->
-                            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                        }
+                        val bytesImmagine = imageUri?.let { uri -> context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }
 
-                        // 3. Salvataggio su Supabase
-                        val dataCompleta = "$dataSelezionata, $oraSelezionata"
                         val successo = DatabaseMcs.inserisciNuovoEvento(
-                            titolo = titolo.trim(),
-                            locationNome = indirizzo.trim(),
-                            lat = coordinate.first,
-                            lng = coordinate.second,
-                            dataOra = dataCompleta,
-                            tipo = tipo,
-                            prezzo = prezzo.trim(),
-                            imageBytes = bytesImmagine
+                            titolo = titolo.trim(), locationNome = indirizzo.trim(), lat = coordinate.first, lng = coordinate.second,
+                            dataOra = "$dataSelezionata, $oraSelezionata", tipo = tipo, prezzo = prezzo.trim(), imageBytes = bytesImmagine
                         )
 
                         staCaricando = false
                         if (successo) {
                             messaggioEsito = "Evento inviato in attesa di approvazione Admin!"
-                            // Pulizia campi
                             titolo = ""; indirizzo = ""; dataSelezionata = ""; oraSelezionata = ""; imageUri = null
                         } else {
-                            messaggioEsito = "Errore durante l'invio dell'evento al database."
+                            messaggioEsito = "Errore durante l'invio dell'evento."
                         }
                     }
                 },
@@ -248,7 +228,6 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
     }
 }
 
-// Funzione Helper per trovare le coordinate dall'indirizzo (Geocoding)
 suspend fun ottieniCoordinate(indirizzo: String): Pair<Double, Double>? {
     return withContext(Dispatchers.IO) {
         try {
@@ -258,17 +237,13 @@ suspend fun ottieniCoordinate(indirizzo: String): Pair<Double, Double>? {
             conn.requestMethod = "GET"
 
             val response = conn.inputStream.bufferedReader().use { it.readText() }
-
-            // Un modo semplice per estrarre lat e lon senza importare grosse librerie JSON
             val latRegex = """"lat":"([^"]+)"""".toRegex()
             val lonRegex = """"lon":"([^"]+)"""".toRegex()
 
             val latStr = latRegex.find(response)?.groupValues?.get(1)
             val lonStr = lonRegex.find(response)?.groupValues?.get(1)
 
-            if (latStr != null && lonStr != null) {
-                Pair(latStr.toDouble(), lonStr.toDouble())
-            } else null
+            if (latStr != null && lonStr != null) Pair(latStr.toDouble(), lonStr.toDouble()) else null
         } catch (e: Exception) {
             e.printStackTrace()
             null

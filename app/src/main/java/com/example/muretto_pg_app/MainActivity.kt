@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
+import android.graphics.drawable.BitmapDrawable
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
@@ -37,9 +38,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -133,20 +135,15 @@ fun AppNavigation() {
             onDismissRequest = { mostraPopupPermesso = false },
             containerColor = Tema.coloreSfondoCard,
             title = { Text("PERMESSO PLAYER", color = Tema.coloreTesto, fontFamily = MioFont) },
-            text = { Text("Per usare il mini player musicale, abilita l'accesso alle notifiche nelle impostazioni.", color = Tema.coloreTestoSecondario) },
+            text = { Text("Per usare il mini player musicale, abilita l'accesso alle notifiche.", color = Tema.coloreTestoSecondario) },
             confirmButton = {
                 Button(
                     colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
-                    onClick = {
-                        mostraPopupPermesso = false
-                        context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                    }
+                    onClick = { mostraPopupPermesso = false; context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
                 ) { Text("ABILITA", color = Color.White, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
-                TextButton(onClick = { mostraPopupPermesso = false }) {
-                    Text("DOPO", color = Tema.coloreTestoSecondario)
-                }
+                TextButton(onClick = { mostraPopupPermesso = false }) { Text("DOPO", color = Tema.coloreTestoSecondario) }
             }
         )
     }
@@ -158,75 +155,41 @@ fun AppNavigation() {
             title = { Text("CONTINUARE BATTLE?", color = Tema.coloreTesto, fontFamily = MioFont) },
             confirmButton = {
                 Button(
-                    colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
-                    shape = CircleShape,
-                    onClick = {
-                        GestoreBattle.caricaProgresso(context)
-                        mostraPopupRecupero = false
-                        navController.navigate("ottavi")
-                    }
+                    colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), shape = CircleShape,
+                    onClick = { GestoreBattle.caricaProgresso(context); mostraPopupRecupero = false; navController.navigate("ottavi") }
                 ) { Text("SÌ", color = Color.White, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
-                TextButton(onClick = { GestoreBattle.pulisciSalvataggio(context); mostraPopupRecupero = false }) {
-                    Text("NO", color = Tema.coloreTestoSecondario)
-                }
+                TextButton(onClick = { GestoreBattle.pulisciSalvataggio(context); mostraPopupRecupero = false }) { Text("NO", color = Tema.coloreTestoSecondario) }
             }
         )
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        NavHost(navController = navController, startDestination = "mappa") {
-            composable("mappa") { SchermataMappa(onPinClick = { navController.navigate(it) }) }
+        NavHost(navController = navController, startDestination = "home") {
 
-            composable("login") {
-                SchermataLogin(
-                    onLoginSuccess = { navController.popBackStack() },
-                    onTornaIndietro = { navController.popBackStack() },
-                    onVaiARegistrazione = { navController.navigate("registrazione") }
-                )
-            }
+            composable("home") { SchermataHome(onNavigate = { navController.navigate(it) }) }
 
-            composable("registrazione") {
-                SchermataRegistrazione(onTornaIndietro = { navController.popBackStack() })
-            }
-
-            composable("notifiche") {
-                SchermataNotifiche(onTornaIndietro = { navController.popBackStack() })
-            }
-
+            composable("mappa") { SchermataMappa(onPinClick = { navController.navigate(it) }, onTornaIndietro = { navController.popBackStack() }) }
+            composable("login") { SchermataLogin(onLoginSuccess = { navController.popBackStack() }, onTornaIndietro = { navController.popBackStack() }, onVaiARegistrazione = { navController.navigate("registrazione") }) }
+            composable("registrazione") { SchermataRegistrazione(onTornaIndietro = { navController.popBackStack() }) }
+            composable("notifiche") { SchermataNotifiche(onTornaIndietro = { navController.popBackStack() }) }
             composable("aggiungi_mc") { SchermataAggiungiMc(onTornaIndietro = { navController.popBackStack() }) }
-
-            // --- NUOVA ROTTA EVENTI ---
             composable("aggiungi_evento") { SchermataAggiungiEvento(onTornaIndietro = { navController.popBackStack() }) }
 
-            composable("benvenuto") {
-                SchermataDiBenvenuto(
-                    onTornaIndietro = { navController.popBackStack() },
-                    onVaiAlMenu = { navController.navigate("menu") }
-                )
-            }
-            composable("benvenuto_barre_faul") {
-                SchermataDiBenvenutoBarreFaul(
-                    onTornaIndietro = { navController.popBackStack() },
-                    onVaiAlMenu = { navController.navigate("menu") }
-                )
-            }
-            composable("menu") {
-                SchermataMenu(
-                    onTornaIndietro = { navController.popBackStack() },
-                    onSelezionaModalita = { navController.navigate(it) }
-                )
-            }
+            // LA TUA SCHERMATA ORIGINALE ANIMATA (Identica al video!)
+            composable("benvenuto") { SchermataDiBenvenuto(onTornaIndietro = { navController.popBackStack() }, onVaiAlMenu = { navController.navigate("menu") }) }
+            composable("benvenuto_barre_faul") { SchermataDiBenvenutoBarreFaul(onTornaIndietro = { navController.popBackStack() }, onVaiAlMenu = { navController.navigate("menu") }) }
+
+            // MENU DEL MURETTO
+            composable("menu") { SchermataMenu(onTornaIndietro = { navController.popBackStack() }, onSelezionaModalita = { navController.navigate(it) }) }
             composable("trasferte") { SchermataTrasferte(onTornaIndietro = { navController.popBackStack() }) }
+
             composable("muretto_classico") {
                 SchermataMurettoClassico(
                     tipoTorneo = TipoTorneo.SINGOLO,
                     onTornaAlMenu = { navController.popBackStack() },
-                    onIniziaBattle = {
-                        GestoreBattle.iniziaTorneo(GestoreBattle.mcsSelezionati)
-                        navController.navigate("ottavi")
-                    }
+                    onIniziaBattle = { GestoreBattle.iniziaTorneo(GestoreBattle.mcsSelezionati); navController.navigate("ottavi") }
                 )
             }
             composable("due_contro_due/{tipo}") { backStackEntry ->
@@ -234,46 +197,187 @@ fun AppNavigation() {
                 SchermataMurettoClassico(
                     tipoTorneo = TipoTorneo.valueOf(tipoStr),
                     onTornaAlMenu = { navController.popBackStack() },
-                    onIniziaBattle = {
-                        GestoreBattle.iniziaTorneo2v2(GestoreBattle.mcsSelezionati, TipoTorneo.valueOf(tipoStr))
-                        navController.navigate("ottavi")
-                    }
+                    onIniziaBattle = { GestoreBattle.iniziaTorneo2v2(GestoreBattle.mcsSelezionati, TipoTorneo.valueOf(tipoStr)); navController.navigate("ottavi") }
                 )
             }
-            composable("ottavi") {
-                SchermataOttavi(
-                    onTornaIndietro = { navController.popBackStack() },
-                    onVaiAiQuarti = { },
-                    onRoundClick = { navController.navigate("round_singolo/$it") }
-                )
-            }
-            composable("round_singolo/{roundId}") { backStackEntry ->
-                SchermataRoundSingolo(
-                    roundId = backStackEntry.arguments?.getString("roundId") ?: "",
-                    onTornaIndietro = { navController.popBackStack() }
-                )
-            }
-            composable("allenamento") {
-                SchermataAllenamento(
-                    onTornaIndietro = { navController.popBackStack() },
-                    onSelezionaAllenamento = { navController.navigate(it.lowercase().replace(" ", "_")) }
-                )
-            }
+            composable("ottavi") { SchermataOttavi(onTornaIndietro = { navController.popBackStack() }, onVaiAiQuarti = { }, onRoundClick = { navController.navigate("round_singolo/$it") }) }
+            composable("round_singolo/{roundId}") { backStackEntry -> SchermataRoundSingolo(roundId = backStackEntry.arguments?.getString("roundId") ?: "", onTornaIndietro = { navController.popBackStack() }) }
+            composable("allenamento") { SchermataAllenamento(onTornaIndietro = { navController.popBackStack() }, onSelezionaAllenamento = { navController.navigate(it.lowercase().replace(" ", "_")) }) }
             composable("generatore_argomenti") { SchermataGeneratoreArgomenti { navController.popBackStack() } }
             composable("generatore_modalita") { SchermataGeneratoreModalita { navController.popBackStack() } }
             composable("generatore_parole") { SchermataGeneratoreParole { navController.popBackStack() } }
         }
 
-        val schermateSenzaPlayer = setOf(
-            "benvenuto", "benvenuto_barre_faul", "mappa", "login", "aggiungi_mc", "aggiungi_evento", "trasferte", "registrazione"
-        )
+        val schermateSenzaPlayer = setOf("home", "benvenuto", "benvenuto_barre_faul", "mappa", "login", "aggiungi_mc", "aggiungi_evento", "trasferte", "registrazione")
         if (rottaCorrente != null && rottaCorrente !in schermateSenzaPlayer) {
             FloatingPlayer(MioFont)
         }
     }
 }
 
-// ─── FLOATING PLAYER ─────────────────────────────────────────────────────────
+// ─── NUOVA SCHERMATA HOME (LA SCELTA INIZIALE TRA MURETTI E TRASFERTE) ───
+
+@Composable
+fun SchermataHome(onNavigate: (String) -> Unit) {
+    val numNotifiche = DatabaseMcs.richiesteInAttesa.size + DatabaseMcs.eventiInAttesa.size
+    val scope = rememberCoroutineScope()
+    var mostraMenuAdmin by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+
+        // Pannello Omino in alto a destra
+        Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp, end = 20.dp), contentAlignment = Alignment.TopEnd) {
+            Box {
+                Image(
+                    painter = painterResource(id = R.drawable.login_logo), contentDescription = "Profilo",
+                    modifier = Modifier.size(45.dp).clip(CircleShape).clickable {
+                        if (DatabaseMcs.ruoloAttuale != RuoloUtente.NESSUNO) mostraMenuAdmin = true
+                        else onNavigate("login")
+                    }
+                )
+                if (numNotifiche > 0 && DatabaseMcs.isAdmin) {
+                    Box(
+                        modifier = Modifier.size(16.dp).background(Color.Red, CircleShape).align(Alignment.TopEnd),
+                        contentAlignment = Alignment.Center
+                    ) { Text(numNotifiche.toString(), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold) }
+                }
+            }
+        }
+
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(modifier = Modifier.height(80.dp))
+
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    "FREESTAPP",
+                    color = Color.Black,
+                    fontSize = 45.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily(Font(R.font.komtit__)),
+                    style = TextStyle(drawStyle = Stroke(miter = 10f, width = 12f, join = StrokeJoin.Round))
+                )
+                Text(
+                    "FREESTAPP",
+                    color = Color.White,
+                    fontSize = 45.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily(Font(R.font.komtit__))
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // MURETTI
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .height(180.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color.Black)
+                    .border(3.dp, Tema.colorePrincipale, RoundedCornerShape(24.dp))
+                    .clickable { onNavigate("mappa") },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = "MURETTI", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily(Font(R.font.komtit__)), textAlign = TextAlign.Center)
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // TRASFERTE
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .height(180.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .border(3.dp, Tema.colorePrincipale, RoundedCornerShape(24.dp))
+                    .clickable { onNavigate("trasferte") },
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.trasferte),
+                    contentDescription = "Trasferte Sfondo",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
+
+                Text(text = "TRASFERTE", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily(Font(R.font.komtit__)), textAlign = TextAlign.Center)
+            }
+
+            Spacer(modifier = Modifier.weight(1.5f))
+        }
+
+        // Menu laterale condiviso
+        if (mostraMenuAdmin) {
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { mostraMenuAdmin = false })
+        }
+        AnimatedVisibility(
+            visible = mostraMenuAdmin, enter = slideInHorizontally(initialOffsetX = { it }), exit = slideOutHorizontally(targetOffsetX = { it }), modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            MenuLaterale(onNavigate = { mostraMenuAdmin = false; onNavigate(it) }, onChiudi = { mostraMenuAdmin = false }, scope = scope)
+        }
+    }
+}
+
+@Composable
+fun MenuLaterale(onNavigate: (String) -> Unit, onChiudi: () -> Unit, scope: kotlinx.coroutines.CoroutineScope) {
+    val numNotifiche = DatabaseMcs.richiesteInAttesa.size + DatabaseMcs.eventiInAttesa.size
+    Column(
+        modifier = Modifier.fillMaxHeight().fillMaxWidth(0.7f).background(Tema.coloreSfondoCard)
+            .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp))
+            .clip(RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp))
+    ) {
+        Box(modifier = Modifier.fillMaxWidth().height(160.dp).background(Tema.colorePrincipale), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Image(painter = painterResource(id = R.drawable.login_logo), contentDescription = null, modifier = Modifier.size(70.dp).clip(CircleShape).background(Color.White).padding(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                val etichettaPanel = when (DatabaseMcs.ruoloAttuale) {
+                    RuoloUtente.ADMIN -> "ADMIN PANEL"
+                    RuoloUtente.ORGANIZZATORE_MURETTO -> "ORG. MURETTO"
+                    RuoloUtente.ORGANIZZATORE_EVENTI -> "ORG. EVENTI"
+                    RuoloUtente.RAPPER -> "RAPPER"
+                    else -> "PANNELLO"
+                }
+                Text(etichettaPanel, color = Color.White, fontSize = 20.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
+                DatabaseMcs.profiloAttuale?.nome_arte?.let { Text(it, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp) }
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (DatabaseMcs.isAdmin || DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO) {
+            MenuItem(titolo = "INSERISCI FREESTYLER", icona = R.drawable.ic_music_note) { onNavigate("aggiungi_mc") }
+        }
+        if (DatabaseMcs.isAdmin || DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO || DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_EVENTI) {
+            MenuItem(titolo = "AGGIUNGI EVENTO", icona = R.drawable.ic_music_note) { onNavigate("aggiungi_evento") }
+        }
+        if (DatabaseMcs.isAdmin) {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                MenuItem(titolo = "NOTIFICHE", icona = R.drawable.ic_music_note) { onNavigate("notifiche") }
+                if (numNotifiche > 0) {
+                    Box(modifier = Modifier.align(Alignment.CenterEnd).padding(end = 20.dp).size(22.dp).background(Color.Red, CircleShape), contentAlignment = Alignment.Center) {
+                        Text(numNotifiche.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        MenuItem(titolo = "LOGOUT", icona = R.drawable.versus, coloreTesto = Color.Red) {
+            onChiudi()
+            scope.launch {
+                DatabaseMcs.supabase.auth.clearSession()
+                DatabaseMcs.isAdmin = false
+                DatabaseMcs.ruoloAttuale = RuoloUtente.NESSUNO
+                DatabaseMcs.profiloAttuale = null
+            }
+        }
+        Spacer(modifier = Modifier.height(40.dp))
+    }
+}
+
+// ─── FLOATING PLAYER E ALTRE FUNZIONI ────────────────────────────────────────
 
 @Composable
 fun FloatingPlayer(font: FontFamily) {
@@ -424,18 +528,14 @@ fun mandaComando(context: Context, key: Int) {
 
 class NotificationListener : android.service.notification.NotificationListenerService()
 
-// ─── MAPPA ───────────────────────────────────────────────────────────────────
+// ─── MAPPA MURETTI ───────────────────────────────────────────────────────────
 
 @Composable
-fun SchermataMappa(onPinClick: (String) -> Unit) {
+fun SchermataMappa(onPinClick: (String) -> Unit, onTornaIndietro: () -> Unit) {
     val context = LocalContext.current
     val italyBounds = BoundingBox(47.1, 18.3, 35.5, 6.6)
     val centroMappa = GeoPoint(42.764, 12.244)
-    val scope = rememberCoroutineScope()
-    var mostraMenuAdmin by remember { mutableStateOf(false) }
-    val numNotifiche = DatabaseMcs.richiesteInAttesa.size + DatabaseMcs.eventiInAttesa.size
-
-    BackHandler(enabled = mostraMenuAdmin) { mostraMenuAdmin = false }
+    val MioFont = FontFamily(Font(R.font.komtit__))
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
@@ -455,19 +555,23 @@ fun SchermataMappa(onPinClick: (String) -> Unit) {
                         0.0f, 0.0f, 0.0f, 1.0f, 0.0f
                     ))
                     overlayManager.tilesOverlay.setColorFilter(ColorMatrixColorFilter(trueDarkModeMatrix))
+
+                    // Pin Muretto PG - Ripristinate le proporzioni originali (200x140)
                     val m1 = Marker(this).apply {
                         position = GeoPoint(43.112056, 12.388439)
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                         val bmp = android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.logo_muretto)
-                        icon = android.graphics.drawable.BitmapDrawable(ctx.resources, android.graphics.Bitmap.createScaledBitmap(bmp, 200, 140, true))
+                        icon = BitmapDrawable(ctx.resources, Bitmap.createScaledBitmap(bmp, 200, 140, true))
                         setOnMarkerClickListener { _, _ -> Tema.isBarreFaul = false; onPinClick("benvenuto"); true }
                     }
                     overlays.add(m1)
+
+                    // Pin Barre Faul - Ripristinate le proporzioni originali (200x140)
                     val m2 = Marker(this).apply {
                         position = GeoPoint(42.416669, 12.100123)
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                         val bmp = android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.pin_barre_faul)
-                        icon = android.graphics.drawable.BitmapDrawable(ctx.resources, android.graphics.Bitmap.createScaledBitmap(bmp, 200, 140, true))
+                        icon = BitmapDrawable(ctx.resources, Bitmap.createScaledBitmap(bmp, 200, 140, true))
                         setOnMarkerClickListener { _, _ -> Tema.isBarreFaul = true; onPinClick("benvenuto_barre_faul"); true }
                     }
                     overlays.add(m2)
@@ -475,137 +579,15 @@ fun SchermataMappa(onPinClick: (String) -> Unit) {
             }
         )
 
-        // Icona profilo + badge notifiche
-        Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp, end = 20.dp), contentAlignment = Alignment.TopEnd) {
-            Box {
-                Image(
-                    painter = painterResource(id = R.drawable.login_logo),
-                    contentDescription = "Profilo",
-                    modifier = Modifier.size(45.dp).clip(CircleShape).clickable {
-                        if (DatabaseMcs.isAdmin || DatabaseMcs.ruoloAttuale != RuoloUtente.NESSUNO) {
-                            mostraMenuAdmin = true
-                        } else {
-                            onPinClick("login")
-                        }
-                    }
-                )
-                // Badge rosso notifiche
-                if (numNotifiche > 0) {
-                    Box(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .background(Color.Red, CircleShape)
-                            .align(Alignment.TopEnd),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(numNotifiche.toString(), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-
-        if (mostraMenuAdmin) {
-            Box(
-                modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f))
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { mostraMenuAdmin = false }
-            )
-        }
-
-        AnimatedVisibility(
-            visible = mostraMenuAdmin,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it }),
-            modifier = Modifier.align(Alignment.CenterEnd)
+        // Tasto Indietro
+        FloatingActionButton(
+            onClick = { onTornaIndietro() },
+            containerColor = Color.DarkGray,
+            contentColor = Color.White,
+            shape = CircleShape,
+            modifier = Modifier.padding(top = 40.dp, start = 16.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(0.7f)
-                    .background(Tema.coloreSfondoCard)
-                    .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp))
-                    .clip(RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp))
-            ) {
-                // Header pannello
-                Box(
-                    modifier = Modifier.fillMaxWidth().height(160.dp).background(Tema.colorePrincipale),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Image(
-                            painter = painterResource(id = R.drawable.login_logo),
-                            contentDescription = null,
-                            modifier = Modifier.size(70.dp).clip(CircleShape).background(Color.White).padding(10.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        val etichettaPanel = when (DatabaseMcs.ruoloAttuale) {
-                            RuoloUtente.ADMIN -> "ADMIN PANEL"
-                            RuoloUtente.ORGANIZZATORE_MURETTO -> "ORG. MURETTO"
-                            RuoloUtente.ORGANIZZATORE_EVENTI -> "ORG. EVENTI"
-                            else -> "PANNELLO"
-                        }
-                        Text(etichettaPanel, color = Color.White, fontSize = 20.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
-                        DatabaseMcs.profiloAttuale?.nome_arte?.let {
-                            Text(it, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Voci menu in base al ruolo
-                if (DatabaseMcs.isAdmin || DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO) {
-                    MenuItem(titolo = "INSERISCI FREESTYLER", icona = R.drawable.ic_music_note) {
-                        mostraMenuAdmin = false
-                        onPinClick("aggiungi_mc")
-                    }
-                }
-
-                // NUOVO MENU EVENTI (Admin + Org Muretto + Org Eventi)
-                if (DatabaseMcs.isAdmin ||
-                    DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO ||
-                    DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_EVENTI) {
-
-                    MenuItem(titolo = "AGGIUNGI EVENTO", icona = R.drawable.ic_music_note) {
-                        mostraMenuAdmin = false
-                        onPinClick("aggiungi_evento")
-                    }
-                }
-
-                // Notifiche — solo admin, con badge
-                if (DatabaseMcs.isAdmin) {
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        MenuItem(titolo = "NOTIFICHE", icona = R.drawable.ic_music_note) {
-                            mostraMenuAdmin = false
-                            onPinClick("notifiche")
-                        }
-                        if (numNotifiche > 0) {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.CenterEnd)
-                                    .padding(end = 20.dp)
-                                    .size(22.dp)
-                                    .background(Color.Red, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(numNotifiche.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                MenuItem(titolo = "LOGOUT", icona = R.drawable.versus, coloreTesto = Color.Red) {
-                    mostraMenuAdmin = false
-                    scope.launch {
-                        DatabaseMcs.supabase.auth.clearSession()
-                        DatabaseMcs.isAdmin = false
-                        DatabaseMcs.ruoloAttuale = RuoloUtente.NESSUNO
-                        DatabaseMcs.profiloAttuale = null
-                    }
-                }
-                Spacer(modifier = Modifier.height(40.dp))
-            }
+            Text("<", fontSize = 30.sp, fontFamily = MioFont, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -622,8 +604,7 @@ fun MenuItem(titolo: String, icona: Int, coloreTesto: Color = Tema.coloreTesto, 
     }
 }
 
-// ─── SCHERMATE BENVENUTO E TESTI ─────────────────────────────────────────────
-// (Il resto del file rimane invariato con le tue schermate animate)
+// ─── LA TUA SCHERMATA ORIGINALE INTATTA E ANIMATA (BENVENUTO) ────────────────
 @Composable
 fun SchermataDiBenvenuto(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Unit) {
     var inTransizione by remember { mutableStateOf(false) }

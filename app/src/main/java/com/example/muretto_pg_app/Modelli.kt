@@ -1,6 +1,7 @@
 package com.example.muretto_pg_app
 
 import android.content.Context
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -10,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -39,6 +41,7 @@ import io.github.jan.supabase.storage.storage
 import java.util.UUID
 import java.net.HttpURLConnection
 import java.net.URL
+import org.json.JSONObject
 
 // ─── TEMA E RUOLI ─────────────────────────────────────────────────────────────
 
@@ -59,7 +62,7 @@ object Tema {
         }
 }
 
-enum class RuoloUtente { NESSUNO, ADMIN, ORGANIZZATORE_MURETTO, ORGANIZZATORE_EVENTI }
+enum class RuoloUtente { NESSUNO, ADMIN, ORGANIZZATORE_MURETTO, ORGANIZZATORE_EVENTI, RAPPER }
 
 // ─── MODELLI DATI ─────────────────────────────────────────────────────────────
 
@@ -120,10 +123,7 @@ object DatabaseMcs {
 
     val supabase = createSupabaseClient(supabaseUrl, supabaseKey) {
         install(Postgrest)
-        install(Auth) {
-            autoLoadFromStorage = true
-            alwaysAutoRefresh = true
-        }
+        install(Auth)
         install(Storage)
     }
 
@@ -135,10 +135,9 @@ object DatabaseMcs {
     var ruoloAttuale by mutableStateOf(RuoloUtente.NESSUNO)
     var profiloAttuale by mutableStateOf<ProfiloUtente?>(null)
 
-    // LISTE NOTIFICHE E MAPPA
     var richiesteInAttesa = mutableStateListOf<RichiestaAccount>()
     var eventiInAttesa = mutableStateListOf<Evento>()
-    var eventiApprovati = mutableStateListOf<Evento>() // LISTA PER LA MAPPA
+    var eventiApprovati = mutableStateListOf<Evento>()
 
     fun inizializzaSessione() {
         CoroutineScope(Dispatchers.IO).launch {
@@ -181,6 +180,7 @@ object DatabaseMcs {
                     ruoloAttuale = when (profilo.tipo_account) {
                         "organizzatore_muretto" -> RuoloUtente.ORGANIZZATORE_MURETTO
                         "organizzatore_eventi" -> RuoloUtente.ORGANIZZATORE_EVENTI
+                        "rapper" -> RuoloUtente.RAPPER
                         else -> RuoloUtente.NESSUNO
                     }
                 } else {
@@ -288,7 +288,53 @@ object DatabaseMcs {
         } catch (e: Exception) { false }
     }
 
-    // --- FUNZIONI FETCH DATI DAL CLOUD ---
+    // Registra ed attiva immediatamente l'account Rapper
+    suspend fun registraRapperDiretto(
+        nome: String, cognome: String, nomeArte: String, email: String, passwordTemp: String, telefono: String
+    ): Boolean {
+        return try {
+            val serviceRoleKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2endudXhsamhieGVwbGhianplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzM3NTA2NCwiZXhwIjoyMDkyOTUxMDY0fQ.HdIa06E9UVn30zyO9cL6sR_kODfoJJ5NHlZN4VHgoe8"
+
+            val nuovoUserId = withContext(Dispatchers.IO) {
+                val url = URL("https://bvzwnuxljhbxeplhbjze.supabase.co/auth/v1/admin/users")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("apikey", serviceRoleKey)
+                conn.setRequestProperty("Authorization", "Bearer $serviceRoleKey")
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.doOutput = true
+
+                val body = """{"email":"$email","password":"$passwordTemp","email_confirm":true}"""
+                conn.outputStream.use { it.write(body.toByteArray()) }
+
+                val codice = conn.responseCode
+                if (codice in 200..299) {
+                    val responseStr = conn.inputStream.bufferedReader().use { it.readText() }
+                    val jsonResponse = JSONObject(responseStr)
+                    jsonResponse.getString("id")
+                } else null
+            }
+
+            if (nuovoUserId != null) {
+                val nuovoProfilo = ProfiloUtente(
+                    id = nuovoUserId,
+                    nome = nome,
+                    cognome = cognome,
+                    nome_arte = nomeArte,
+                    telefono = telefono,
+                    tipo_account = "rapper"
+                )
+                supabase.postgrest["profili"].insert(nuovoProfilo)
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
     fun fetchRichiesteInAttesa() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -325,7 +371,6 @@ object DatabaseMcs {
         }
     }
 
-    // --- FUNZIONI APPROVAZIONE/RIFIUTO ---
     suspend fun accettaRichiesta(richiesta: RichiestaAccount): Boolean {
         return try {
             val serviceRoleKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2endudXhsamhieGVwbGhianplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzM3NTA2NCwiZXhwIjoyMDkyOTUxMDY0fQ.HdIa06E9UVn30zyO9cL6sR_kODfoJJ5NHlZN4VHgoe8"
@@ -430,7 +475,6 @@ object GestoreBattle {
     fun pulisciSalvataggio(context: Context) { context.getSharedPreferences("battle_pref", Context.MODE_PRIVATE).edit().clear().apply() }
 }
 
-// ─── ALLENAMENTO ──────────────────────────────────────────────────────────────
 object GestoreAllenamento {
     var tabSelezionata by mutableIntStateOf(0)
     var mcsSelezionatiIds by mutableStateOf(setOf<String>())
@@ -439,6 +483,7 @@ object GestoreAllenamento {
     var mcSingolo by mutableStateOf<Freestyler?>(null)
     var testoRicerca by mutableStateOf("")
 }
+
 object DatiAllenamento {
     private fun fetchValori(context: Context, rawResId: Int): List<String> = try { Gson().fromJson(context.resources.openRawResource(rawResId).bufferedReader().use { it.readText() }, object : TypeToken<List<String>>() {}.type) } catch (e: Exception) { emptyList() }
     fun caricaArgomenti(context: Context): List<String> = fetchValori(context, R.raw.topics)
@@ -446,14 +491,76 @@ object DatiAllenamento {
     fun caricaParole(context: Context): List<String> = fetchValori(context, R.raw.common_words)
 }
 
-// ─── COMPONENTE BoxMC ─────────────────────────────────────────────────────────
+// ─── COMPONENTE BoxMC (Risolti Bug Foto 2v2 e Croce Rossa) ─────────────────────
 @Composable
-fun BoxMC(mc: Freestyler, isVincitore: Boolean = false, isSconfitto: Boolean = false, width: Dp = 100.dp, height: Dp = 130.dp) {
+fun BoxMC(
+    mc: Freestyler,
+    isVincitore: Boolean = false,
+    isSconfitto: Boolean = false,
+    width: Dp = 100.dp,
+    height: Dp = 130.dp,
+    coloreBordoCustom: Color? = null
+) {
     val colorMatrix = if (isSconfitto) ColorMatrix().apply { setToSaturation(0f) } else null
-    val borderColor = when { isVincitore -> Color.Green; isSconfitto -> Color.DarkGray; else -> Tema.colorePrincipale }
-    val imageModel: Any = when { mc.immagineUrl == "local_2v2" -> if (Tema.isBarreFaul) R.drawable.due_contro_due_barre_faul else R.drawable.due_contro_due; mc.immagineUrl.isBlank() -> R.drawable.no_pic; else -> mc.immagineUrl }
-    Box(modifier = Modifier.width(width).height(height).clip(RoundedCornerShape(12.dp)).border(3.dp, borderColor, RoundedCornerShape(12.dp)).background(Tema.coloreSfondoCard), contentAlignment = Alignment.BottomCenter) {
-        AsyncImage(model = imageModel, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alignment = Alignment.TopCenter, placeholder = painterResource(R.drawable.no_pic), error = painterResource(R.drawable.no_pic), colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null)
-        Box(modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.7f)).padding(vertical = 8.dp), contentAlignment = Alignment.Center) { Text(text = mc.nome.uppercase(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center) }
+    val borderColor = coloreBordoCustom ?: when {
+        isVincitore -> Color.Green
+        isSconfitto -> Color.DarkGray
+        else -> Tema.colorePrincipale
+    }
+
+    val is2v2 = mc.immagineUrl == "local_2v2"
+    val imageModel: Any = when {
+        is2v2 -> if (Tema.isBarreFaul) R.drawable.due_contro_due_barre_faul else R.drawable.due_contro_due
+        mc.immagineUrl.isBlank() -> R.drawable.no_pic
+        else -> mc.immagineUrl
+    }
+
+    // Usiamo Fit per il 2v2 così non si taglia/sforma, Crop per le foto quadrate normali
+    val scaleMode = if (is2v2) ContentScale.Fit else ContentScale.Crop
+
+    Box(
+        modifier = Modifier
+            .width(width)
+            .height(height)
+            .clip(RoundedCornerShape(12.dp))
+            .border(4.dp, borderColor, RoundedCornerShape(12.dp))
+            .background(Tema.coloreSfondoCard),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        AsyncImage(
+            model = imageModel,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = scaleMode,
+            alignment = Alignment.TopCenter,
+            placeholder = painterResource(R.drawable.no_pic),
+            error = painterResource(R.drawable.no_pic),
+            colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null
+        )
+
+        Box(
+            modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.8f)).padding(vertical = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = mc.nome.uppercase(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        }
+
+        // Croce rossa sopra l'immagine se eliminato
+        if (isSconfitto) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawLine(
+                    color = Color.Red.copy(alpha = 0.8f),
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, size.height),
+                    strokeWidth = 10f
+                )
+                drawLine(
+                    color = Color.Red.copy(alpha = 0.8f),
+                    start = Offset(size.width, 0f),
+                    end = Offset(0f, size.height),
+                    strokeWidth = 10f
+                )
+            }
+        }
     }
 }

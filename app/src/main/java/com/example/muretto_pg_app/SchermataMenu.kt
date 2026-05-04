@@ -26,7 +26,8 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> Unit) {
     val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
-    val listaModalita = listOf("Muretto classico", "2 VS 2", "Evento", "Trasferte", "Allenamento")
+    // Rimosso "Trasferte" dalla lista delle modalità
+    val listaModalita = listOf("Muretto classico", "2 VS 2", "Evento", "Allenamento")
 
     var mostraDialog2vs2 by remember { mutableStateOf(false) }
 
@@ -55,7 +56,6 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
                             "Muretto classico" -> onSelezionaModalita("muretto_classico")
                             "2 VS 2" -> mostraDialog2vs2 = true
                             "Evento" -> onSelezionaModalita("evento") // Rotta generica o placeholder
-                            "Trasferte" -> onSelezionaModalita("trasferte")
                             "Allenamento" -> onSelezionaModalita("allenamento")
                             else -> {}
                         }
@@ -98,7 +98,6 @@ fun CardModalita(nomeModalita: String, onClick: () -> Unit) {
                 "Muretto classico" -> Image(painter = painterResource(id = R.drawable.muretto_classico_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "2 VS 2" -> Image(painter = painterResource(id = R.drawable.due_contro_due_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "Evento" -> Image(painter = painterResource(id = R.drawable.evento_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                "Trasferte" -> Image(painter = painterResource(id = R.drawable.trasferte), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "Allenamento" -> Image(painter = painterResource(id = R.drawable.allenamento_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             }
         } else {
@@ -106,7 +105,6 @@ fun CardModalita(nomeModalita: String, onClick: () -> Unit) {
                 "Muretto classico" -> Image(painter = painterResource(id = R.drawable.muretto_classico), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "2 VS 2" -> Image(painter = painterResource(id = R.drawable.due_contro_due), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "Evento" -> Image(painter = painterResource(id = R.drawable.evento), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                "Trasferte" -> Image(painter = painterResource(id = R.drawable.trasferte), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 "Allenamento" -> Image(painter = painterResource(id = R.drawable.allenamento), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             }
         }
