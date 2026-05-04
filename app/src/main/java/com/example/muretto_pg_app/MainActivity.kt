@@ -88,7 +88,6 @@ class MainActivity : ComponentActivity() {
         insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         insetsController.hide(WindowInsetsCompat.Type.systemBars())
 
-        // Ripristina la sessione salvata automaticamente da Supabase
         DatabaseMcs.inizializzaSessione()
 
         if (!isNotificationListenerPermissionGranted(this)) {
@@ -198,6 +197,9 @@ fun AppNavigation() {
 
             composable("aggiungi_mc") { SchermataAggiungiMc(onTornaIndietro = { navController.popBackStack() }) }
 
+            // --- NUOVA ROTTA EVENTI ---
+            composable("aggiungi_evento") { SchermataAggiungiEvento(onTornaIndietro = { navController.popBackStack() }) }
+
             composable("benvenuto") {
                 SchermataDiBenvenuto(
                     onTornaIndietro = { navController.popBackStack() },
@@ -263,7 +265,7 @@ fun AppNavigation() {
         }
 
         val schermateSenzaPlayer = setOf(
-            "benvenuto", "benvenuto_barre_faul", "mappa", "login", "aggiungi_mc", "trasferte", "registrazione"
+            "benvenuto", "benvenuto_barre_faul", "mappa", "login", "aggiungi_mc", "aggiungi_evento", "trasferte", "registrazione"
         )
         if (rottaCorrente != null && rottaCorrente !in schermateSenzaPlayer) {
             FloatingPlayer(MioFont)
@@ -431,7 +433,7 @@ fun SchermataMappa(onPinClick: (String) -> Unit) {
     val centroMappa = GeoPoint(42.764, 12.244)
     val scope = rememberCoroutineScope()
     var mostraMenuAdmin by remember { mutableStateOf(false) }
-    val numNotifiche = DatabaseMcs.richiesteInAttesa.size
+    val numNotifiche = DatabaseMcs.richiesteInAttesa.size + DatabaseMcs.eventiInAttesa.size
 
     BackHandler(enabled = mostraMenuAdmin) { mostraMenuAdmin = false }
 
@@ -558,6 +560,17 @@ fun SchermataMappa(onPinClick: (String) -> Unit) {
                     }
                 }
 
+                // NUOVO MENU EVENTI (Admin + Org Muretto + Org Eventi)
+                if (DatabaseMcs.isAdmin ||
+                    DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO ||
+                    DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_EVENTI) {
+
+                    MenuItem(titolo = "AGGIUNGI EVENTO", icona = R.drawable.ic_music_note) {
+                        mostraMenuAdmin = false
+                        onPinClick("aggiungi_evento")
+                    }
+                }
+
                 // Notifiche — solo admin, con badge
                 if (DatabaseMcs.isAdmin) {
                     Box(modifier = Modifier.fillMaxWidth()) {
@@ -609,8 +622,8 @@ fun MenuItem(titolo: String, icona: Int, coloreTesto: Color = Tema.coloreTesto, 
     }
 }
 
-// ─── SCHERMATE BENVENUTO ─────────────────────────────────────────────────────
-
+// ─── SCHERMATE BENVENUTO E TESTI ─────────────────────────────────────────────
+// (Il resto del file rimane invariato con le tue schermate animate)
 @Composable
 fun SchermataDiBenvenuto(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Unit) {
     var inTransizione by remember { mutableStateOf(false) }
@@ -653,8 +666,7 @@ fun SchermataDiBenvenutoBarreFaul(onTornaIndietro: () -> Unit, onVaiAlMenu: () -
     val scalaVt by infiniteTransition.animateFloat(initialValue = 1f, targetValue = 1.15f, animationSpec = infiniteRepeatable(tween(600, easing = LinearEasing), RepeatMode.Reverse), label = "")
 
     Box(
-        modifier = Modifier.fillMaxSize().background(Color.Black)
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { if (!inTransizione) inTransizione = true },
+        modifier = Modifier.fillMaxSize().background(Color.Black).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { if (!inTransizione) inTransizione = true },
         contentAlignment = Alignment.Center
     ) {
         Box(modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scalaSfondo; scaleY = scalaSfondo; alpha = alphaContenuto }) {
@@ -671,8 +683,6 @@ fun SchermataDiBenvenutoBarreFaul(onTornaIndietro: () -> Unit, onVaiAlMenu: () -
         }
     }
 }
-
-// ─── TESTI ANIMATI ───────────────────────────────────────────────────────────
 
 @Composable
 fun TestoBomboletta() {

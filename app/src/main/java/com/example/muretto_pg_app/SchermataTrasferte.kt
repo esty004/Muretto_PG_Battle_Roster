@@ -3,19 +3,19 @@ package com.example.muretto_pg_app
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
 import android.graphics.drawable.BitmapDrawable
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,30 +36,17 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import coil.compose.AsyncImage
+import coil.imageLoader
+import coil.request.ImageRequest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
-
-data class FreestyleEvent(
-    val id: String,
-    val title: String,
-    val locationName: String,
-    val latitude: Double,
-    val longitude: Double,
-    val startTime: String,
-    val eventType: String,
-    val price: String,
-    val immagineRes: Int
-)
-
-val mockEvents = listOf(
-    FreestyleEvent("1", "Muretto PG - Battle 1v1", "Perugia, Loggette del Duomo", 43.112056, 12.388439, "Ogni Venerdì, 22:00", "Battle 1v1", "Gratis", R.drawable.sfondo_schermata_iniziale),
-    FreestyleEvent("2", "Tritolo Battle", "Roma, Parco degli Acquedotti", 41.847, 12.561, "15 Maggio, 16:00", "Battle 1v1", "5€", R.drawable.muretto_classico),
-    FreestyleEvent("3", "Mic Scrauso", "Milano, Colonne di San Lorenzo", 45.458, 9.182, "20 Giugno, 21:00", "Jam / Open Mic", "Gratis", R.drawable.evento),
-    FreestyleEvent("4", "Barre Faul - Street Jam", "Viterbo, Prato Giardino", 42.416669, 12.100123, "2 Settembre, 17:00", "Jam", "Gratis", R.drawable.sfondo_schermata_iniziale_barre_faul)
-)
+import kotlin.math.min
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,13 +55,18 @@ fun SchermataTrasferte(onTornaIndietro: () -> Unit) {
     val MioFont = FontFamily(Font(R.font.komtit__))
 
     val sheetState = rememberModalBottomSheetState()
-    var selectedEvent by remember { mutableStateOf<FreestyleEvent?>(null) }
+    var selectedEvent by remember { mutableStateOf<Evento?>(null) }
     var showBottomSheet by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     Configuration.getInstance().userAgentValue = context.packageName
-
     val lifecycleOwner = LocalLifecycleOwner.current
     val mapView = remember { MapView(context) }
+
+    // Quando si apre la schermata, scarica gli eventi veri dal Cloud
+    LaunchedEffect(Unit) {
+        DatabaseMcs.fetchEventiApprovati()
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -85,9 +77,7 @@ fun SchermataTrasferte(onTornaIndietro: () -> Unit) {
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     Scaffold(
@@ -112,7 +102,6 @@ fun SchermataTrasferte(onTornaIndietro: () -> Unit) {
                     mapView.apply {
                         setTileSource(TileSourceFactory.MAPNIK)
                         setMultiTouchControls(true)
-
                         minZoomLevel = 6.0
                         maxZoomLevel = 19.0
                         controller.setZoom(7.5)
@@ -120,36 +109,67 @@ fun SchermataTrasferte(onTornaIndietro: () -> Unit) {
                         @Suppress("DEPRECATION")
                         setBuiltInZoomControls(false)
 
-                        val trueDarkModeMatrix = ColorMatrix(floatArrayOf(
+                        val trueDarkModeMatrix = android.graphics.ColorMatrix(floatArrayOf(
                             0.0f,  0.0f, -1.0f, 0.0f, 255.0f,
                             0.0f, -1.0f,  0.0f, 0.0f, 255.0f,
                             -1.0f,  0.0f,  0.0f, 0.0f, 255.0f,
                             0.0f,  0.0f,  0.0f, 1.0f, 0.0f
                         ))
-                        overlayManager.tilesOverlay.setColorFilter(ColorMatrixColorFilter(trueDarkModeMatrix))
+                        overlayManager.tilesOverlay.setColorFilter(android.graphics.ColorMatrixColorFilter(trueDarkModeMatrix))
+                    }
+                },
+                update = { map ->
+                    // Aggiorna i pin sulla mappa
+                    map.overlays.removeAll { it is Marker }
 
-                        // Creazione dei Pin Personalizzati "a nuvoletta" con immagine dell'evento
-                        mockEvents.forEach { event ->
-                            val markerIcon = creaPinConImmagine(context, event.immagineRes)
-                            val marker = Marker(mapView)
-                            marker.position = GeoPoint(event.latitude, event.longitude)
-                            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                            marker.title = event.title
+                    DatabaseMcs.eventiApprovati.forEach { event ->
+                        val marker = Marker(map)
+                        marker.position = GeoPoint(event.lat, event.lng)
+                        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        marker.title = event.titolo
 
-                            marker.icon = BitmapDrawable(context.resources, markerIcon)
+                        // 1. Imposta subito l'icona generica come "segnaposto" in attesa del download
+                        val defaultBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.evento)
+                        marker.icon = BitmapDrawable(context.resources, creaPinConBitmap(defaultBitmap))
 
-                            marker.setOnMarkerClickListener { _, _ ->
-                                controller.animateTo(marker.position)
-                                selectedEvent = event
-                                showBottomSheet = true
-                                true
+                        marker.setOnMarkerClickListener { _, _ ->
+                            map.controller.animateTo(marker.position)
+                            selectedEvent = event
+                            showBottomSheet = true
+                            true
+                        }
+                        map.overlays.add(marker)
+
+                        // 2. Scarica la locandina reale da Supabase usando Coil
+                        if (!event.immagine_url.isNullOrBlank()) {
+                            scope.launch {
+                                try {
+                                    val request = ImageRequest.Builder(context)
+                                        .data(event.immagine_url)
+                                        .allowHardware(false) // FONDAMENTALE: Osmdroid non supporta bitmap hardware sul suo Canvas
+                                        .build()
+
+                                    val result = context.imageLoader.execute(request)
+                                    val loadedBitmap = (result.drawable as? BitmapDrawable)?.bitmap
+
+                                    if (loadedBitmap != null) {
+                                        withContext(Dispatchers.Main) {
+                                            // Sostituisci il segnaposto con la locandina vera
+                                            marker.icon = BitmapDrawable(context.resources, creaPinConBitmap(loadedBitmap))
+                                            map.invalidate() // Ridisegna la mappa
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
                             }
-                            overlays.add(marker)
                         }
                     }
+                    map.invalidate()
                 }
             )
 
+            // BOTTOM SHEET (Dettagli Evento)
             if (showBottomSheet && selectedEvent != null) {
                 ModalBottomSheet(
                     onDismissRequest = { showBottomSheet = false },
@@ -166,38 +186,49 @@ fun SchermataTrasferte(onTornaIndietro: () -> Unit) {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = selectedEvent!!.title.uppercase(),
+                            text = selectedEvent!!.titolo.uppercase(),
                             fontSize = 26.sp,
                             fontFamily = FontFamily(Font(R.font.jackboa)),
                             fontWeight = FontWeight.Bold,
-                            color = Tema.colorePrincipale
+                            color = Tema.colorePrincipale,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        AsyncImage(
-                            model = selectedEvent!!.immagineRes,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(180.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp)),
-                            contentScale = ContentScale.Crop
-                        )
+                        // Locandina nel dettaglio in basso
+                        if (selectedEvent!!.immagine_url != null) {
+                            AsyncImage(
+                                model = selectedEvent!!.immagine_url,
+                                contentDescription = "Locandina Evento",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(180.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(16.dp)).background(Color.DarkGray),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Nessuna Locandina", color = Color.Gray)
+                            }
+                        }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        InfoRow(icon = Icons.Default.LocationOn, text = selectedEvent!!.locationName)
+                        InfoRow(icon = Icons.Default.LocationOn, text = selectedEvent!!.location_nome)
                         Spacer(modifier = Modifier.height(8.dp))
-                        InfoRow(icon = Icons.Default.LocationOn, text = selectedEvent!!.startTime)
+                        InfoRow(icon = Icons.Default.Info, text = selectedEvent!!.data_ora)
                         Spacer(modifier = Modifier.height(8.dp))
-                        InfoRow(icon = Icons.Default.LocationOn, text = selectedEvent!!.eventType)
+                        InfoRow(icon = Icons.Default.Info, text = selectedEvent!!.tipo)
 
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Text(
-                            text = "PREZZO: ${selectedEvent!!.price}",
+                            text = "PREZZO: ${selectedEvent!!.prezzo}",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = Tema.coloreTestoSecondario
@@ -207,7 +238,7 @@ fun SchermataTrasferte(onTornaIndietro: () -> Unit) {
 
                         Button(
                             onClick = {
-                                Toast.makeText(context, "Navigazione verso ${selectedEvent!!.locationName}...", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Navigazione verso ${selectedEvent!!.location_nome}...", Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.fillMaxWidth().height(56.dp),
                             shape = RoundedCornerShape(12.dp),
@@ -224,10 +255,8 @@ fun SchermataTrasferte(onTornaIndietro: () -> Unit) {
     }
 }
 
-/**
- * Funzione per creare programmaticamente un pin a "nuvoletta" con l'immagine dell'evento
- */
-fun creaPinConImmagine(context: android.content.Context, immagineRes: Int): Bitmap {
+// Nuova funzione per prendere direttamente un Bitmap e ritagliarlo a cerchio
+fun creaPinConBitmap(eventBitmap: Bitmap?): Bitmap {
     val size = 140
     val bitmap = Bitmap.createBitmap(size, size + 25, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
@@ -247,10 +276,19 @@ fun creaPinConImmagine(context: android.content.Context, immagineRes: Int): Bitm
     val borderSize = 6
     canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - borderSize, paint)
 
-    val eventBitmap = BitmapFactory.decodeResource(context.resources, immagineRes)
     if (eventBitmap != null) {
         val innerSize = (size - (borderSize * 2) - 8)
-        val scaledBitmap = Bitmap.createScaledBitmap(eventBitmap, innerSize, innerSize, true)
+
+        // Ritaglia l'immagine al centro per renderla quadrata ed evitare che si deformi
+        val dimension = min(eventBitmap.width, eventBitmap.height)
+        val cropped = Bitmap.createBitmap(
+            eventBitmap,
+            (eventBitmap.width - dimension) / 2,
+            (eventBitmap.height - dimension) / 2,
+            dimension,
+            dimension
+        )
+        val scaledBitmap = Bitmap.createScaledBitmap(cropped, innerSize, innerSize, true)
 
         val output = Bitmap.createBitmap(innerSize, innerSize, Bitmap.Config.ARGB_8888)
         val circleCanvas = Canvas(output)
@@ -263,7 +301,6 @@ fun creaPinConImmagine(context: android.content.Context, immagineRes: Int): Bitm
 
         canvas.drawBitmap(output, (size - innerSize) / 2f, (size - innerSize) / 2f, null)
     }
-
     return bitmap
 }
 
