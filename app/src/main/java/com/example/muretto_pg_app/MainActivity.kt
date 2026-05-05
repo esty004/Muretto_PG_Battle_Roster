@@ -175,7 +175,8 @@ fun AppNavigation() {
             composable("notifiche") { SchermataNotifiche(onTornaIndietro = { navController.popBackStack() }) }
             composable("aggiungi_mc") { SchermataAggiungiMc(onTornaIndietro = { navController.popBackStack() }) }
             composable("aggiungi_evento") { SchermataAggiungiEvento(onTornaIndietro = { navController.popBackStack() }) }
-
+            composable("gestione_mcs") { SchermataGestioneMcs(onTornaIndietro = { navController.popBackStack() }, onModificaMc = { id -> navController.navigate("modifica_mc/$id") }, onAggiungiMc = { navController.navigate("aggiungi_mc") }) }
+            composable("modifica_mc/{id}") { backStackEntry -> val mcId = backStackEntry.arguments?.getString("id") ?: ""; SchermataModificaMc(mcId = mcId, onTornaIndietro = { navController.popBackStack() }) }
             // LA TUA SCHERMATA ORIGINALE ANIMATA (Identica al video!)
             composable("benvenuto") { SchermataDiBenvenuto(onTornaIndietro = { navController.popBackStack() }, onVaiAlMenu = { navController.navigate("menu") }) }
             composable("benvenuto_barre_faul") { SchermataDiBenvenutoBarreFaul(onTornaIndietro = { navController.popBackStack() }, onVaiAlMenu = { navController.navigate("menu") }) }
@@ -357,7 +358,8 @@ fun MenuLaterale(onNavigate: (String) -> Unit, onChiudi: () -> Unit, scope: kotl
         Spacer(modifier = Modifier.height(16.dp))
 
         if (DatabaseMcs.isAdmin || DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO) {
-            MenuItem(titolo = "INSERISCI FREESTYLER", icona = R.drawable.ic_music_note) { onNavigate("aggiungi_mc") }
+            // Sostituito Inserisci Freestyler con Gestione MC's
+            MenuItem(titolo = "GESTIONE MC'S", icona = R.drawable.ic_music_note) { onNavigate("gestione_mcs") }
         }
         if (DatabaseMcs.isAdmin || DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO || DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_EVENTI) {
             MenuItem(titolo = "AGGIUNGI EVENTO", icona = R.drawable.ic_music_note) { onNavigate("aggiungi_evento") }

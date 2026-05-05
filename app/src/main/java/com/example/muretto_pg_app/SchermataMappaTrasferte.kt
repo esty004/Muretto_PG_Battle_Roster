@@ -57,14 +57,12 @@ fun SchermataMappaTrasferte(onTornaIndietro: () -> Unit) {
     val eventi = DatabaseMcs.eventiApprovati
     var eventoSelezionato by remember { mutableStateOf<Evento?>(null) }
 
-    // Variabili per il Bottom Sheet (l'anteprima che scorre dal basso)
     val sheetState = rememberModalBottomSheetState()
     var showBottomSheet by remember { mutableStateOf(false) }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Box(modifier = Modifier.fillMaxSize()) {
 
-            // MAPPA OSMDROID
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
@@ -73,7 +71,7 @@ fun SchermataMappaTrasferte(onTornaIndietro: () -> Unit) {
                         controller.setZoom(8.0)
                         controller.setCenter(centroMappa)
                         setScrollableAreaLimitDouble(italyBounds)
-                        setMultiTouchControls(true) // Zoom riattivato
+                        setMultiTouchControls(true)
 
                         val trueDarkModeMatrix = android.graphics.ColorMatrix(floatArrayOf(
                             0.0f, 0.0f, -1.0f, 0.0f, 255.0f,
@@ -84,32 +82,29 @@ fun SchermataMappaTrasferte(onTornaIndietro: () -> Unit) {
                         overlayManager.tilesOverlay.setColorFilter(android.graphics.ColorMatrixColorFilter(trueDarkModeMatrix))
                     }
 
-                    // Aggiunge un pin per ogni evento approvato
                     eventi.forEach { evento ->
                         val marker = Marker(mapView).apply {
                             position = GeoPoint(evento.lat, evento.lng)
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
 
-                            // Imposta subito il pin generico di base
                             val defaultBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.evento)
-                            icon = BitmapDrawable(context.resources, creaPinConBitmap(defaultBitmap))
+                            icon = BitmapDrawable(context.resources, creaPinConBitmap(defaultBitmap, evento.scala_pin))
 
                             setOnMarkerClickListener { _, _ ->
-                                mapView.controller.animateTo(position) // Centra la mappa
+                                mapView.controller.animateTo(position)
                                 eventoSelezionato = evento
-                                showBottomSheet = true // Apre l'anteprima!
+                                showBottomSheet = true
                                 true
                             }
                         }
                         mapView.overlays.add(marker)
 
-                        // Scarica l'immagine reale dell'evento con Coil e aggiorna il pin
                         if (!evento.immagine_url.isNullOrBlank()) {
                             scope.launch {
                                 try {
                                     val request = ImageRequest.Builder(context)
                                         .data(evento.immagine_url)
-                                        .allowHardware(false) // Fondamentale per estrarre il Bitmap
+                                        .allowHardware(false)
                                         .build()
 
                                     val result = context.imageLoader.execute(request)
@@ -117,8 +112,8 @@ fun SchermataMappaTrasferte(onTornaIndietro: () -> Unit) {
 
                                     if (loadedBitmap != null) {
                                         withContext(Dispatchers.Main) {
-                                            marker.icon = BitmapDrawable(context.resources, creaPinConBitmap(loadedBitmap))
-                                            mapView.invalidate() // Ridisegna la mappa
+                                            marker.icon = BitmapDrawable(context.resources, creaPinConBitmap(loadedBitmap, evento.scala_pin))
+                                            mapView.invalidate()
                                         }
                                     }
                                 } catch (e: Exception) {
@@ -132,81 +127,34 @@ fun SchermataMappaTrasferte(onTornaIndietro: () -> Unit) {
                 }
             )
 
-            // TITOLO MAPPA
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 44.dp, bottom = 20.dp)
-            ) {
-                Text(
-                    text = "MAPPA TRASFERTE",
-                    color = Color.White,
-                    fontSize = 28.sp,
-                    fontFamily = MioFont,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+            Box(modifier = Modifier.fillMaxWidth().padding(top = 44.dp, bottom = 20.dp)) {
+                Text("MAPPA TRASFERTE", color = Color.White, fontSize = 28.sp, fontFamily = MioFont, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
             }
 
-            // BOTTONE INDIETRO
             FloatingActionButton(
-                onClick = onTornaIndietro,
-                containerColor = Tema.colorePrincipale,
-                contentColor = Color.White,
-                shape = CircleShape,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 16.dp, bottom = 32.dp)
+                onClick = onTornaIndietro, containerColor = Tema.colorePrincipale, contentColor = Color.White, shape = CircleShape,
+                modifier = Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = 32.dp)
             ) {
                 Text("<", fontSize = 30.sp, fontFamily = MioFont, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = (-2).dp))
             }
 
-            // BOTTOM SHEET (La tua bellissima anteprima originale)
             if (showBottomSheet && eventoSelezionato != null) {
                 ModalBottomSheet(
-                    onDismissRequest = { showBottomSheet = false },
-                    sheetState = sheetState,
-                    containerColor = Tema.coloreSfondoCard,
-                    contentColor = Tema.coloreTesto,
+                    onDismissRequest = { showBottomSheet = false }, sheetState = sheetState, containerColor = Tema.coloreSfondoCard, contentColor = Tema.coloreTesto,
                     dragHandle = { BottomSheetDefaults.DragHandle(color = Tema.colorePrincipale) }
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp)
-                            .padding(bottom = 32.dp),
+                        modifier = Modifier.fillMaxWidth().padding(24.dp).padding(bottom = 32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = eventoSelezionato!!.titolo.uppercase(),
-                            fontSize = 26.sp,
-                            fontFamily = FontFamily(Font(R.font.jackboa)),
-                            fontWeight = FontWeight.Bold,
-                            color = Tema.colorePrincipale,
-                            textAlign = TextAlign.Center
-                        )
+                        Text(text = eventoSelezionato!!.titolo.uppercase(), fontSize = 26.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, color = Tema.colorePrincipale, textAlign = TextAlign.Center)
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Locandina nel dettaglio in basso
                         if (eventoSelezionato!!.immagine_url != null) {
-                            AsyncImage(
-                                model = eventoSelezionato!!.immagine_url,
-                                contentDescription = "Locandina Evento",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(180.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp)),
-                                contentScale = ContentScale.Crop
-                            )
+                            AsyncImage(model = eventoSelezionato!!.immagine_url, contentDescription = "Locandina Evento", modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(16.dp)).border(2.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp)), contentScale = ContentScale.Crop)
                         } else {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(16.dp)).background(Color.DarkGray),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("Nessuna Locandina", color = Color.Gray)
-                            }
+                            Box(modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(16.dp)).background(Color.DarkGray), contentAlignment = Alignment.Center) { Text("Nessuna Locandina", color = Color.Gray) }
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -219,22 +167,13 @@ fun SchermataMappaTrasferte(onTornaIndietro: () -> Unit) {
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Text(
-                            text = "PREZZO: ${eventoSelezionato!!.prezzo}",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Tema.coloreTestoSecondario
-                        )
+                        Text(text = "PREZZO: ${eventoSelezionato!!.prezzo}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Tema.coloreTestoSecondario)
 
                         Spacer(modifier = Modifier.height(24.dp))
 
                         Button(
-                            onClick = {
-                                Toast.makeText(context, "Navigazione verso ${eventoSelezionato!!.location_nome}...", Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.fillMaxWidth().height(56.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale)
+                            onClick = { Toast.makeText(context, "Navigazione verso ${eventoSelezionato!!.location_nome}...", Toast.LENGTH_SHORT).show() },
+                            modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale)
                         ) {
                             Icon(painterResource(id = R.drawable.ic_music_note), contentDescription = null, modifier = Modifier.size(24.dp), tint = Color.White)
                             Spacer(modifier = Modifier.width(8.dp))
@@ -247,11 +186,13 @@ fun SchermataMappaTrasferte(onTornaIndietro: () -> Unit) {
     }
 }
 
-// ─── FUNZIONI EXTRA PER IL DESIGN DEL PIN E DELLA RIGA ───
+fun creaPinConBitmap(eventBitmap: Bitmap?, scaleFactor: Float = 1f): Bitmap {
+    val baseSize = 140
+    val size = (baseSize * scaleFactor).toInt().coerceAtLeast(50)
+    val bottomPoint = size + (20 * scaleFactor).toInt()
+    val fullHeight = size + (25 * scaleFactor).toInt()
 
-fun creaPinConBitmap(eventBitmap: Bitmap?): Bitmap {
-    val size = 140
-    val bitmap = Bitmap.createBitmap(size, size + 25, Bitmap.Config.ARGB_8888)
+    val bitmap = Bitmap.createBitmap(size, fullHeight, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
@@ -260,26 +201,20 @@ fun creaPinConBitmap(eventBitmap: Bitmap?): Bitmap {
 
     val path = android.graphics.Path()
     path.moveTo(size * 0.25f, size * 0.75f)
-    path.lineTo(size / 2f, size + 20f)
+    path.lineTo(size / 2f, bottomPoint.toFloat())
     path.lineTo(size * 0.75f, size * 0.75f)
     path.close()
     canvas.drawPath(path, paint)
 
     paint.color = android.graphics.Color.RED
-    val borderSize = 6
+    val borderSize = (6 * scaleFactor).toInt()
     canvas.drawCircle(size / 2f, size / 2f, (size / 2f) - borderSize, paint)
 
     if (eventBitmap != null) {
-        val innerSize = (size - (borderSize * 2) - 8)
+        val innerSize = (size - (borderSize * 2) - (8 * scaleFactor).toInt()).coerceAtLeast(10)
 
         val dimension = min(eventBitmap.width, eventBitmap.height)
-        val cropped = Bitmap.createBitmap(
-            eventBitmap,
-            (eventBitmap.width - dimension) / 2,
-            (eventBitmap.height - dimension) / 2,
-            dimension,
-            dimension
-        )
+        val cropped = Bitmap.createBitmap(eventBitmap, (eventBitmap.width - dimension) / 2, (eventBitmap.height - dimension) / 2, dimension, dimension)
         val scaledBitmap = Bitmap.createScaledBitmap(cropped, innerSize, innerSize, true)
 
         val output = Bitmap.createBitmap(innerSize, innerSize, Bitmap.Config.ARGB_8888)
@@ -298,11 +233,7 @@ fun creaPinConBitmap(eventBitmap: Bitmap?): Bitmap {
 
 @Composable
 fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
         Icon(icon, contentDescription = null, tint = Tema.coloreTestoSecondario, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(8.dp))
         Text(text = text, color = Tema.coloreTesto, fontSize = 16.sp)

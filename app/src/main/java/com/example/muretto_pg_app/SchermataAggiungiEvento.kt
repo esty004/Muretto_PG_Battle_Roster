@@ -1,32 +1,25 @@
 package com.example.muretto_pg_app
 
-import android.app.DatePickerDialog
-import android.app.TimePickerDialog
-import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -36,15 +29,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.osmdroid.events.MapEventsReceiver
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.MapEventsOverlay
+import org.osmdroid.views.overlay.Marker
+import java.util.Calendar
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
-import java.util.Calendar
+import org.json.JSONArray
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,17 +54,21 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
     val MioFont = FontFamily(Font(R.font.komtit__))
 
     var titolo by remember { mutableStateOf("") }
-    var indirizzo by remember { mutableStateOf("") }
+    var indirizzoTesto by remember { mutableStateOf("") }
     var dataSelezionata by remember { mutableStateOf("") }
     var oraSelezionata by remember { mutableStateOf("") }
     var prezzo by remember { mutableStateOf("Gratis") }
-
     var tipo by remember { mutableStateOf("Battle 1v1") }
     var menuTipoAperto by remember { mutableStateOf(false) }
 
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var staCaricando by remember { mutableStateOf(false) }
     var messaggioEsito by remember { mutableStateOf("") }
+
+    // MAPPA E RICERCA
+    var pinMarker by remember { mutableStateOf<GeoPoint?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+    var scalaPin by remember { mutableFloatStateOf(1.0f) }
 
     val selettoreImmagine = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         imageUri = uri
@@ -94,7 +98,6 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
                 Text("NUOVO EVENTO", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFont, modifier = Modifier.align(Alignment.Center))
             }
 
-            // Box Locandina con indicatore circolare visivo del Pin
             Box(
                 modifier = Modifier
                     .size(180.dp)
@@ -116,6 +119,91 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // RICERCA E MAPPA INTERATTIVA
+            OutlinedTextField(
+                value = searchQuery, onValueChange = { searchQuery = it },
+                label = { Text("Cerca città o indirizzo...", color = Tema.coloreTestoSecondario) },
+                trailingIcon = {
+                    IconButton(onClick = {
+                        if (searchQuery.isNotBlank()) {
+                            staCaricando = true
+                            scope.launch {
+                                val coordinate = ottieniCoordinate(searchQuery.trim())
+                                staCaricando = false
+                                if (coordinate != null) {
+                                    pinMarker = GeoPoint(coordinate.first, coordinate.second)
+                                } else {
+                                    messaggioEsito = "Indirizzo non trovato. Tocca la mappa per posizionare il pin manualmente."
+                                }
+                            }
+                        }
+                    }) { Icon(Icons.Default.Search, contentDescription = "Cerca", tint = Tema.colorePrincipale) }
+                },
+                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, focusedBorderColor = Tema.colorePrincipale),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Tocca la mappa per mettere il pin esattamente dove vuoi!", color = Tema.colorePrincipale, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // MAPPA ANDROIDVIEW
+            Box(modifier = Modifier.fillMaxWidth().height(250.dp).clip(RoundedCornerShape(12.dp)).border(2.dp, Tema.colorePrincipale, RoundedCornerShape(12.dp))) {
+                AndroidView(
+                    factory = { ctx ->
+                        MapView(ctx).apply {
+                            setTileSource(TileSourceFactory.MAPNIK)
+                            setMultiTouchControls(true)
+                            controller.setZoom(6.0)
+                            controller.setCenter(GeoPoint(42.5, 12.5)) // Centro Italia
+
+                            val trueDarkModeMatrix = android.graphics.ColorMatrix(floatArrayOf(
+                                0.0f, 0.0f, -1.0f, 0.0f, 255.0f,
+                                0.0f, -1.0f, 0.0f, 0.0f, 255.0f,
+                                -1.0f, 0.0f, 0.0f, 0.0f, 255.0f,
+                                0.0f, 0.0f, 0.0f, 1.0f, 0.0f
+                            ))
+                            overlayManager.tilesOverlay.setColorFilter(android.graphics.ColorMatrixColorFilter(trueDarkModeMatrix))
+
+                            val receiver = object : MapEventsReceiver {
+                                override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
+                                    if (p != null) pinMarker = p
+                                    return true
+                                }
+                                override fun longPressHelper(p: GeoPoint?): Boolean = false
+                            }
+                            overlays.add(MapEventsOverlay(receiver))
+                        }
+                    },
+                    update = { map ->
+                        map.overlays.removeAll { it is Marker }
+                        pinMarker?.let { pt ->
+                            val marker = Marker(map)
+                            marker.position = pt
+                            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                            val defaultBmp = android.graphics.BitmapFactory.decodeResource(context.resources, R.drawable.logo_muretto)
+                            marker.icon = android.graphics.drawable.BitmapDrawable(context.resources, android.graphics.Bitmap.createScaledBitmap(defaultBmp, 100, 70, true))
+                            map.overlays.add(marker)
+                            map.controller.animateTo(pt)
+                        }
+                        map.invalidate()
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // SLIDER SCALA PIN
+            Text("Grandezza Locandina sulla Mappa (Scala: ${String.format("%.1f", scalaPin)})", color = Tema.coloreTesto)
+            Slider(
+                value = scalaPin,
+                onValueChange = { scalaPin = it },
+                valueRange = 0.5f..2.0f,
+                colors = SliderDefaults.colors(thumbColor = Tema.colorePrincipale, activeTrackColor = Tema.colorePrincipale)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             OutlinedTextField(
                 value = titolo, onValueChange = { titolo = it },
                 label = { Text("Titolo Evento", color = Tema.coloreTestoSecondario) },
@@ -126,9 +214,8 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
-                value = indirizzo, onValueChange = { indirizzo = it },
-                label = { Text("Indirizzo Esatto", color = Tema.coloreTestoSecondario) },
-                placeholder = { Text("Es. Via Roma 1, Milano", color = Tema.coloreTestoSecondario) },
+                value = indirizzoTesto, onValueChange = { indirizzoTesto = it },
+                label = { Text("Nome della Location (Es. Gallery Caffè)", color = Tema.coloreTestoSecondario) },
                 colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, focusedBorderColor = Tema.colorePrincipale),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -184,32 +271,30 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
 
             Button(
                 onClick = {
-                    if (titolo.isBlank() || indirizzo.isBlank() || dataSelezionata.isBlank() || oraSelezionata.isBlank()) {
+                    if (titolo.isBlank() || indirizzoTesto.isBlank() || dataSelezionata.isBlank() || oraSelezionata.isBlank()) {
                         messaggioEsito = "Errore: Compila tutti i campi obbligatori!"
                         return@Button
                     }
+                    if (pinMarker == null) {
+                        messaggioEsito = "Errore: Tocca la mappa per posizionare il pin dell'evento!"
+                        return@Button
+                    }
+
                     staCaricando = true
                     messaggioEsito = ""
 
                     scope.launch {
-                        val coordinate = ottieniCoordinate(indirizzo.trim())
-                        if (coordinate == null) {
-                            staCaricando = false
-                            messaggioEsito = "Errore: Non riesco a trovare l'indirizzo sulla mappa. Sii più specifico."
-                            return@launch
-                        }
-
                         val bytesImmagine = imageUri?.let { uri -> context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }
 
                         val successo = DatabaseMcs.inserisciNuovoEvento(
-                            titolo = titolo.trim(), locationNome = indirizzo.trim(), lat = coordinate.first, lng = coordinate.second,
-                            dataOra = "$dataSelezionata, $oraSelezionata", tipo = tipo, prezzo = prezzo.trim(), imageBytes = bytesImmagine
+                            titolo = titolo.trim(), locationNome = indirizzoTesto.trim(), lat = pinMarker!!.latitude, lng = pinMarker!!.longitude,
+                            dataOra = "$dataSelezionata, $oraSelezionata", tipo = tipo, prezzo = prezzo.trim(), scalaPin = scalaPin, imageBytes = bytesImmagine
                         )
 
                         staCaricando = false
                         if (successo) {
                             messaggioEsito = "Evento inviato in attesa di approvazione Admin!"
-                            titolo = ""; indirizzo = ""; dataSelezionata = ""; oraSelezionata = ""; imageUri = null
+                            titolo = ""; indirizzoTesto = ""; dataSelezionata = ""; oraSelezionata = ""; imageUri = null; pinMarker = null
                         } else {
                             messaggioEsito = "Errore durante l'invio dell'evento."
                         }
@@ -228,22 +313,27 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
     }
 }
 
+// --- FUNZIONE PER CERCARE LE COORDINATE TRAMITE OSM (NOMINATIM) ---
 suspend fun ottieniCoordinate(indirizzo: String): Pair<Double, Double>? {
     return withContext(Dispatchers.IO) {
         try {
-            val urlString = "https://nominatim.openstreetmap.org/search?q=${URLEncoder.encode(indirizzo, "UTF-8")}&format=json&limit=1"
-            val conn = URL(urlString).openConnection() as HttpURLConnection
-            conn.setRequestProperty("User-Agent", "MurettoApp/1.0")
-            conn.requestMethod = "GET"
+            val encodedAddress = URLEncoder.encode(indirizzo, "UTF-8")
+            val url = URL("https://nominatim.openstreetmap.org/search?q=$encodedAddress&format=json&limit=1")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.setRequestProperty("User-Agent", "FreestApp/1.0")
+            connection.requestMethod = "GET"
 
-            val response = conn.inputStream.bufferedReader().use { it.readText() }
-            val latRegex = """"lat":"([^"]+)"""".toRegex()
-            val lonRegex = """"lon":"([^"]+)"""".toRegex()
-
-            val latStr = latRegex.find(response)?.groupValues?.get(1)
-            val lonStr = lonRegex.find(response)?.groupValues?.get(1)
-
-            if (latStr != null && lonStr != null) Pair(latStr.toDouble(), lonStr.toDouble()) else null
+            if (connection.responseCode == 200) {
+                val response = connection.inputStream.bufferedReader().readText()
+                val jsonArray = JSONArray(response)
+                if (jsonArray.length() > 0) {
+                    val firstResult = jsonArray.getJSONObject(0)
+                    val lat = firstResult.getString("lat").toDouble()
+                    val lon = firstResult.getString("lon").toDouble()
+                    return@withContext Pair(lat, lon)
+                }
+            }
+            null
         } catch (e: Exception) {
             e.printStackTrace()
             null

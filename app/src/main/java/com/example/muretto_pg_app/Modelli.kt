@@ -112,7 +112,8 @@ data class Evento(
     val prezzo: String,
     val immagine_url: String?,
     val organizzatore_id: String,
-    val stato: String = "in_attesa"
+    val stato: String = "in_attesa",
+    val scala_pin: Float = 1.0f // <--- NUOVO CAMPO
 )
 
 // ─── DATABASE ─────────────────────────────────────────────────────────────────
@@ -243,9 +244,37 @@ object DatabaseMcs {
         } catch (e: Exception) { false }
     }
 
+    suspend fun aggiornaMc(mcId: String, nuovoNome: String, imageBytes: ByteArray?): Boolean {
+        return try {
+            var nuovaUrl: String? = null
+            if (imageBytes != null) {
+                val fileName = "mc_${UUID.randomUUID()}.jpg"
+                val bucket = supabase.storage["immagini"]
+                bucket.upload(fileName, imageBytes, upsert = true)
+                nuovaUrl = bucket.publicUrl(fileName)
+            }
+            supabase.postgrest["mcs"].update({
+                set("nome", nuovoNome)
+                if (nuovaUrl != null) set("immagineUrl", nuovaUrl)
+            }) { filter { eq("id", mcId) } }
+            true
+        } catch (e: Exception) { false }
+    }
+
+    suspend fun eliminaMc(mcId: String): Boolean {
+        return try {
+            supabase.postgrest["mcs"].delete { filter { eq("id", mcId) } }
+            withContext(Dispatchers.Main) {
+                listaMcsCloud.removeIf { it.id == mcId }
+                tuttiMcsCloud.removeIf { it.id == mcId }
+            }
+            true
+        } catch (e: Exception) { false }
+    }
+
     suspend fun inserisciNuovoEvento(
         titolo: String, locationNome: String, lat: Double, lng: Double,
-        dataOra: String, tipo: String, prezzo: String, imageBytes: ByteArray?
+        dataOra: String, tipo: String, prezzo: String, scalaPin: Float, imageBytes: ByteArray?
     ): Boolean {
         return try {
             val user = supabase.auth.currentUserOrNull() ?: return false
@@ -266,7 +295,8 @@ object DatabaseMcs {
                 prezzo = prezzo,
                 immagine_url = imageUrl,
                 organizzatore_id = user.id,
-                stato = "in_attesa"
+                stato = "in_attesa",
+                scala_pin = scalaPin
             )
             supabase.postgrest["eventi"].insert(nuovoEvento)
             true
@@ -288,7 +318,6 @@ object DatabaseMcs {
         } catch (e: Exception) { false }
     }
 
-    // Registra ed attiva immediatamente l'account Rapper
     suspend fun registraRapperDiretto(
         nome: String, cognome: String, nomeArte: String, email: String, passwordTemp: String, telefono: String
     ): Boolean {
@@ -515,7 +544,6 @@ fun BoxMC(
         else -> mc.immagineUrl
     }
 
-    // Usiamo Fit per il 2v2 così non si taglia/sforma, Crop per le foto quadrate normali
     val scaleMode = if (is2v2) ContentScale.Fit else ContentScale.Crop
 
     Box(
@@ -545,21 +573,10 @@ fun BoxMC(
             Text(text = mc.nome.uppercase(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
         }
 
-        // Croce rossa sopra l'immagine se eliminato
         if (isSconfitto) {
             Canvas(modifier = Modifier.fillMaxSize()) {
-                drawLine(
-                    color = Color.Red.copy(alpha = 0.8f),
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, size.height),
-                    strokeWidth = 10f
-                )
-                drawLine(
-                    color = Color.Red.copy(alpha = 0.8f),
-                    start = Offset(size.width, 0f),
-                    end = Offset(0f, size.height),
-                    strokeWidth = 10f
-                )
+                drawLine(color = Color.Red.copy(alpha = 0.8f), start = Offset(0f, 0f), end = Offset(size.width, size.height), strokeWidth = 10f)
+                drawLine(color = Color.Red.copy(alpha = 0.8f), start = Offset(size.width, 0f), end = Offset(0f, size.height), strokeWidth = 10f)
             }
         }
     }
