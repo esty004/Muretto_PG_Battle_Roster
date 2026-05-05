@@ -169,7 +169,6 @@ fun AppNavigation() {
         NavHost(navController = navController, startDestination = "home") {
 
             composable("home") { SchermataHome(onNavigate = { navController.navigate(it) }) }
-
             composable("mappa") { SchermataMappa(onPinClick = { navController.navigate(it) }, onTornaIndietro = { navController.popBackStack() }) }
             composable("login") { SchermataLogin(onLoginSuccess = { navController.popBackStack() }, onTornaIndietro = { navController.popBackStack() }, onVaiARegistrazione = { navController.navigate("registrazione") }) }
             composable("registrazione") { SchermataRegistrazione(onTornaIndietro = { navController.popBackStack() }) }
@@ -183,7 +182,17 @@ fun AppNavigation() {
 
             // MENU DEL MURETTO
             composable("menu") { SchermataMenu(onTornaIndietro = { navController.popBackStack() }, onSelezionaModalita = { navController.navigate(it) }) }
-            composable("trasferte") { SchermataTrasferte(onTornaIndietro = { navController.popBackStack() }) }
+            composable("trasferte") {
+                SchermataTrasferte(
+                    onTornaIndietro = { navController.popBackStack() },
+                    onVaiAllaMappa = { navController.navigate("mappa_trasferte") }
+                )
+            }
+            composable("mappa_trasferte") {
+                SchermataMappaTrasferte(
+                    onTornaIndietro = { navController.popBackStack() }
+                )
+            }
 
             composable("muretto_classico") {
                 SchermataMurettoClassico(

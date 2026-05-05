@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,41 +27,60 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> Unit) {
     val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
-    // Rimosso "Trasferte" dalla lista delle modalità
     val listaModalita = listOf("Muretto classico", "2 VS 2", "Evento", "Allenamento")
 
     var mostraDialog2vs2 by remember { mutableStateOf(false) }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize()) {
 
-            Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
-                IconButton(
-                    onClick = { onTornaIndietro() },
-                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)
-                ) {
-                    Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
+            // --- NUOVO SFONDO CON IMMAGINE (Solo per Muretto PG) ---
+            if (!Tema.isBarreFaul) {
+                Image(
+                    painter = painterResource(id = R.drawable.sfondo_muretto_classico),
+                    contentDescription = "Sfondo Muretto Classico",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop // L'immagine riempirà tutto lo schermo senza deformarsi
+                )
+                // Patina scura (al 50%) sopra lo sfondo per rendere leggibili i testi e le card
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
+            }
+            // -------------------------------------------------------
+
+            Column(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
+                    Text("SELEZIONA MODALITA'", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
                 }
 
-                Text("SELEZIONA MODALITA'", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    items(listaModalita) { nome ->
+                        CardModalita(nomeModalita = nome, onClick = {
+                            when (nome) {
+                                "Muretto classico" -> onSelezionaModalita("muretto_classico")
+                                "2 VS 2" -> mostraDialog2vs2 = true
+                                "Evento" -> onSelezionaModalita("evento")
+                                "Allenamento" -> onSelezionaModalita("allenamento")
+                            }
+                        })
+                    }
+                }
             }
 
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-                modifier = Modifier.weight(1f)
+            // BOTTONE INDIETRO IN BASSO A SINISTRA
+            FloatingActionButton(
+                onClick = onTornaIndietro,
+                containerColor = Tema.colorePrincipale,
+                contentColor = Color.White,
+                shape = CircleShape,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 16.dp, bottom = 32.dp)
             ) {
-                items(listaModalita) { nome ->
-                    CardModalita(nomeModalita = nome, onClick = {
-                        when (nome) {
-                            "Muretto classico" -> onSelezionaModalita("muretto_classico")
-                            "2 VS 2" -> mostraDialog2vs2 = true
-                            "Evento" -> onSelezionaModalita("evento") // Rotta generica o placeholder
-                            "Allenamento" -> onSelezionaModalita("allenamento")
-                            else -> {}
-                        }
-                    })
-                }
+                Text("<", fontSize = 30.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = (-2).dp))
             }
         }
     }
@@ -90,7 +110,13 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
 @Composable
 fun CardModalita(nomeModalita: String, onClick: () -> Unit) {
     Box(
-        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(12.dp)).border(3.dp, Tema.colorePrincipale, RoundedCornerShape(12.dp)).background(Tema.coloreSfondoCard).clickable { onClick() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(16f / 9f)
+            .clip(RoundedCornerShape(12.dp))
+            .border(3.dp, Color.White, RoundedCornerShape(12.dp))
+            .background(Tema.coloreSfondoCard)
+            .clickable { onClick() },
         contentAlignment = Alignment.BottomCenter
     ) {
         if (Tema.isBarreFaul) {

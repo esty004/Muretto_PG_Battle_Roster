@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -78,13 +79,18 @@ fun SchermataMurettoClassico(
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Box(modifier = Modifier.fillMaxSize()) {
 
+            // --- NUOVO SFONDO CON IMMAGINE ---
+            Image(
+                painter = painterResource(id = R.drawable.sfondo_muretto_classico),
+                contentDescription = "Sfondo Muretto Classico",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop // L'immagine riempirà tutto lo schermo senza deformarsi
+            )
+            // ---------------------------------
+
             Column(modifier = Modifier.fillMaxSize().padding(bottom = 80.dp)) {
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 10.dp)) {
-                    IconButton(
-                        onClick = { if (searchFocused) focusManager.clearFocus() else onTornaAlMenu() },
-                        modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)
-                    ) { Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold) }
-                    Text("SELEZIONA GLI MC", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center).offset(x = 15.dp))
+                    Text("SELEZIONA GLI MC", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
                 }
 
                 if (tipoTorneo == TipoTorneo.COPPIE_PREDEFINITE) {
@@ -140,6 +146,19 @@ fun SchermataMurettoClassico(
                 containerColor = Color(0xFF4CAF50), contentColor = Color.White, shape = CircleShape,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 100.dp)
             ) { Icon(Icons.Default.Add, contentDescription = "Aggiungi MC", modifier = Modifier.size(30.dp)) }
+
+            // TASTO INDIETRO IN BASSO A SINISTRA
+            FloatingActionButton(
+                onClick = { if (searchFocused) focusManager.clearFocus() else onTornaAlMenu() },
+                containerColor = Tema.colorePrincipale,
+                contentColor = Color.White,
+                shape = CircleShape,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 16.dp, bottom = 100.dp)
+            ) {
+                Text("<", fontSize = 30.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = (-2).dp))
+            }
 
             Button(
                 onClick = {
