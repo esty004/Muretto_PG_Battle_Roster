@@ -68,7 +68,6 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
     // MAPPA E RICERCA
     var pinMarker by remember { mutableStateOf<GeoPoint?>(null) }
     var searchQuery by remember { mutableStateOf("") }
-    var scalaPin by remember { mutableFloatStateOf(1.0f) }
 
     val selettoreImmagine = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         imageUri = uri
@@ -193,17 +192,6 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // SLIDER SCALA PIN
-            Text("Grandezza Locandina sulla Mappa (Scala: ${String.format("%.1f", scalaPin)})", color = Tema.coloreTesto)
-            Slider(
-                value = scalaPin,
-                onValueChange = { scalaPin = it },
-                valueRange = 0.5f..2.0f,
-                colors = SliderDefaults.colors(thumbColor = Tema.colorePrincipale, activeTrackColor = Tema.colorePrincipale)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             OutlinedTextField(
                 value = titolo, onValueChange = { titolo = it },
                 label = { Text("Titolo Evento", color = Tema.coloreTestoSecondario) },
@@ -288,7 +276,7 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
 
                         val successo = DatabaseMcs.inserisciNuovoEvento(
                             titolo = titolo.trim(), locationNome = indirizzoTesto.trim(), lat = pinMarker!!.latitude, lng = pinMarker!!.longitude,
-                            dataOra = "$dataSelezionata, $oraSelezionata", tipo = tipo, prezzo = prezzo.trim(), scalaPin = scalaPin, imageBytes = bytesImmagine
+                            dataOra = "$dataSelezionata, $oraSelezionata", tipo = tipo, prezzo = prezzo.trim(), scalaPin = 1.0f, imageBytes = bytesImmagine
                         )
 
                         staCaricando = false
