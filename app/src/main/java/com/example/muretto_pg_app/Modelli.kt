@@ -113,7 +113,13 @@ data class Evento(
     val immagine_url: String?,
     val organizzatore_id: String,
     val stato: String = "in_attesa",
-    val scala_pin: Float = 1.0f // <--- NUOVO CAMPO
+    val scala_pin: Float = 1.0f
+)
+
+@Serializable
+data class EventoPreferito(
+    val user_id: String,
+    val evento_id: String
 )
 
 // ─── DATABASE ─────────────────────────────────────────────────────────────────
@@ -140,12 +146,17 @@ object DatabaseMcs {
     var eventiInAttesa = mutableStateListOf<Evento>()
     var eventiApprovati = mutableStateListOf<Evento>()
 
+    var eventiPreferiti = mutableStateListOf<String>() // Conterrà gli ID degli eventi preferiti dell'utente
+
     fun inizializzaSessione() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 kotlinx.coroutines.delay(500)
                 val user = supabase.auth.currentUserOrNull()
-                if (user != null) controllaRuolo()
+                if (user != null) {
+                    controllaRuolo()
+                    fetchEventiPreferiti()
+                }
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
@@ -395,6 +406,35 @@ object DatabaseMcs {
                 withContext(Dispatchers.Main) {
                     eventiApprovati.clear()
                     eventiApprovati.addAll(eventi)
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    // NUOVE FUNZIONI PER I PREFERITI
+    fun fetchEventiPreferiti() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val user = supabase.auth.currentUserOrNull() ?: return@launch
+                val preferiti = supabase.postgrest["eventi_preferiti"].select { filter { eq("user_id", user.id) } }.decodeList<EventoPreferito>()
+                withContext(Dispatchers.Main) {
+                    eventiPreferiti.clear()
+                    eventiPreferiti.addAll(preferiti.map { it.evento_id })
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    fun togglePreferito(eventoId: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val user = supabase.auth.currentUserOrNull() ?: return@launch
+                if (eventiPreferiti.contains(eventoId)) {
+                    supabase.postgrest["eventi_preferiti"].delete { filter { eq("user_id", user.id); eq("evento_id", eventoId) } }
+                    withContext(Dispatchers.Main) { eventiPreferiti.remove(eventoId) }
+                } else {
+                    supabase.postgrest["eventi_preferiti"].insert(EventoPreferito(user.id, eventoId))
+                    withContext(Dispatchers.Main) { eventiPreferiti.add(eventoId) }
                 }
             } catch (e: Exception) { e.printStackTrace() }
         }

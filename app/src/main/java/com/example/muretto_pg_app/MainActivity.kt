@@ -169,31 +169,28 @@ fun AppNavigation() {
         NavHost(navController = navController, startDestination = "home") {
 
             composable("home") { SchermataHome(onNavigate = { navController.navigate(it) }) }
+
             composable("mappa") { SchermataMappa(onPinClick = { navController.navigate(it) }, onTornaIndietro = { navController.popBackStack() }) }
             composable("login") { SchermataLogin(onLoginSuccess = { navController.popBackStack() }, onTornaIndietro = { navController.popBackStack() }, onVaiARegistrazione = { navController.navigate("registrazione") }) }
             composable("registrazione") { SchermataRegistrazione(onTornaIndietro = { navController.popBackStack() }) }
             composable("notifiche") { SchermataNotifiche(onTornaIndietro = { navController.popBackStack() }) }
             composable("aggiungi_mc") { SchermataAggiungiMc(onTornaIndietro = { navController.popBackStack() }) }
             composable("aggiungi_evento") { SchermataAggiungiEvento(onTornaIndietro = { navController.popBackStack() }) }
-            composable("gestione_mcs") { SchermataGestioneMcs(onTornaIndietro = { navController.popBackStack() }, onModificaMc = { id -> navController.navigate("modifica_mc/$id") }, onAggiungiMc = { navController.navigate("aggiungi_mc") }) }
-            composable("modifica_mc/{id}") { backStackEntry -> val mcId = backStackEntry.arguments?.getString("id") ?: ""; SchermataModificaMc(mcId = mcId, onTornaIndietro = { navController.popBackStack() }) }
-            // LA TUA SCHERMATA ORIGINALE ANIMATA (Identica al video!)
+
+            // LE TUE SCHERMATE DI BENVENUTO E MENU
             composable("benvenuto") { SchermataDiBenvenuto(onTornaIndietro = { navController.popBackStack() }, onVaiAlMenu = { navController.navigate("menu") }) }
             composable("benvenuto_barre_faul") { SchermataDiBenvenutoBarreFaul(onTornaIndietro = { navController.popBackStack() }, onVaiAlMenu = { navController.navigate("menu") }) }
-
-            // MENU DEL MURETTO
             composable("menu") { SchermataMenu(onTornaIndietro = { navController.popBackStack() }, onSelezionaModalita = { navController.navigate(it) }) }
-            composable("trasferte") {
-                SchermataTrasferte(
-                    onTornaIndietro = { navController.popBackStack() },
-                    onVaiAllaMappa = { navController.navigate("mappa_trasferte") }
-                )
-            }
-            composable("mappa_trasferte") {
-                SchermataMappaTrasferte(
-                    onTornaIndietro = { navController.popBackStack() }
-                )
-            }
+
+            // --- TRASFERTE ---
+            composable("trasferte") { SchermataTrasferte(onTornaIndietro = { navController.popBackStack() }, onVaiAllaMappa = { navController.navigate("mappa_trasferte") }) }
+            composable("mappa_trasferte") { SchermataMappaTrasferte(onTornaIndietro = { navController.popBackStack() }) }
+            // ECCO LA ROTTA CHE MANCAVA E FACEVA CRASHARE L'APP!
+            composable("trasferte_preferite") { SchermataTrasferte(onTornaIndietro = { navController.popBackStack() }, onVaiAllaMappa = { navController.navigate("mappa_trasferte") }, soloPreferiti = true) }
+
+            // --- GESTIONE MC E BATTLE ---
+            composable("gestione_mcs") { SchermataGestioneMcs(onTornaIndietro = { navController.popBackStack() }, onModificaMc = { id -> navController.navigate("modifica_mc/$id") }, onAggiungiMc = { navController.navigate("aggiungi_mc") }) }
+            composable("modifica_mc/{id}") { backStackEntry -> val mcId = backStackEntry.arguments?.getString("id") ?: ""; SchermataModificaMc(mcId = mcId, onTornaIndietro = { navController.popBackStack() }) }
 
             composable("muretto_classico") {
                 SchermataMurettoClassico(
@@ -212,20 +209,22 @@ fun AppNavigation() {
             }
             composable("ottavi") { SchermataOttavi(onTornaIndietro = { navController.popBackStack() }, onVaiAiQuarti = { }, onRoundClick = { navController.navigate("round_singolo/$it") }) }
             composable("round_singolo/{roundId}") { backStackEntry -> SchermataRoundSingolo(roundId = backStackEntry.arguments?.getString("roundId") ?: "", onTornaIndietro = { navController.popBackStack() }) }
+
+            // --- ALLENAMENTO ---
             composable("allenamento") { SchermataAllenamento(onTornaIndietro = { navController.popBackStack() }, onSelezionaAllenamento = { navController.navigate(it.lowercase().replace(" ", "_")) }) }
             composable("generatore_argomenti") { SchermataGeneratoreArgomenti { navController.popBackStack() } }
             composable("generatore_modalita") { SchermataGeneratoreModalita { navController.popBackStack() } }
             composable("generatore_parole") { SchermataGeneratoreParole { navController.popBackStack() } }
         }
 
-        val schermateSenzaPlayer = setOf("home", "benvenuto", "benvenuto_barre_faul", "mappa", "login", "aggiungi_mc", "aggiungi_evento", "trasferte", "registrazione")
-        if (rottaCorrente != null && rottaCorrente !in schermateSenzaPlayer) {
+        val schermateSenzaPlayer = setOf("home", "benvenuto", "benvenuto_barre_faul", "mappa", "login", "aggiungi_mc", "aggiungi_evento", "trasferte", "trasferte_preferite", "mappa_trasferte", "registrazione", "gestione_mcs", "modifica_mc")
+        if (rottaCorrente != null && !schermateSenzaPlayer.any { rottaCorrente.startsWith(it) }) {
             FloatingPlayer(MioFont)
         }
     }
 }
 
-// ─── NUOVA SCHERMATA HOME (LA SCELTA INIZIALE TRA MURETTI E TRASFERTE) ───
+// ─── SCHERMATA HOME ───
 
 @Composable
 fun SchermataHome(onNavigate: (String) -> Unit) {
@@ -358,11 +357,14 @@ fun MenuLaterale(onNavigate: (String) -> Unit, onChiudi: () -> Unit, scope: kotl
         Spacer(modifier = Modifier.height(16.dp))
 
         if (DatabaseMcs.isAdmin || DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO) {
-            // Sostituito Inserisci Freestyler con Gestione MC's
             MenuItem(titolo = "GESTIONE MC'S", icona = R.drawable.ic_music_note) { onNavigate("gestione_mcs") }
         }
         if (DatabaseMcs.isAdmin || DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO || DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_EVENTI) {
             MenuItem(titolo = "AGGIUNGI EVENTO", icona = R.drawable.ic_music_note) { onNavigate("aggiungi_evento") }
+        }
+        // SE L'UTENTE È LOGGATO, MOSTRA LE TRASFERTE PREFERITE
+        if (DatabaseMcs.ruoloAttuale != RuoloUtente.NESSUNO) {
+            MenuItem(titolo = "TRASFERTE PREFERITE", icona = R.drawable.ic_music_note) { onNavigate("trasferte_preferite") }
         }
         if (DatabaseMcs.isAdmin) {
             Box(modifier = Modifier.fillMaxWidth()) {
@@ -382,6 +384,7 @@ fun MenuLaterale(onNavigate: (String) -> Unit, onChiudi: () -> Unit, scope: kotl
                 DatabaseMcs.isAdmin = false
                 DatabaseMcs.ruoloAttuale = RuoloUtente.NESSUNO
                 DatabaseMcs.profiloAttuale = null
+                DatabaseMcs.eventiPreferiti.clear()
             }
         }
         Spacer(modifier = Modifier.height(40.dp))
@@ -567,7 +570,6 @@ fun SchermataMappa(onPinClick: (String) -> Unit, onTornaIndietro: () -> Unit) {
                     ))
                     overlayManager.tilesOverlay.setColorFilter(ColorMatrixColorFilter(trueDarkModeMatrix))
 
-                    // Pin Muretto PG - Ripristinate le proporzioni originali (200x140)
                     val m1 = Marker(this).apply {
                         position = GeoPoint(43.112056, 12.388439)
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
@@ -577,7 +579,6 @@ fun SchermataMappa(onPinClick: (String) -> Unit, onTornaIndietro: () -> Unit) {
                     }
                     overlays.add(m1)
 
-                    // Pin Barre Faul - Ripristinate le proporzioni originali (200x140)
                     val m2 = Marker(this).apply {
                         position = GeoPoint(42.416669, 12.100123)
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
@@ -590,7 +591,6 @@ fun SchermataMappa(onPinClick: (String) -> Unit, onTornaIndietro: () -> Unit) {
             }
         )
 
-        // Tasto Indietro
         FloatingActionButton(
             onClick = { onTornaIndietro() },
             containerColor = Color.DarkGray,
@@ -615,7 +615,7 @@ fun MenuItem(titolo: String, icona: Int, coloreTesto: Color = Tema.coloreTesto, 
     }
 }
 
-// ─── LA TUA SCHERMATA ORIGINALE INTATTA E ANIMATA (BENVENUTO) ────────────────
+// ─── BENVENUTO E ANIMAZIONI ────────────────────────────────────────────────
 @Composable
 fun SchermataDiBenvenuto(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Unit) {
     var inTransizione by remember { mutableStateOf(false) }
