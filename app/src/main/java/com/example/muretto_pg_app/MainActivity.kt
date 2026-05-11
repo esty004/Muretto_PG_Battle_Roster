@@ -648,27 +648,20 @@ fun MenuItem(titolo: String, icona: Int, coloreTesto: Color = Tema.coloreTesto, 
 fun SchermataDiBenvenuto(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Unit) {
     var inTransizione by remember { mutableStateOf(false) }
     val spostamentoVerticale = (-50).dp
-    val dimensioneAura = 300.dp
     val dimensioneAreaClick = 250.dp
     val dimensionePallinoNero = 90.dp
     val scalaSfondo by animateFloatAsState(targetValue = if (inTransizione) 2.8f else 1f, animationSpec = tween(1300, easing = FastOutSlowInEasing), label = "")
     val scalaEspansione by animateFloatAsState(targetValue = if (inTransizione) 40f else 0f, animationSpec = tween(1100, easing = FastOutSlowInEasing), label = "", finishedListener = { onVaiAlMenu() })
     val alphaContenuto by animateFloatAsState(targetValue = if (inTransizione) 0f else 1f, animationSpec = tween(700), label = "")
-    val infiniteTransition = rememberInfiniteTransition(label = "")
-    val scalaAura by infiniteTransition.animateFloat(initialValue = 1f, targetValue = 1.15f, animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "")
-    val alphaAura by infiniteTransition.animateFloat(initialValue = 0.2f, targetValue = 0.6f, animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "")
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
         Box(modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scalaSfondo; scaleY = scalaSfondo; alpha = alphaContenuto }) {
-            Image(painter = painterResource(id = R.drawable.sfondo_schermata_iniziale), contentDescription = "Sfondo Muretto", contentScale = ContentScale.Fit, alignment = Alignment.Center, modifier = Modifier.fillMaxSize())
-            Box(modifier = Modifier.fillMaxSize().padding(top = 80.dp), contentAlignment = Alignment.TopCenter) { TestoBomboletta() }
-            Box(modifier = Modifier.fillMaxSize().padding(bottom = 90.dp), contentAlignment = Alignment.BottomCenter) { TestoAnimatoStileMinecraft() }
+            Image(painter = painterResource(id = R.drawable.sfondo_schermata_iniziale), contentDescription = "Sfondo Muretto", contentScale = ContentScale.Crop, alignment = Alignment.Center, modifier = Modifier.fillMaxSize())
         }
         if (!inTransizione) {
             IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.TopStart).padding(top = 60.dp, start = 16.dp)) {
                 Text("<", color = Color.White, fontSize = 45.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
             }
-            Box(modifier = Modifier.offset(y = spostamentoVerticale).size(dimensioneAura).graphicsLayer { scaleX = scalaAura; scaleY = scalaAura; alpha = alphaAura }.background(Color.Black.copy(alpha = 0.4f), CircleShape).border(4.dp, Color.Black.copy(alpha = 0.6f), CircleShape))
         }
         Box(modifier = Modifier.offset(y = spostamentoVerticale).size(dimensioneAreaClick).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { if (!inTransizione) inTransizione = true })
         if (inTransizione) {
@@ -682,19 +675,13 @@ fun SchermataDiBenvenutoBarreFaul(onTornaIndietro: () -> Unit, onVaiAlMenu: () -
     var inTransizione by remember { mutableStateOf(false) }
     val scalaSfondo by animateFloatAsState(targetValue = if (inTransizione) 2.8f else 1f, animationSpec = tween(1300, easing = FastOutSlowInEasing), label = "")
     val alphaContenuto by animateFloatAsState(targetValue = if (inTransizione) 0f else 1f, animationSpec = tween(700), label = "", finishedListener = { onVaiAlMenu() })
-    val infiniteTransition = rememberInfiniteTransition(label = "")
-    val scalaVt by infiniteTransition.animateFloat(initialValue = 1f, targetValue = 1.15f, animationSpec = infiniteRepeatable(tween(600, easing = LinearEasing), RepeatMode.Reverse), label = "")
 
     Box(
         modifier = Modifier.fillMaxSize().background(Color.Black).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { if (!inTransizione) inTransizione = true },
         contentAlignment = Alignment.Center
     ) {
         Box(modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scalaSfondo; scaleY = scalaSfondo; alpha = alphaContenuto }) {
-            Image(painter = painterResource(id = R.drawable.sfondo_schermata_iniziale_barre_faul), contentDescription = "Sfondo Barre Faul", contentScale = ContentScale.Fit, alignment = Alignment.Center, modifier = Modifier.fillMaxSize())
-            Box(modifier = Modifier.fillMaxSize().padding(top = 80.dp), contentAlignment = Alignment.TopCenter) { TestoBomboletta() }
-            Box(modifier = Modifier.fillMaxSize().padding(bottom = 90.dp), contentAlignment = Alignment.BottomCenter) {
-                Image(painter = painterResource(id = R.drawable.vt), contentDescription = "Logo VT", modifier = Modifier.size(150.dp).graphicsLayer { scaleX = scalaVt; scaleY = scalaVt })
-            }
+            Image(painter = painterResource(id = R.drawable.sfondo_schermata_iniziale_barre_faul), contentDescription = "Sfondo Barre Faul", contentScale = ContentScale.Crop, alignment = Alignment.Center, modifier = Modifier.fillMaxSize())
         }
         if (!inTransizione) {
             IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.TopStart).padding(top = 60.dp, start = 16.dp)) {
@@ -704,26 +691,3 @@ fun SchermataDiBenvenutoBarreFaul(onTornaIndietro: () -> Unit, onVaiAlMenu: () -
     }
 }
 
-@Composable
-fun TestoBomboletta() {
-    var visibile by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { delay(500); visibile = true }
-    val FontTitoli = FontFamily(Font(R.font.jackboa))
-    AnimatedVisibility(visible = visibile, enter = expandHorizontally(animationSpec = tween(durationMillis = 2000, easing = LinearOutSlowInEasing), expandFrom = Alignment.Start) + fadeIn(animationSpec = tween(durationMillis = 2000))) {
-        Box(contentAlignment = Alignment.Center) {
-            Text("BATTLE ROSTER", color = Color.Black, fontSize = 42.sp, fontWeight = FontWeight.Bold, fontFamily = FontTitoli, style = TextStyle(drawStyle = Stroke(miter = 10f, width = 10f, join = StrokeJoin.Round)))
-            Text("BATTLE ROSTER", color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold, fontFamily = FontTitoli)
-        }
-    }
-}
-
-@Composable
-fun TestoAnimatoStileMinecraft() {
-    val FontTitoli = FontFamily(Font(R.font.jackboa))
-    val infiniteTransition = rememberInfiniteTransition(label = "")
-    val scalaTesto by infiniteTransition.animateFloat(initialValue = 1f, targetValue = 1.2f, animationSpec = infiniteRepeatable(animation = tween(400, easing = LinearEasing), repeatMode = RepeatMode.Reverse), label = "")
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.graphicsLayer { scaleX = scalaTesto; scaleY = scalaTesto }) {
-        Text("WHAT UUU SAYYYNNN!!!", color = Color.Black, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = FontTitoli, style = TextStyle(drawStyle = Stroke(miter = 10f, width = 12f, join = StrokeJoin.Round)))
-        Text("WHAT UUU SAYYYNNN!!!", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, fontFamily = FontTitoli)
-    }
-}
