@@ -30,9 +30,10 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SchermataNotifiche(onTornaIndietro: () -> Unit) {
+    val databaseViewModel = LocalDatabaseViewModel.current
     val MioFont = FontFamily(Font(R.font.komtit__))
-    val richieste = DatabaseMcs.richiesteInAttesa
-    val eventi = DatabaseMcs.eventiInAttesa
+    val richieste = databaseViewModel.richiesteInAttesa
+    val eventi = databaseViewModel.eventiInAttesa
 
     var tabSelezionata by remember { mutableIntStateOf(0) }
     var richiestaSelezionata by remember { mutableStateOf<RichiestaAccount?>(null) }
@@ -40,8 +41,8 @@ fun SchermataNotifiche(onTornaIndietro: () -> Unit) {
 
     // Aggiorna al caricamento
     LaunchedEffect(Unit) {
-        DatabaseMcs.fetchRichiesteInAttesa()
-        DatabaseMcs.fetchEventiInAttesa()
+        databaseViewModel.fetchRichiesteInAttesa()
+        databaseViewModel.fetchEventiInAttesa()
     }
 
     // Dialog dettaglio richiesta account
@@ -173,6 +174,7 @@ fun CardEventoInAttesa(evento: Evento, onClick: () -> Unit) {
 
 @Composable
 fun DialogDettaglioRichiesta(richiesta: RichiestaAccount, onDismiss: () -> Unit, onChiudi: () -> Unit) {
+    val databaseViewModel = LocalDatabaseViewModel.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var staElaborando by remember { mutableStateOf(false) }
@@ -211,7 +213,7 @@ fun DialogDettaglioRichiesta(richiesta: RichiestaAccount, onDismiss: () -> Unit,
                             onClick = {
                                 staElaborando = true
                                 scope.launch {
-                                    val ok = DatabaseMcs.rifiutaRichiesta(richiesta.id)
+                                    val ok = databaseViewModel.rifiutaRichiesta(richiesta.id)
                                     staElaborando = false; operazioneCompletata = true
                                     messaggioEsito = if (ok) "Richiesta rifiutata." else "Errore durante il rifiuto."
                                 }
@@ -223,7 +225,7 @@ fun DialogDettaglioRichiesta(richiesta: RichiestaAccount, onDismiss: () -> Unit,
                             onClick = {
                                 staElaborando = true
                                 scope.launch {
-                                    val ok = DatabaseMcs.accettaRichiesta(richiesta)
+                                    val ok = databaseViewModel.accettaRichiesta(richiesta)
                                     staElaborando = false
                                     if (ok) {
                                         val numero = richiesta.telefono.replace("+", "").replace(" ", "").replace("-", "")
@@ -249,6 +251,7 @@ fun DialogDettaglioRichiesta(richiesta: RichiestaAccount, onDismiss: () -> Unit,
 
 @Composable
 fun DialogDettaglioEvento(evento: Evento, onDismiss: () -> Unit, onChiudi: () -> Unit) {
+    val databaseViewModel = LocalDatabaseViewModel.current
     val scope = rememberCoroutineScope()
     var staElaborando by remember { mutableStateOf(false) }
     var messaggioEsito by remember { mutableStateOf("") }
@@ -288,7 +291,7 @@ fun DialogDettaglioEvento(evento: Evento, onDismiss: () -> Unit, onChiudi: () ->
                             onClick = {
                                 staElaborando = true
                                 scope.launch {
-                                    val ok = DatabaseMcs.rifiutaEvento(evento.id)
+                                    val ok = databaseViewModel.rifiutaEvento(evento.id)
                                     staElaborando = false; operazioneCompletata = true
                                     messaggioEsito = if (ok) "Evento scartato e rimosso." else "Errore."
                                 }
@@ -300,7 +303,7 @@ fun DialogDettaglioEvento(evento: Evento, onDismiss: () -> Unit, onChiudi: () ->
                             onClick = {
                                 staElaborando = true
                                 scope.launch {
-                                    val ok = DatabaseMcs.accettaEvento(evento.id)
+                                    val ok = databaseViewModel.accettaEvento(evento.id)
                                     staElaborando = false; operazioneCompletata = true
                                     messaggioEsito = if (ok) "Evento Pubblicato!" else "Errore."
                                 }

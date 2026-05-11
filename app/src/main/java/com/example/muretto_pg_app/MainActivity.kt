@@ -60,6 +60,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -90,16 +92,39 @@ class MainActivity : ComponentActivity() {
         insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         insetsController.hide(WindowInsetsCompat.Type.systemBars())
 
-        DatabaseMcs.inizializzaSessione()
-
         if (!isNotificationListenerPermissionGranted(this)) {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
 
         setContent {
             MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
-                    AppNavigation()
+                val databaseViewModel: DatabaseViewModel = viewModel()
+                
+                LaunchedEffect(Unit) {
+                    databaseViewModel.inizializzaSessione()
+                }
+
+                CompositionLocalProvider(LocalDatabaseViewModel provides databaseViewModel) {
+                    Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+                        AppNavigation()
+                        
+                        // Error Dialog
+                        val uiState by databaseViewModel.uiState.collectAsState()
+                        uiState.error?.let { errorMsg ->
+                            AlertDialog(
+                                onDismissRequest = { databaseViewModel.clearError() },
+                                containerColor = Tema.coloreSfondoCard,
+                                title = { Text("ATTENZIONE", color = Tema.coloreTesto) },
+                                text = { Text(errorMsg, color = Tema.coloreTestoSecondario) },
+                                confirmButton = {
+                                    Button(
+                                        colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
+                                        onClick = { databaseViewModel.clearError() }
+                                    ) { Text("OK", color = Color.White) }
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -114,6 +139,7 @@ fun isNotificationListenerPermissionGranted(context: Context): Boolean {
 
 @Composable
 fun AppNavigation() {
+    val databaseViewModel = LocalDatabaseViewModel.current
     val navController = rememberNavController()
     val context = LocalContext.current
     val MioFont = FontFamily(Font(R.font.komtit__))
@@ -228,7 +254,8 @@ fun AppNavigation() {
 
 @Composable
 fun SchermataHome(onNavigate: (String) -> Unit) {
-    val numNotifiche = DatabaseMcs.richiesteInAttesa.size + DatabaseMcs.eventiInAttesa.size
+    val databaseViewModel = LocalDatabaseViewModel.current
+    val numNotifiche = databaseViewModel.richiesteInAttesa.size + databaseViewModel.eventiInAttesa.size
     val scope = rememberCoroutineScope()
     var mostraMenuAdmin by remember { mutableStateOf(false) }
 
@@ -240,11 +267,11 @@ fun SchermataHome(onNavigate: (String) -> Unit) {
                 Image(
                     painter = painterResource(id = R.drawable.login_logo), contentDescription = "Profilo",
                     modifier = Modifier.size(45.dp).clip(CircleShape).clickable {
-                        if (DatabaseMcs.ruoloAttuale != RuoloUtente.NESSUNO) mostraMenuAdmin = true
+                        if (databaseViewModel.ruoloAttuale != RuoloUtente.NESSUNO) mostraMenuAdmin = true
                         else onNavigate("login")
                     }
                 )
-                if (numNotifiche > 0 && DatabaseMcs.isAdmin) {
+                if (numNotifiche > 0 && databaseViewModel.isAdmin) {
                     Box(
                         modifier = Modifier.size(16.dp).background(Color.Red, CircleShape).align(Alignment.TopEnd),
                         contentAlignment = Alignment.Center
@@ -333,7 +360,8 @@ fun SchermataHome(onNavigate: (String) -> Unit) {
 
 @Composable
 fun MenuLaterale(onNavigate: (String) -> Unit, onChiudi: () -> Unit, scope: kotlinx.coroutines.CoroutineScope) {
-    val numNotifiche = DatabaseMcs.richiesteInAttesa.size + DatabaseMcs.eventiInAttesa.size
+    val databaseViewModel = LocalDatabaseViewModel.current
+    val numNotifiche = databaseViewModel.richiesteInAttesa.size + databaseViewModel.eventiInAttesa.size
     Column(
         modifier = Modifier.fillMaxHeight().fillMaxWidth(0.7f).background(Tema.coloreSfondoCard)
             .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp))
@@ -343,7 +371,7 @@ fun MenuLaterale(onNavigate: (String) -> Unit, onChiudi: () -> Unit, scope: kotl
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Image(painter = painterResource(id = R.drawable.login_logo), contentDescription = null, modifier = Modifier.size(70.dp).clip(CircleShape).background(Color.White).padding(10.dp))
                 Spacer(modifier = Modifier.height(8.dp))
-                val etichettaPanel = when (DatabaseMcs.ruoloAttuale) {
+                val etichettaPanel = when (databaseViewModel.ruoloAttuale) {
                     RuoloUtente.ADMIN -> "ADMIN PANEL"
                     RuoloUtente.ORGANIZZATORE_MURETTO -> "ORG. MURETTO"
                     RuoloUtente.ORGANIZZATORE_EVENTI -> "ORG. EVENTI"
@@ -351,22 +379,22 @@ fun MenuLaterale(onNavigate: (String) -> Unit, onChiudi: () -> Unit, scope: kotl
                     else -> "PANNELLO"
                 }
                 Text(etichettaPanel, color = Color.White, fontSize = 20.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
-                DatabaseMcs.profiloAttuale?.nome_arte?.let { Text(it, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp) }
+                databaseViewModel.profiloAttuale?.nome_arte?.let { Text(it, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp) }
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (DatabaseMcs.isAdmin || DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO) {
+        if (databaseViewModel.isAdmin || databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO) {
             MenuItem(titolo = "GESTIONE MC'S", icona = R.drawable.ic_music_note) { onNavigate("gestione_mcs") }
         }
-        if (DatabaseMcs.isAdmin || DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO || DatabaseMcs.ruoloAttuale == RuoloUtente.ORGANIZZATORE_EVENTI) {
+        if (databaseViewModel.isAdmin || databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO || databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_EVENTI) {
             MenuItem(titolo = "AGGIUNGI EVENTO", icona = R.drawable.ic_music_note) { onNavigate("aggiungi_evento") }
         }
         // SE L'UTENTE È LOGGATO, MOSTRA LE TRASFERTE PREFERITE
-        if (DatabaseMcs.ruoloAttuale != RuoloUtente.NESSUNO) {
+        if (databaseViewModel.ruoloAttuale != RuoloUtente.NESSUNO) {
             MenuItem(titolo = "TRASFERTE PREFERITE", icona = R.drawable.ic_music_note) { onNavigate("trasferte_preferite") }
         }
-        if (DatabaseMcs.isAdmin) {
+        if (databaseViewModel.isAdmin) {
             Box(modifier = Modifier.fillMaxWidth()) {
                 MenuItem(titolo = "NOTIFICHE", icona = R.drawable.ic_music_note) { onNavigate("notifiche") }
                 if (numNotifiche > 0) {
@@ -380,11 +408,11 @@ fun MenuLaterale(onNavigate: (String) -> Unit, onChiudi: () -> Unit, scope: kotl
         MenuItem(titolo = "LOGOUT", icona = R.drawable.versus, coloreTesto = Color.Red) {
             onChiudi()
             scope.launch {
-                DatabaseMcs.supabase.auth.clearSession()
-                DatabaseMcs.isAdmin = false
-                DatabaseMcs.ruoloAttuale = RuoloUtente.NESSUNO
-                DatabaseMcs.profiloAttuale = null
-                DatabaseMcs.eventiPreferiti.clear()
+                databaseViewModel.supabase.auth.clearSession()
+                databaseViewModel.isAdmin = false
+                databaseViewModel.ruoloAttuale = RuoloUtente.NESSUNO
+                databaseViewModel.profiloAttuale = null
+                databaseViewModel.eventiPreferiti.clear()
             }
         }
         Spacer(modifier = Modifier.height(40.dp))

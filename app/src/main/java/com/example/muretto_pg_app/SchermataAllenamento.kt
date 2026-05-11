@@ -42,6 +42,7 @@ import java.util.UUID
 
 @Composable
 fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (String) -> Unit) {
+    val databaseViewModel = LocalDatabaseViewModel.current
     val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
 
     // Usiamo rememberSaveable così l'app ricorda in che tab eravamo anche se cambiamo pagina
@@ -50,7 +51,7 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
     // Sincronizza l'allenamento col Cloud all'avvio (SENZA resettare le scelte!)
     LaunchedEffect(Tema.isBarreFaul) {
         val murettoId = if (Tema.isBarreFaul) "barre_faul" else "muretto_pg"
-        DatabaseMcs.fetchMcsDalCloud(murettoId)
+        databaseViewModel.fetchMcsDalCloud(murettoId)
     }
 
     // Gestione intelligente del tasto "Indietro" del telefono
@@ -106,13 +107,14 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
 
 @Composable
 fun SezioneMatchmaking(font: FontFamily) {
+    val databaseViewModel = LocalDatabaseViewModel.current
     var mostraDialogAggiunta by remember { mutableStateOf(false) }
     var nomeNuovoMc by remember { mutableStateOf("") }
 
     // rememberSaveable per non perdere la ricerca quando si torna indietro
     var testoRicerca by rememberSaveable { mutableStateOf("") }
 
-    val listaFiltrata = DatabaseMcs.tuttiMcsCloud.filter { it.nome.contains(testoRicerca, ignoreCase = true) }
+    val listaFiltrata = databaseViewModel.tuttiMcsCloud.filter { it.nome.contains(testoRicerca, ignoreCase = true) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (!GestoreAllenamento.staMostrandoRisultati) {
@@ -126,7 +128,7 @@ fun SezioneMatchmaking(font: FontFamily) {
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Tema.colorePrincipale, unfocusedBorderColor = Color.DarkGray, focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto), singleLine = true, shape = RoundedCornerShape(12.dp)
                 )
 
-                if (DatabaseMcs.staCaricando.value) {
+                if (databaseViewModel.staCaricando.value) {
                     Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = Tema.colorePrincipale)
                     }
@@ -153,7 +155,7 @@ fun SezioneMatchmaking(font: FontFamily) {
 
             Button(
                 onClick = {
-                    GestoreAllenamento.generaMatchmaking()
+                    GestoreAllenamento.generaMatchmaking(databaseViewModel.tuttiMcsCloud)
                     GestoreAllenamento.staMostrandoRisultati = true
                 },
                 enabled = GestoreAllenamento.mcsSelezionatiIds.size >= 2,
@@ -189,7 +191,7 @@ fun SezioneMatchmaking(font: FontFamily) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Button(
-                        onClick = { GestoreAllenamento.generaMatchmaking() },
+                        onClick = { GestoreAllenamento.generaMatchmaking(databaseViewModel.tuttiMcsCloud) },
                         colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.height(55.dp).weight(1f),
@@ -225,7 +227,7 @@ fun SezioneMatchmaking(font: FontFamily) {
                                     text = { Text(modo.etichetta, color = Tema.coloreTesto) },
                                     onClick = {
                                         GestoreAllenamento.modoAttuale = modo
-                                        GestoreAllenamento.generaMatchmaking()
+                                        GestoreAllenamento.generaMatchmaking(databaseViewModel.tuttiMcsCloud)
                                         menuAperto = false
                                     }
                                 )
@@ -253,12 +255,12 @@ fun SezioneMatchmaking(font: FontFamily) {
                     onClick = {
                         if (nomeNuovoMc.isNotBlank()) {
                             val nome = nomeNuovoMc.trim()
-                            val esistenteInLista = DatabaseMcs.tuttiMcsCloud.find { it.nome.equals(nome, ignoreCase = true) }
+                            val esistenteInLista = databaseViewModel.tuttiMcsCloud.find { it.nome.equals(nome, ignoreCase = true) }
 
                             if (esistenteInLista == null) {
-                                val mcGlobale = DatabaseMcs.cercaMcGlobale(nome)
+                                val mcGlobale = databaseViewModel.cercaMcGlobale(nome)
                                 val nuovoMc = mcGlobale ?: Freestyler(System.currentTimeMillis().toString(), nome, "", if (Tema.isBarreFaul) "barre_faul" else "muretto_pg")
-                                DatabaseMcs.tuttiMcsCloud.add(nuovoMc)
+                                databaseViewModel.tuttiMcsCloud.add(nuovoMc)
                                 GestoreAllenamento.mcsSelezionatiIds = GestoreAllenamento.mcsSelezionatiIds + nuovoMc.id
                             } else {
                                 GestoreAllenamento.mcsSelezionatiIds = GestoreAllenamento.mcsSelezionatiIds + esistenteInLista.id

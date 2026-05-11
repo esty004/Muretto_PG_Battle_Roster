@@ -49,6 +49,7 @@ import org.json.JSONArray
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
+    val databaseViewModel = LocalDatabaseViewModel.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val MioFont = FontFamily(Font(R.font.komtit__))
@@ -275,7 +276,7 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
                         val bytesImmagine = imageUri?.let { uri -> context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }
 
                         // INVIA EVENTO CON SCALA FISSA A 1.0f
-                        val successo = DatabaseMcs.inserisciNuovoEvento(
+                        val successo = databaseViewModel.inserisciNuovoEvento(
                             titolo = titolo.trim(), locationNome = indirizzoTesto.trim(), lat = pinMarker!!.latitude, lng = pinMarker!!.longitude,
                             dataOra = "$dataSelezionata, $oraSelezionata", tipo = tipo, prezzo = prezzo.trim(), scalaPin = 1.0f, imageBytes = bytesImmagine
                         )

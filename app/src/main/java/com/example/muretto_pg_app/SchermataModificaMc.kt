@@ -31,11 +31,12 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SchermataModificaMc(mcId: String, onTornaIndietro: () -> Unit) {
+    val databaseViewModel = LocalDatabaseViewModel.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val MioFont = FontFamily(Font(R.font.komtit__))
 
-    val mcOriginale = DatabaseMcs.tuttiMcsCloud.find { it.id == mcId }
+    val mcOriginale = databaseViewModel.tuttiMcsCloud.find { it.id == mcId }
     if (mcOriginale == null) {
         onTornaIndietro()
         return
@@ -129,8 +130,8 @@ fun SchermataModificaMc(mcId: String, onTornaIndietro: () -> Unit) {
                     staCaricando = true
                     scope.launch {
                         val bytesImmagine = nuovaImageUri?.let { uri -> context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }
-                        DatabaseMcs.aggiornaMc(mcId, nome.trim(), bytesImmagine)
-                        DatabaseMcs.fetchMcsDalCloud(mcOriginale.muretto) // Ricarica la lista per aggiornarla
+                        databaseViewModel.aggiornaMc(mcId, nome.trim(), bytesImmagine)
+                        databaseViewModel.fetchMcsDalCloud(mcOriginale.muretto) // Ricarica la lista per aggiornarla
                         staCaricando = false
                         onTornaIndietro()
                     }
@@ -153,8 +154,8 @@ fun SchermataModificaMc(mcId: String, onTornaIndietro: () -> Unit) {
                             mostraDialogElimina = false
                             staCaricando = true
                             scope.launch {
-                                DatabaseMcs.eliminaMc(mcId)
-                                DatabaseMcs.fetchMcsDalCloud(mcOriginale.muretto)
+                                databaseViewModel.eliminaMc(mcId)
+                                databaseViewModel.fetchMcsDalCloud(mcOriginale.muretto)
                                 staCaricando = false
                                 onTornaIndietro()
                             }

@@ -32,6 +32,7 @@ fun SchermataOttavi(
     onVaiAiQuarti: () -> Unit,
     onRoundClick: (String) -> Unit
 ) {
+    val databaseViewModel = LocalDatabaseViewModel.current
     val MioFont = FontFamily(Font(R.font.komtit__))
     val context = LocalContext.current
     val listaRounds = GestoreBattle.roundsAttuali
@@ -118,7 +119,7 @@ fun SchermataOttavi(
                         val nome = nomeNuovoMc.trim()
 
                         // --- MECCANICA GLOBALE (Aggiunta in corsa) ---
-                        val mcGlobale = DatabaseMcs.cercaMcGlobale(nome)
+                        val mcGlobale = databaseViewModel.cercaMcGlobale(nome)
                         val nuovoMembro = mcGlobale ?: Freestyler(UUID.randomUUID().toString(), nome, "", if (Tema.isBarreFaul) "barre_faul" else "muretto_pg")
 
                         val roundAperti = GestoreBattle.roundsAttuali.filter { !it.completato }

@@ -25,12 +25,13 @@ fun SchermataLogin(
     onTornaIndietro: () -> Unit,
     onVaiARegistrazione: () -> Unit
 ) {
+    val databaseViewModel = LocalDatabaseViewModel.current
     val MioFontKomtit = FontFamily(Font(R.font.komtit__))
     val scope = rememberCoroutineScope()
 
     // Se è già loggato mostra il pannello logout
-    if (DatabaseMcs.isAdmin || DatabaseMcs.ruoloAttuale != RuoloUtente.NESSUNO) {
-        val etichettaRuolo = when (DatabaseMcs.ruoloAttuale) {
+    if (databaseViewModel.isAdmin || databaseViewModel.ruoloAttuale != RuoloUtente.NESSUNO) {
+        val etichettaRuolo = when (databaseViewModel.ruoloAttuale) {
             RuoloUtente.ADMIN -> "ADMIN"
             RuoloUtente.ORGANIZZATORE_MURETTO -> "ORG. MURETTO"
             RuoloUtente.ORGANIZZATORE_EVENTI -> "ORG. EVENTI"
@@ -54,7 +55,7 @@ fun SchermataLogin(
                 fontFamily = MioFontKomtit,
                 modifier = Modifier.padding(top = 4.dp)
             )
-            DatabaseMcs.profiloAttuale?.let {
+            databaseViewModel.profiloAttuale?.let {
                 Text(
                     "${it.nome_arte}",
                     color = Color.Gray,
@@ -66,10 +67,10 @@ fun SchermataLogin(
             Button(
                 onClick = {
                     scope.launch {
-                        DatabaseMcs.supabase.auth.clearSession()
-                        DatabaseMcs.isAdmin = false
-                        DatabaseMcs.ruoloAttuale = RuoloUtente.NESSUNO
-                        DatabaseMcs.profiloAttuale = null
+                        databaseViewModel.supabase.auth.clearSession()
+                        databaseViewModel.isAdmin = false
+                        databaseViewModel.ruoloAttuale = RuoloUtente.NESSUNO
+                        databaseViewModel.profiloAttuale = null
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
@@ -164,11 +165,11 @@ fun SchermataLogin(
                 errore = ""
                 scope.launch {
                     try {
-                        DatabaseMcs.supabase.auth.signInWith(Email) {
+                        databaseViewModel.supabase.auth.signInWith(Email) {
                             this.email = email.trim()
                             this.password = password
                         }
-                        DatabaseMcs.controllaRuolo()
+                        databaseViewModel.controllaRuolo()
                         isLoading = false
                         onLoginSuccess()
                     } catch (e: Exception) {

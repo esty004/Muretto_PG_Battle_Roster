@@ -24,7 +24,7 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -60,7 +60,7 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:gotrue-kt:2.6.1")
     implementation("io.github.jan-tennert.supabase:postgrest-kt:2.6.1")
     implementation("io.github.jan-tennert.supabase:storage-kt:2.6.1")
-    implementation("io.ktor:ktor-client-okhttp:2.3.10")
+    implementation("io.ktor:ktor-client-okhttp:2.3.13")
     // Kotlinx Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     testImplementation(libs.junit)

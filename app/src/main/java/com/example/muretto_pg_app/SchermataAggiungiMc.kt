@@ -28,6 +28,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SchermataAggiungiMc(onTornaIndietro: () -> Unit) {
+    val databaseViewModel = LocalDatabaseViewModel.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val MioFont = FontFamily(Font(R.font.komtit__))
@@ -139,7 +140,7 @@ fun SchermataAggiungiMc(onTornaIndietro: () -> Unit) {
                             context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                         }
 
-                        val successo = DatabaseMcs.inserisciNuovoMc(nomeMc.trim(), murettoSelezionato, bytesImmagine)
+                        val successo = databaseViewModel.inserisciNuovoMc(nomeMc.trim(), murettoSelezionato, bytesImmagine)
 
                         staCaricando = false
                         if (successo) {
@@ -147,7 +148,7 @@ fun SchermataAggiungiMc(onTornaIndietro: () -> Unit) {
                             nomeMc = ""
                             imageUri = null
                             // Aggiorna la lista globale per riflettere le modifiche
-                            DatabaseMcs.fetchMcsDalCloud(if (Tema.isBarreFaul) "barre_faul" else "muretto_pg")
+                            databaseViewModel.fetchMcsDalCloud(if (Tema.isBarreFaul) "barre_faul" else "muretto_pg")
                         } else {
                             messaggioEsito = "Errore durante il caricamento."
                         }

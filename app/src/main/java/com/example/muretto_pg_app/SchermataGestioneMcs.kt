@@ -22,17 +22,18 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun SchermataGestioneMcs(onTornaIndietro: () -> Unit, onModificaMc: (String) -> Unit, onAggiungiMc: () -> Unit) {
+    val databaseViewModel = LocalDatabaseViewModel.current
     val MioFont = FontFamily(Font(R.font.komtit__))
 
     // Se è admin mostriamo le tab, se è organizzatore mostriamo solo il suo muretto
-    val isAdmin = DatabaseMcs.isAdmin
-    val murettoOrganizzatore = DatabaseMcs.profiloAttuale?.muretto
+    val isAdmin = databaseViewModel.isAdmin
+    val murettoOrganizzatore = databaseViewModel.profiloAttuale?.muretto
 
     var tabSelezionata by remember { mutableIntStateOf(if (!isAdmin && murettoOrganizzatore == "barre_faul") 1 else 0) }
 
     LaunchedEffect(tabSelezionata) {
         val murettoId = if (tabSelezionata == 0) "muretto_pg" else "barre_faul"
-        DatabaseMcs.fetchMcsDalCloud(murettoId)
+        databaseViewModel.fetchMcsDalCloud(murettoId)
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
@@ -56,7 +57,7 @@ fun SchermataGestioneMcs(onTornaIndietro: () -> Unit, onModificaMc: (String) -> 
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                if (DatabaseMcs.staCaricando.value) {
+                if (databaseViewModel.staCaricando.value) {
                     Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Tema.colorePrincipale) }
                 } else {
                     LazyVerticalGrid(
@@ -66,7 +67,7 @@ fun SchermataGestioneMcs(onTornaIndietro: () -> Unit, onModificaMc: (String) -> 
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         contentPadding = PaddingValues(bottom = 100.dp)
                     ) {
-                        items(DatabaseMcs.listaMcsCloud) { mc ->
+                        items(databaseViewModel.listaMcsCloud) { mc ->
                             CardFreestylerTorneo(freestyler = mc, isSelezionato = false) {
                                 onModificaMc(mc.id)
                             }

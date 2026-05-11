@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SchermataRegistrazione(onTornaIndietro: () -> Unit) {
+    val databaseViewModel = LocalDatabaseViewModel.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val MioFont = FontFamily(Font(R.font.komtit__))
@@ -169,9 +170,9 @@ fun SchermataRegistrazione(onTornaIndietro: () -> Unit) {
                             } else null
 
                             val successo = if (tipoDatabase == "rapper") {
-                                DatabaseMcs.registraRapperDiretto(nome.trim(), cognome.trim(), nomeArte.trim(), email.trim(), password.trim(), telefono.trim())
+                                databaseViewModel.registraRapperDiretto(nome.trim(), cognome.trim(), nomeArte.trim(), email.trim(), password.trim(), telefono.trim())
                             } else {
-                                DatabaseMcs.inviaRichiestaAccount(nome.trim(), cognome.trim(), nomeArte.trim(), email.trim(), password.trim(), telefono.trim(), tipoDatabase, murettoDatabase)
+                                databaseViewModel.inviaRichiestaAccount(nome.trim(), cognome.trim(), nomeArte.trim(), email.trim(), password.trim(), telefono.trim(), tipoDatabase, murettoDatabase)
                             }
 
                             staCaricando = false

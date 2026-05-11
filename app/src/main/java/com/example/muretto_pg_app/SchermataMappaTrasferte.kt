@@ -48,13 +48,14 @@ import kotlin.math.min
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SchermataMappaTrasferte(onTornaIndietro: () -> Unit) {
+    val databaseViewModel = LocalDatabaseViewModel.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val italyBounds = BoundingBox(47.1, 18.3, 35.5, 6.6)
     val centroMappa = GeoPoint(42.764, 12.244)
     val MioFont = FontFamily(Font(R.font.komtit__))
 
-    val eventi = DatabaseMcs.eventiApprovati
+    val eventi = databaseViewModel.eventiApprovati
     var eventoSelezionato by remember { mutableStateOf<Evento?>(null) }
 
     val sheetState = rememberModalBottomSheetState()

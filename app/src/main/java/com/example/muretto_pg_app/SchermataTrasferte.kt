@@ -33,17 +33,18 @@ import coil.compose.AsyncImage
 
 @Composable
 fun SchermataTrasferte(onTornaIndietro: () -> Unit, onVaiAllaMappa: () -> Unit, soloPreferiti: Boolean = false) {
+    val databaseViewModel = LocalDatabaseViewModel.current
     val MioFont = FontFamily(Font(R.font.komtit__))
 
     // Filtro la lista in base a cosa stiamo visualizzando
     val eventi = if (soloPreferiti) {
-        DatabaseMcs.eventiApprovati.filter { DatabaseMcs.eventiPreferiti.contains(it.id) }
+        databaseViewModel.eventiApprovati.filter { databaseViewModel.eventiPreferiti.contains(it.id) }
     } else {
-        DatabaseMcs.eventiApprovati
+        databaseViewModel.eventiApprovati
     }
 
     LaunchedEffect(Unit) {
-        DatabaseMcs.fetchEventiApprovati()
+        databaseViewModel.fetchEventiApprovati()
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
@@ -134,8 +135,9 @@ fun SchermataTrasferte(onTornaIndietro: () -> Unit, onVaiAllaMappa: () -> Unit, 
 
 @Composable
 fun CardPostEvento(evento: Evento) {
-    val isLoggato = DatabaseMcs.ruoloAttuale != RuoloUtente.NESSUNO
-    val isPreferito = DatabaseMcs.eventiPreferiti.contains(evento.id)
+    val databaseViewModel = LocalDatabaseViewModel.current
+    val isLoggato = databaseViewModel.ruoloAttuale != RuoloUtente.NESSUNO
+    val isPreferito = databaseViewModel.eventiPreferiti.contains(evento.id)
 
     Card(
         modifier = Modifier
@@ -162,7 +164,7 @@ fun CardPostEvento(evento: Evento) {
                 // STELLINA PREFERITI (Visibile solo se loggato)
                 if (isLoggato) {
                     IconButton(
-                        onClick = { DatabaseMcs.togglePreferito(evento.id) },
+                        onClick = { databaseViewModel.togglePreferito(evento.id) },
                         modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
                     ) {
                         Icon(

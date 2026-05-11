@@ -30,6 +30,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.plus
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import android.util.Log
 import kotlinx.serialization.Serializable
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
@@ -124,7 +133,15 @@ data class EventoPreferito(
 
 // ─── DATABASE ─────────────────────────────────────────────────────────────────
 
-object DatabaseMcs {
+data class DatabaseUiState(
+    val error: String? = null
+)
+
+val LocalDatabaseViewModel = staticCompositionLocalOf<DatabaseViewModel> {
+    error("No DatabaseViewModel provided")
+}
+
+class DatabaseViewModel : ViewModel() {
     private val supabaseUrl = "https://bvzwnuxljhbxeplhbjze.supabase.co"
     private val supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2endudXhsamhieGVwbGhianplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNzUwNjQsImV4cCI6MjA5Mjk1MTA2NH0.4d9ZS_87F7LcelnJMBAdbDkbXOeE2xQ7rGSehFHtMs8"
 
@@ -132,6 +149,21 @@ object DatabaseMcs {
         install(Postgrest)
         install(Auth)
         install(Storage)
+    }
+
+    private val _uiState = MutableStateFlow(DatabaseUiState())
+    val uiState: StateFlow<DatabaseUiState> = _uiState.asStateFlow()
+
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Log.e("DatabaseViewModel", "Errore critico DB: ${throwable.message}", throwable)
+        _uiState.update { it.copy(error = "Si è verificato un errore di connessione. Riprova più tardi.") }
+        staCaricando.value = false
+    }
+
+    private val safeScope = viewModelScope + exceptionHandler
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
     }
 
     var listaMcsCloud = mutableStateListOf<Freestyler>()
@@ -149,7 +181,7 @@ object DatabaseMcs {
     var eventiPreferiti = mutableStateListOf<String>() // Conterrà gli ID degli eventi preferiti dell'utente
 
     fun inizializzaSessione() {
-        CoroutineScope(Dispatchers.IO).launch {
+        safeScope.launch(Dispatchers.IO) {
             try {
                 kotlinx.coroutines.delay(500)
                 val user = supabase.auth.currentUserOrNull()
@@ -157,7 +189,7 @@ object DatabaseMcs {
                     controllaRuolo()
                     fetchEventiPreferiti()
                 }
-            } catch (e: Exception) { e.printStackTrace() }
+            } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore sessione", e) }
         }
     }
 
@@ -207,11 +239,11 @@ object DatabaseMcs {
         }
     }
 
-    fun controllaAdmin() { CoroutineScope(Dispatchers.IO).launch { controllaRuolo() } }
+    fun controllaAdmin() { safeScope.launch(Dispatchers.IO) { controllaRuolo() } }
 
     fun fetchMcsDalCloud(nomeMuretto: String) {
         staCaricando.value = true
-        CoroutineScope(Dispatchers.IO).launch {
+        safeScope.launch(Dispatchers.IO) {
             try {
                 val scaricati = supabase.postgrest["mcs"].select().decodeList<Freestyler>()
                 withContext(Dispatchers.Main) {
@@ -312,7 +344,7 @@ object DatabaseMcs {
             supabase.postgrest["eventi"].insert(nuovoEvento)
             true
         } catch (e: Exception) {
-            android.util.Log.e("ERRORE_SUPABASE", "Il database dice: ${e.message}", e)
+            Log.e("ERRORE_SUPABASE", "Il database dice: ${e.message}", e)
             false
         }
     }
@@ -376,44 +408,44 @@ object DatabaseMcs {
     }
 
     fun fetchRichiesteInAttesa() {
-        CoroutineScope(Dispatchers.IO).launch {
+        safeScope.launch(Dispatchers.IO) {
             try {
                 val richieste = supabase.postgrest["richieste_account"].select { filter { eq("stato", "in_attesa") } }.decodeList<RichiestaAccount>()
                 withContext(Dispatchers.Main) {
                     richiesteInAttesa.clear()
                     richiesteInAttesa.addAll(richieste)
                 }
-            } catch (e: Exception) { }
+            } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore richieste", e) }
         }
     }
 
     fun fetchEventiInAttesa() {
-        CoroutineScope(Dispatchers.IO).launch {
+        safeScope.launch(Dispatchers.IO) {
             try {
                 val eventi = supabase.postgrest["eventi"].select { filter { eq("stato", "in_attesa") } }.decodeList<Evento>()
                 withContext(Dispatchers.Main) {
                     eventiInAttesa.clear()
                     eventiInAttesa.addAll(eventi)
                 }
-            } catch (e: Exception) { }
+            } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore eventi in attesa", e) }
         }
     }
 
     fun fetchEventiApprovati() {
-        CoroutineScope(Dispatchers.IO).launch {
+        safeScope.launch(Dispatchers.IO) {
             try {
                 val eventi = supabase.postgrest["eventi"].select { filter { eq("stato", "approvato") } }.decodeList<Evento>()
                 withContext(Dispatchers.Main) {
                     eventiApprovati.clear()
                     eventiApprovati.addAll(eventi)
                 }
-            } catch (e: Exception) { e.printStackTrace() }
+            } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore eventi approvati", e) }
         }
     }
 
     // NUOVE FUNZIONI PER I PREFERITI
     fun fetchEventiPreferiti() {
-        CoroutineScope(Dispatchers.IO).launch {
+        safeScope.launch(Dispatchers.IO) {
             try {
                 val user = supabase.auth.currentUserOrNull() ?: return@launch
                 val preferiti = supabase.postgrest["eventi_preferiti"].select { filter { eq("user_id", user.id) } }.decodeList<EventoPreferito>()
@@ -421,12 +453,12 @@ object DatabaseMcs {
                     eventiPreferiti.clear()
                     eventiPreferiti.addAll(preferiti.map { it.evento_id })
                 }
-            } catch (e: Exception) { e.printStackTrace() }
+            } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore preferiti", e) }
         }
     }
 
     fun togglePreferito(eventoId: String) {
-        CoroutineScope(Dispatchers.IO).launch {
+        safeScope.launch(Dispatchers.IO) {
             try {
                 val user = supabase.auth.currentUserOrNull() ?: return@launch
                 if (eventiPreferiti.contains(eventoId)) {
@@ -436,7 +468,7 @@ object DatabaseMcs {
                     supabase.postgrest["eventi_preferiti"].insert(EventoPreferito(user.id, eventoId))
                     withContext(Dispatchers.Main) { eventiPreferiti.add(eventoId) }
                 }
-            } catch (e: Exception) { e.printStackTrace() }
+            } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore toggle preferito", e) }
         }
     }
 
@@ -556,9 +588,9 @@ object GestoreAllenamento {
     var modoAttuale by mutableStateOf(ModoMatchmaking.UNO_VS_UNO)
     var staMostrandoRisultati by mutableStateOf(false)
 
-    fun generaMatchmaking() {
+    fun generaMatchmaking(tuttiMcs: List<Freestyler>) {
         // Filtriamo gli MC selezionati dal database globale
-        val selezionati = DatabaseMcs.tuttiMcsCloud.filter { mcsSelezionatiIds.contains(it.id) }.shuffled()
+        val selezionati = tuttiMcs.filter { mcsSelezionatiIds.contains(it.id) }.shuffled()
         if (selezionati.isEmpty()) return
 
         val nuoveBattle = mutableListOf<List<Freestyler>>()

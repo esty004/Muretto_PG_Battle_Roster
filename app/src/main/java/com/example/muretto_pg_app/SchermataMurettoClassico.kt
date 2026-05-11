@@ -50,6 +50,7 @@ fun SchermataMurettoClassico(
     onTornaAlMenu: () -> Unit,
     onIniziaBattle: () -> Unit
 ) {
+    val databaseViewModel = LocalDatabaseViewModel.current
     val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
     val focusManager = LocalFocusManager.current
     val is2v2 = tipoTorneo != TipoTorneo.SINGOLO
@@ -57,7 +58,7 @@ fun SchermataMurettoClassico(
     // --- AGGIORNAMENTO DATI DAL CLOUD ---
     LaunchedEffect(Tema.isBarreFaul) {
         val murettoId = if (Tema.isBarreFaul) "barre_faul" else "muretto_pg"
-        DatabaseMcs.fetchMcsDalCloud(murettoId)
+        databaseViewModel.fetchMcsDalCloud(murettoId)
     }
 
     var testoRicerca by remember { mutableStateOf("") }
@@ -70,7 +71,7 @@ fun SchermataMurettoClassico(
     var mostraNotepad by remember { mutableStateOf(false) }
     var testoNotepad by remember { mutableStateOf("") }
 
-    val listaFiltrata = DatabaseMcs.listaMcsCloud.filter { it.nome.contains(testoRicerca, ignoreCase = true) }
+    val listaFiltrata = databaseViewModel.listaMcsCloud.filter { it.nome.contains(testoRicerca, ignoreCase = true) }
 
     BackHandler(enabled = searchFocused || mostraNotepad) {
         if (mostraNotepad) mostraNotepad = false else focusManager.clearFocus()
@@ -111,7 +112,7 @@ fun SchermataMurettoClassico(
                 )
 
                 // Rotella di caricamento se Firestore sta ancora scaricando
-                if (DatabaseMcs.staCaricando.value) {
+                if (databaseViewModel.staCaricando.value) {
                     Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = Tema.colorePrincipale)
                     }
@@ -163,7 +164,7 @@ fun SchermataMurettoClassico(
             Button(
                 onClick = {
                     GestoreBattle.resetSelezione()
-                    val selezionatiVeri = mcsSelezionati.mapNotNull { id -> DatabaseMcs.listaMcsCloud.find { it.id == id } }
+                    val selezionatiVeri = mcsSelezionati.mapNotNull { id -> databaseViewModel.listaMcsCloud.find { it.id == id } }
                     GestoreBattle.mcsSelezionati.addAll(selezionatiVeri)
                     val minimoRichiesto = if (is2v2) 4 else 2
                     if (GestoreBattle.mcsSelezionati.size >= minimoRichiesto) onIniziaBattle()
@@ -198,14 +199,14 @@ fun SchermataMurettoClassico(
                                         val nomiDaProcessare = if (is2v2) line.split(Regex("(?i)\\s+e\\s+")).map { it.trim() }.filter { it.isNotEmpty() } else listOf(line)
 
                                         for (nome in nomiDaProcessare) {
-                                            val esistente = DatabaseMcs.listaMcsCloud.find { it.nome.equals(nome, ignoreCase = true) }
+                                            val esistente = databaseViewModel.listaMcsCloud.find { it.nome.equals(nome, ignoreCase = true) }
                                             if (esistente != null) {
                                                 nuoviIdSelezionati.add(esistente.id)
                                             } else {
                                                 // --- MECCANICA GLOBALE ---
-                                                val mcGlobale = DatabaseMcs.cercaMcGlobale(nome)
+                                                val mcGlobale = databaseViewModel.cercaMcGlobale(nome)
                                                 val nuovoMc = mcGlobale ?: Freestyler(UUID.randomUUID().toString(), nome, "", if (Tema.isBarreFaul) "barre_faul" else "muretto_pg")
-                                                DatabaseMcs.listaMcsCloud.add(nuovoMc)
+                                                databaseViewModel.listaMcsCloud.add(nuovoMc)
                                                 nuoviIdSelezionati.add(nuovoMc.id)
                                             }
                                         }
@@ -250,12 +251,12 @@ fun SchermataMurettoClassico(
                 Button(colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), onClick = {
                     if (nomeNuovoMc.isNotBlank()) {
                         val nome = nomeNuovoMc.trim()
-                        val esistenteInLista = DatabaseMcs.listaMcsCloud.find { it.nome.equals(nome, ignoreCase = true) }
+                        val esistenteInLista = databaseViewModel.listaMcsCloud.find { it.nome.equals(nome, ignoreCase = true) }
 
                         if (esistenteInLista == null) {
-                            val mcGlobale = DatabaseMcs.cercaMcGlobale(nome)
+                            val mcGlobale = databaseViewModel.cercaMcGlobale(nome)
                             val nuovoMc = mcGlobale ?: Freestyler(System.currentTimeMillis().toString(), nome, "", if (Tema.isBarreFaul) "barre_faul" else "muretto_pg")
-                            DatabaseMcs.listaMcsCloud.add(nuovoMc)
+                            databaseViewModel.listaMcsCloud.add(nuovoMc)
                         }
                         nomeNuovoMc = ""
                         mostraDialogAggiunta = false
