@@ -27,12 +27,13 @@ fun SchermataGestioneMcs(onTornaIndietro: () -> Unit, onModificaMc: (String) -> 
 
     // Se è admin mostriamo le tab, se è organizzatore mostriamo solo il suo muretto
     val isAdmin = databaseViewModel.isAdmin
-    val murettoOrganizzatore = databaseViewModel.profiloAttuale?.muretto
+    val murettoOrganizzatore = databaseViewModel.profiloAttuale?.muretto_id
 
     var tabSelezionata by remember { mutableIntStateOf(if (!isAdmin && murettoOrganizzatore == "barre_faul") 1 else 0) }
 
+    // SchermataGestioneMcs.kt
     LaunchedEffect(tabSelezionata) {
-        val murettoId = if (tabSelezionata == 0) "muretto_pg" else "barre_faul"
+        val murettoId = if (tabSelezionata == 0) "09fbe1d3-0022-41b8-ba4b-edc887c145a2" else "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e"
         databaseViewModel.fetchMcsDalCloud(murettoId)
     }
 

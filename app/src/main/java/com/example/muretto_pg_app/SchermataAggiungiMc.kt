@@ -34,7 +34,7 @@ fun SchermataAggiungiMc(onTornaIndietro: () -> Unit) {
     val MioFont = FontFamily(Font(R.font.komtit__))
 
     var nomeMc by remember { mutableStateOf("") }
-    var murettoSelezionato by remember { mutableStateOf("muretto_pg") }
+    var murettoSelezionatoId by remember { mutableStateOf("09fbe1d3-0022-41b8-ba4b-edc887c145a2") } // 1 = Muretto PG, 2 = Barre Faul
     var imageUri by remember { mutableStateOf<Uri?>(null) }
 
     var staCaricando by remember { mutableStateOf(false) }
@@ -103,16 +103,16 @@ fun SchermataAggiungiMc(onTornaIndietro: () -> Unit) {
             Text("A quale Muretto appartiene?", color = Tema.coloreTesto, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
             Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Button(
-                    onClick = { murettoSelezionato = "muretto_pg" },
+                    onClick = { murettoSelezionatoId = "09fbe1d3-0022-41b8-ba4b-edc887c145a2" }, // PG,
                     modifier = Modifier.weight(1f).height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (murettoSelezionato == "muretto_pg") Color(0xFFD32F2F) else Color.DarkGray),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (murettoSelezionatoId == "09fbe1d3-0022-41b8-ba4b-edc887c145a2") Color(0xFFD32F2F) else Color.DarkGray),
                     shape = RoundedCornerShape(8.dp)
                 ) { Text("Muretto PG", color = Color.White) }
 
                 Button(
-                    onClick = { murettoSelezionato = "barre_faul" },
+                    onClick = { murettoSelezionatoId = "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e" },
                     modifier = Modifier.weight(1f).height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (murettoSelezionato == "barre_faul") Color(0xFF1E88E5) else Color.DarkGray),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (murettoSelezionatoId == "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e") Color(0xFF1E88E5) else Color.DarkGray),
                     shape = RoundedCornerShape(8.dp)
                 ) { Text("Barre Faul", color = Color.White) }
             }
@@ -140,15 +140,14 @@ fun SchermataAggiungiMc(onTornaIndietro: () -> Unit) {
                             context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                         }
 
-                        val successo = databaseViewModel.inserisciNuovoMc(nomeMc.trim(), murettoSelezionato, bytesImmagine)
-
+                        val successo = databaseViewModel.inserisciNuovoMc(nomeMc.trim(), murettoSelezionatoId, bytesImmagine)
                         staCaricando = false
                         if (successo) {
                             messaggioEsito = "Freestyler aggiunto con successo!"
                             nomeMc = ""
                             imageUri = null
-                            // Aggiorna la lista globale per riflettere le modifiche
-                            databaseViewModel.fetchMcsDalCloud(if (Tema.isBarreFaul) "barre_faul" else "muretto_pg")
+                            // Aggiorna la lista globale usando l'ID numerico
+                            databaseViewModel.fetchMcsDalCloud(if (Tema.isBarreFaul) "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e" else "09fbe1d3-0022-41b8-ba4b-edc887c145a2")
                         } else {
                             messaggioEsito = "Errore durante il caricamento."
                         }

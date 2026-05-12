@@ -2,6 +2,9 @@ package com.example.muretto_pg_app
 
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
+import android.util.Base64
+import javax.crypto.Cipher
+import javax.crypto.spec.SecretKeySpec
 import io.ktor.http.contentType
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
@@ -62,6 +65,7 @@ import org.json.JSONObject
 
 // ─── TEMA E RUOLI ─────────────────────────────────────────────────────────────
 
+// Inseriscilo nel file Modelli.kt
 object Tema {
     var isBarreFaul by mutableStateOf(false)
 
@@ -77,6 +81,14 @@ object Tema {
         } else {
             Brush.horizontalGradient(colors = listOf(Color(0xFF3A0000), Color(0xFF00003A)))
         }
+
+    // --- NUOVI SFONDI DINAMICI ---
+
+    // Lo sfondo generico per le schermate interne (Allenamento, Tornei, Gestione)
+    val sfondoGenerale: Int get() = if (isBarreFaul) R.drawable.sfondo_barre_faul else R.drawable.sfondo_muretto_classico
+
+    // Lo sfondo specifico per la schermata di Login/Registrazione
+    val sfondoIniziale: Int get() = if (isBarreFaul) R.drawable.sfondo_schermata_iniziale_barre_faul else R.drawable.sfondo_muretto_classico
 }
 
 enum class RuoloUtente { NESSUNO, ADMIN, ORGANIZZATORE_MURETTO, ORGANIZZATORE_EVENTI, RAPPER }
@@ -87,8 +99,9 @@ enum class RuoloUtente { NESSUNO, ADMIN, ORGANIZZATORE_MURETTO, ORGANIZZATORE_EV
 data class Freestyler(
     val id: String = "",
     val nome: String = "",
-    val immagineUrl: String = "",
-    val muretto: String = ""
+    val immagineUrl: String? = null, // Protetto per i null
+    val muretto: String? = null,
+    val muretto_id: String? = null // Ora è una String per accettare gli UUID
 )
 
 @Serializable
@@ -99,7 +112,7 @@ data class ProfiloUtente(
     val nome_arte: String = "",
     val telefono: String = "",
     val tipo_account: String = "",
-    val muretto: String? = null
+    val muretto_id: String? = null
 )
 
 @Serializable
@@ -112,7 +125,7 @@ data class RichiestaAccount(
     val password_temp: String = "",
     val telefono: String = "",
     val tipo_account: String = "",
-    val muretto: String? = null,
+    val muretto_id: String? = null,
     val stato: String = "in_attesa",
     val created_at: String = ""
 )
@@ -209,20 +222,36 @@ class DatabaseViewModel : ViewModel() {
     var eventiPreferiti = mutableStateListOf<String>() // Conterrà gli ID degli eventi preferiti dell'utente
 
 
-    @OptIn(io.ktor.util.InternalAPI::class)
     suspend fun eseguiRegistrazioneSicura(richiesta: RichiestaAccount): Boolean {
         return try {
-            android.util.Log.d("TEST_FUNZIONE", "1. Invio JSON al server...")
+            android.util.Log.d("TEST_FUNZIONE", "1. Costruisco il JSON per il server...")
+
+            // Creiamo un payload JSON manuale e formattato perfettamente
+            // Gestiamo il muretto_id in sicurezza per evitare stringhe "null" letterali
+            val murettoJson = if (richiesta.muretto_id != null) "\"${richiesta.muretto_id}\"" else "null"
+
+            val payloadJSON = """
+                {
+                    "email": "${richiesta.email}",
+                    "password_temp": "${richiesta.password_temp}",
+                    "nome": "${richiesta.nome}",
+                    "cognome": "${richiesta.cognome}",
+                    "nome_arte": "${richiesta.nome_arte}",
+                    "telefono": "${richiesta.telefono}",
+                    "tipo_account": "${richiesta.tipo_account}",
+                    "muretto_id": $murettoJson
+                }
+            """.trimIndent()
+
+            android.util.Log.d("TEST_FUNZIONE", "2. Payload pronto, invio al server...")
 
             val response = supabase.functions.invoke("gestore-registrazioni") {
-                // 1. IL SEGRETO: Diciamo a Ktor che stiamo inviando un JSON
-                contentType(ContentType.Application.Json)
-
-                // 2. Usiamo setBody() invece di body = ... per far scattare la conversione corretta!
-                setBody(richiesta)
+                // IL SEGRETO: Passiamo il JSON come TESTO GREZZO (String), non come Oggetto
+                setBody(payloadJSON)
+                contentType(io.ktor.http.ContentType.Application.Json)
             }
 
-            android.util.Log.d("TEST_FUNZIONE", "2. Successo! Risposta: ${response.bodyAsText()}")
+            android.util.Log.d("TEST_FUNZIONE", "3. Successo! Risposta: ${response.bodyAsText()}")
             true
         } catch (e: Exception) {
             android.util.Log.e("TEST_FUNZIONE", "ERRORE CRITICO: ${e.message}", e)
@@ -292,7 +321,7 @@ class DatabaseViewModel : ViewModel() {
 
     fun controllaAdmin() { safeScope.launch(Dispatchers.IO) { controllaRuolo() } }
 
-    fun fetchMcsDalCloud(nomeMuretto: String) {
+    fun fetchMcsDalCloud(idDelMuretto: String) {
         staCaricando.value = true
         safeScope.launch(Dispatchers.IO) {
             try {
@@ -300,7 +329,10 @@ class DatabaseViewModel : ViewModel() {
                 withContext(Dispatchers.Main) {
                     tuttiMcsCloud.clear()
                     tuttiMcsCloud.addAll(scaricati)
-                    val filtrati = scaricati.filter { it.muretto == nomeMuretto }
+
+                    // Filtra usando il nuovo UUID
+                    val filtrati = scaricati.filter { it.muretto_id == idDelMuretto }
+
                     listaMcsCloud.clear()
                     listaMcsCloud.addAll(filtrati)
                     staCaricando.value = false
@@ -315,7 +347,7 @@ class DatabaseViewModel : ViewModel() {
         return tuttiMcsCloud.find { it.nome.equals(nomeDaCercare, ignoreCase = true) }
     }
 
-    suspend fun inserisciNuovoMc(nome: String, muretto: String, imageBytes: ByteArray?): Boolean {
+    suspend fun inserisciNuovoMc(nome: String, murettoId: String, imageBytes: ByteArray?): Boolean {
         return try {
             var imageUrl = ""
             if (imageBytes != null) {
@@ -324,15 +356,18 @@ class DatabaseViewModel : ViewModel() {
                 bucket.upload(fileName, imageBytes, upsert = true)
                 imageUrl = bucket.publicUrl(fileName)
             }
-            val esistenti = supabase.postgrest["mcs"].select { filter { eq("muretto", muretto) } }.decodeList<Freestyler>()
-            val nuovoId = if (muretto == "barre_faul") {
+
+            val esistenti = supabase.postgrest["mcs"].select { filter { eq("muretto_id", murettoId) } }.decodeList<Freestyler>()
+
+            val nuovoId = if (murettoId == "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e") { // Barre Faul
                 val maxNum = esistenti.mapNotNull { it.id.replace("bf", "").toIntOrNull() }.maxOrNull() ?: 0
                 "bf${maxNum + 1}"
-            } else {
+            } else { // Muretto PG
                 val maxNum = esistenti.mapNotNull { it.id.toIntOrNull() }.maxOrNull() ?: 0
                 (maxNum + 1).toString()
             }
-            val nuovoMc = Freestyler(id = nuovoId, nome = nome, immagineUrl = imageUrl, muretto = muretto)
+
+            val nuovoMc = Freestyler(id = nuovoId, nome = nome, immagineUrl = imageUrl, muretto = null, muretto_id = murettoId)
             supabase.postgrest["mcs"].insert(nuovoMc)
             true
         } catch (e: Exception) { false }
@@ -404,6 +439,7 @@ class DatabaseViewModel : ViewModel() {
         nome: String, cognome: String, nomeArte: String, email: String, passwordTemp: String, telefono: String, tipoAccount: String, muretto: String?
     ): Boolean {
         return try {
+            val passwordCriptata = CryptoHelper.encrypt(passwordTemp)
             // Creiamo la richiesta SENZA il campo created_at (lasciamo fare al DB)
             val richiesta = RichiestaAccount(
                 id = UUID.randomUUID().toString(),
@@ -411,10 +447,10 @@ class DatabaseViewModel : ViewModel() {
                 cognome = cognome,
                 nome_arte = nomeArte,
                 email = email,
-                password_temp = passwordTemp,
+                password_temp = passwordCriptata,
                 telefono = telefono,
                 tipo_account = tipoAccount,
-                muretto = muretto,
+                muretto_id = muretto,
                 stato = "in_attesa"
             )
 
@@ -724,11 +760,13 @@ fun BoxMC(
         else -> Tema.colorePrincipale
     }
 
-    val is2v2 = mc.immagineUrl == "local_2v2"
+    // Se l'immagine è null dal database, usiamo una stringa vuota di default ""
+    val safeImageUrl = mc.immagineUrl ?: ""
+    val is2v2 = safeImageUrl == "local_2v2"
     val imageModel: Any = when {
         is2v2 -> if (Tema.isBarreFaul) R.drawable.due_contro_due_barre_faul else R.drawable.due_contro_due
-        mc.immagineUrl.isBlank() -> R.drawable.no_pic
-        else -> mc.immagineUrl
+        safeImageUrl.isBlank() -> R.drawable.no_pic
+        else -> safeImageUrl
     }
 
     val scaleMode = if (is2v2) ContentScale.Fit else ContentScale.Crop
@@ -766,5 +804,22 @@ fun BoxMC(
                 drawLine(color = Color.Red.copy(alpha = 0.8f), start = Offset(size.width, 0f), end = Offset(0f, size.height), strokeWidth = 10f)
             }
         }
+    }
+}
+
+object CryptoHelper {
+    private const val CHIAVE_SEGRETA = "MurettoPG_Secret" // Deve essere di 16 caratteri
+
+    fun encrypt(password: String): String {
+        val keySpec = SecretKeySpec(CHIAVE_SEGRETA.toByteArray(), "AES")
+
+        // Creiamo l'array di 16 byte (nasce già riempito di zeri in Kotlin)
+        val iv = javax.crypto.spec.IvParameterSpec(ByteArray(16))
+
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+        cipher.init(Cipher.ENCRYPT_MODE, keySpec, iv)
+
+        val encryptedBytes = cipher.doFinal(password.toByteArray())
+        return android.util.Base64.encodeToString(encryptedBytes, android.util.Base64.NO_WRAP)
     }
 }

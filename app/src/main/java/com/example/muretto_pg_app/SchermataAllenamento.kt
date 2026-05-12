@@ -50,7 +50,7 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
 
     // Sincronizza l'allenamento col Cloud all'avvio (SENZA resettare le scelte!)
     LaunchedEffect(Tema.isBarreFaul) {
-        val murettoId = if (Tema.isBarreFaul) "barre_faul" else "muretto_pg"
+        val murettoId = if (Tema.isBarreFaul) "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e" else "09fbe1d3-0022-41b8-ba4b-edc887c145a2"
         databaseViewModel.fetchMcsDalCloud(murettoId)
     }
 
@@ -322,7 +322,10 @@ fun CardBattleAllenamento(mcs: List<Freestyler>) {
 @Composable
 fun CardFreestyler(freestyler: Freestyler, isSelezionato: Boolean, onClick: () -> Unit) {
     val colorMatrix = remember(isSelezionato) { if (isSelezionato) ColorMatrix().apply { setToSaturation(0f) } else null }
-    val imageModel: Any = if (freestyler.immagineUrl.isBlank()) R.drawable.no_pic else freestyler.immagineUrl
+
+    // Disinneschiamo il null pointer per l'immagine
+    val safeImageUrl = freestyler.immagineUrl ?: ""
+    val imageModel: Any = if (safeImageUrl.isBlank()) R.drawable.no_pic else safeImageUrl
 
     Box(
         modifier = Modifier.fillMaxWidth().aspectRatio(0.8f).clip(RoundedCornerShape(12.dp)).border(3.dp, if(isSelezionato) Color.Green else Tema.colorePrincipale, RoundedCornerShape(12.dp)).background(Tema.coloreSfondoCard).clickable { onClick() },

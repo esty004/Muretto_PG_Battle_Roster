@@ -71,8 +71,9 @@ fun SchermataModificaMc(mcId: String, onTornaIndietro: () -> Unit) {
                         .clickable { selettoreImmagine.launch("image/*") },
                     contentAlignment = Alignment.Center
                 ) {
+                    val safeImageUrl = mcOriginale.immagineUrl ?: ""
                     AsyncImage(
-                        model = nuovaImageUri ?: (if (mcOriginale.immagineUrl.isNotBlank()) mcOriginale.immagineUrl else R.drawable.no_pic),
+                        model = nuovaImageUri ?: (if (safeImageUrl.isNotBlank()) safeImageUrl else R.drawable.no_pic),
                         contentDescription = "Foto MC",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -131,7 +132,7 @@ fun SchermataModificaMc(mcId: String, onTornaIndietro: () -> Unit) {
                     scope.launch {
                         val bytesImmagine = nuovaImageUri?.let { uri -> context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }
                         databaseViewModel.aggiornaMc(mcId, nome.trim(), bytesImmagine)
-                        databaseViewModel.fetchMcsDalCloud(mcOriginale.muretto) // Ricarica la lista per aggiornarla
+                        databaseViewModel.fetchMcsDalCloud(mcOriginale.muretto_id ?: "09fbe1d3-0022-41b8-ba4b-edc887c145a2") // Ricarica la lista per aggiornarla
                         staCaricando = false
                         onTornaIndietro()
                     }
@@ -155,7 +156,7 @@ fun SchermataModificaMc(mcId: String, onTornaIndietro: () -> Unit) {
                             staCaricando = true
                             scope.launch {
                                 databaseViewModel.eliminaMc(mcId)
-                                databaseViewModel.fetchMcsDalCloud(mcOriginale.muretto)
+                                databaseViewModel.fetchMcsDalCloud(mcOriginale.muretto_id ?: "09fbe1d3-0022-41b8-ba4b-edc887c145a2")
                                 staCaricando = false
                                 onTornaIndietro()
                             }

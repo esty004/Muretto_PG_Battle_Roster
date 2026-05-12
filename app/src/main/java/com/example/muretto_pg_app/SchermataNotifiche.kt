@@ -181,7 +181,7 @@ fun DialogDettaglioRichiesta(richiesta: RichiestaAccount, onDismiss: () -> Unit,
     var messaggioEsito by remember { mutableStateOf("") }
     var operazioneCompletata by remember { mutableStateOf(false) }
 
-    val etichettaMuretto = when (richiesta.muretto) { "muretto_pg" -> "Muretto PG"; "barre_faul" -> "Barre Faul"; else -> "-" }
+    val etichettaMuretto = when (richiesta.muretto_id) { "muretto_pg" -> "Muretto PG"; "barre_faul" -> "Barre Faul"; else -> "-" }
 
     Dialog(onDismissRequest = { if (!staElaborando) onDismiss() }) {
         Box(modifier = Modifier.fillMaxWidth().background(Color(0xFF1E1E1E), RoundedCornerShape(20.dp)).border(2.dp, Color(0xFF333333), RoundedCornerShape(20.dp)).padding(24.dp)) {
