@@ -163,6 +163,7 @@ fun SchermataLogin(
                 }
                 isLoading = true
                 errore = ""
+
                 scope.launch {
                     try {
                         databaseViewModel.supabase.auth.signInWith(Email) {
@@ -174,7 +175,7 @@ fun SchermataLogin(
                         onLoginSuccess()
                     } catch (e: Exception) {
                         isLoading = false
-                        errore = "Accesso negato: credenziali errate"
+                        errore = e.message ?: "Accesso negato: credenziali errate"
                     }
                 }
             },

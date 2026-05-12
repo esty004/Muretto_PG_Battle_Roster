@@ -1,6 +1,8 @@
 package com.example.muretto_pg_app
 
 import android.content.Context
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -47,6 +49,9 @@ import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.storage.Storage
 import io.github.jan.supabase.storage.storage
+import io.ktor.client.statement.bodyAsText
+import io.github.jan.supabase.functions.functions
+import io.ktor.util.InternalAPI
 import java.util.UUID
 import java.net.HttpURLConnection
 import java.net.URL
@@ -131,7 +136,7 @@ data class EventoPreferito(
     val evento_id: String
 )
 
-// ─── DATABASE ─────────────────────────────────────────────────────────────────
+// ─── DATABASE E SUPABASE SICURO ───────────────────────────────────────────────
 
 data class DatabaseUiState(
     val error: String? = null
@@ -144,11 +149,30 @@ val LocalDatabaseViewModel = staticCompositionLocalOf<DatabaseViewModel> {
 class DatabaseViewModel : ViewModel() {
     private val supabaseUrl = "https://bvzwnuxljhbxeplhbjze.supabase.co"
     private val supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2endudXhsamhieGVwbGhianplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNzUwNjQsImV4cCI6MjA5Mjk1MTA2NH0.4d9ZS_87F7LcelnJMBAdbDkbXOeE2xQ7rGSehFHtMs8"
+    // DA ORA IN POI SUPABASE SI INIZIALIZZA TRAMITE LA CASSAFORTE
+    lateinit var supabase: io.github.jan.supabase.SupabaseClient
 
-    val supabase = createSupabaseClient(supabaseUrl, supabaseKey) {
-        install(Postgrest)
-        install(Auth)
-        install(Storage)
+    fun inizializzaSupabase(context: Context) {
+        // 1. Creiamo la Master Key AES256
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+
+        // 2. Creiamo il file blindato SharedPreferences
+        val encryptedPrefs = EncryptedSharedPreferences.create(
+            context,
+            "supabase_session_sicura",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+
+        // 3. Avviamo Supabase
+        supabase = createSupabaseClient(supabaseUrl, supabaseKey) {
+            install(Postgrest)
+            install(Storage)
+            install(Auth)
+        }
     }
 
     private val _uiState = MutableStateFlow(DatabaseUiState())
@@ -179,6 +203,22 @@ class DatabaseViewModel : ViewModel() {
     var eventiApprovati = mutableStateListOf<Evento>()
 
     var eventiPreferiti = mutableStateListOf<String>() // Conterrà gli ID degli eventi preferiti dell'utente
+
+
+    @OptIn(InternalAPI::class)
+    suspend fun eseguiRegistrazioneSicura(richiesta: RichiestaAccount): Boolean {
+        return try {
+            // Chiamiamo lo script caricato sul server Supabase
+            val response = supabase.functions.invoke("gestore-registrazioni") {
+                body = richiesta
+            }
+            println("Server Response: ${response.bodyAsText()}")
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 
     fun inizializzaSessione() {
         safeScope.launch(Dispatchers.IO) {

@@ -84,7 +84,7 @@ import kotlin.math.roundToInt
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        DatabaseMcs.inizializzaSupabase(this)
         Configuration.getInstance().load(this, getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
