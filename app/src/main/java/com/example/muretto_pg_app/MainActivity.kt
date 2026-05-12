@@ -17,6 +17,7 @@ import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
+import androidx.activity.viewModels // <-- Aggiunto per il ViewModel
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.expandHorizontally
@@ -60,8 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.CompositionLocalProvider // <-- Aggiunto per il ViewModel
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -80,10 +80,21 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import java.util.Locale
 import kotlin.math.roundToInt
+import android.content.pm.PackageManager
+import android.os.Debug
+import kotlin.system.exitProcess
 
 class MainActivity : ComponentActivity() {
+
+    // Inizializzazione del ViewModel legata al ciclo di vita della Activity
+    private val databaseViewModel: DatabaseViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Se un hacker ci sta provando, l'app muore prima ancora di inizializzare Supabase!
+        SecurityGuard.attivaAutodistruzioneSeManomesso(this)
+        // Uso il ViewModel invece del vecchio object
+        databaseViewModel.inizializzaSupabase(this)
 
         Configuration.getInstance().load(this, getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
 
@@ -98,17 +109,17 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
-                val databaseViewModel: DatabaseViewModel = viewModel()
-                
+
                 LaunchedEffect(Unit) {
                     databaseViewModel.inizializzaSessione()
                 }
 
+                // Fornisco il ViewModel a tutto l'albero di navigazione
                 CompositionLocalProvider(LocalDatabaseViewModel provides databaseViewModel) {
                     Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
                         AppNavigation()
-                        
-                        // Error Dialog
+
+                        // Error Dialog centralizzato
                         val uiState by databaseViewModel.uiState.collectAsState()
                         uiState.error?.let { errorMsg ->
                             AlertDialog(
@@ -203,18 +214,14 @@ fun AppNavigation() {
             composable("aggiungi_mc") { SchermataAggiungiMc(onTornaIndietro = { navController.popBackStack() }) }
             composable("aggiungi_evento") { SchermataAggiungiEvento(onTornaIndietro = { navController.popBackStack() }) }
 
-            // LE TUE SCHERMATE DI BENVENUTO E MENU
             composable("benvenuto") { SchermataDiBenvenuto(onTornaIndietro = { navController.popBackStack() }, onVaiAlMenu = { navController.navigate("menu") }) }
             composable("benvenuto_barre_faul") { SchermataDiBenvenutoBarreFaul(onTornaIndietro = { navController.popBackStack() }, onVaiAlMenu = { navController.navigate("menu") }) }
             composable("menu") { SchermataMenu(onTornaIndietro = { navController.popBackStack() }, onSelezionaModalita = { navController.navigate(it) }) }
 
-            // --- TRASFERTE ---
             composable("trasferte") { SchermataTrasferte(onTornaIndietro = { navController.popBackStack() }, onVaiAllaMappa = { navController.navigate("mappa_trasferte") }) }
             composable("mappa_trasferte") { SchermataMappaTrasferte(onTornaIndietro = { navController.popBackStack() }) }
-            // ECCO LA ROTTA CHE MANCAVA E FACEVA CRASHARE L'APP!
             composable("trasferte_preferite") { SchermataTrasferte(onTornaIndietro = { navController.popBackStack() }, onVaiAllaMappa = { navController.navigate("mappa_trasferte") }, soloPreferiti = true) }
 
-            // --- GESTIONE MC E BATTLE ---
             composable("gestione_mcs") { SchermataGestioneMcs(onTornaIndietro = { navController.popBackStack() }, onModificaMc = { id -> navController.navigate("modifica_mc/$id") }, onAggiungiMc = { navController.navigate("aggiungi_mc") }) }
             composable("modifica_mc/{id}") { backStackEntry -> val mcId = backStackEntry.arguments?.getString("id") ?: ""; SchermataModificaMc(mcId = mcId, onTornaIndietro = { navController.popBackStack() }) }
 
@@ -236,7 +243,6 @@ fun AppNavigation() {
             composable("ottavi") { SchermataOttavi(onTornaIndietro = { navController.popBackStack() }, onVaiAiQuarti = { }, onRoundClick = { navController.navigate("round_singolo/$it") }) }
             composable("round_singolo/{roundId}") { backStackEntry -> SchermataRoundSingolo(roundId = backStackEntry.arguments?.getString("roundId") ?: "", onTornaIndietro = { navController.popBackStack() }) }
 
-            // --- ALLENAMENTO ---
             composable("allenamento") { SchermataAllenamento(onTornaIndietro = { navController.popBackStack() }, onSelezionaAllenamento = { navController.navigate(it.lowercase().replace(" ", "_")) }) }
             composable("generatore_argomenti") { SchermataGeneratoreArgomenti { navController.popBackStack() } }
             composable("generatore_modalita") { SchermataGeneratoreModalita { navController.popBackStack() } }
@@ -390,7 +396,6 @@ fun MenuLaterale(onNavigate: (String) -> Unit, onChiudi: () -> Unit, scope: kotl
         if (databaseViewModel.isAdmin || databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO || databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_EVENTI) {
             MenuItem(titolo = "AGGIUNGI EVENTO", icona = R.drawable.ic_music_note) { onNavigate("aggiungi_evento") }
         }
-        // SE L'UTENTE È LOGGATO, MOSTRA LE TRASFERTE PREFERITE
         if (databaseViewModel.ruoloAttuale != RuoloUtente.NESSUNO) {
             MenuItem(titolo = "TRASFERTE PREFERITE", icona = R.drawable.ic_music_note) { onNavigate("trasferte_preferite") }
         }
@@ -691,3 +696,52 @@ fun SchermataDiBenvenutoBarreFaul(onTornaIndietro: () -> Unit, onVaiAlMenu: () -
     }
 }
 
+// ─── SICUREZZA ANTI-TAMPERING E ANTI-DEBUGGING ───────────────────────────────
+
+object SecurityGuard {
+
+    // ECCO LA TUA VERA FIRMA INSERITA!
+    private const val FIRMA_AUTORIZZATA_PRODUZIONE = "1932025762"
+
+    fun attivaAutodistruzioneSeManomesso(context: Context) {
+        if (isDebuggerConnesso() || isFirmaManomessa(context)) {
+            android.util.Log.e("SECURITY", "☠️ MANOMISSIONE RILEVATA! AUTODISTRUZIONE IN CORSO... ☠️")
+
+            // "Distrugge" l'app chiudendo brutalmente il processo
+            android.os.Process.killProcess(android.os.Process.myPid())
+            kotlin.system.exitProcess(1)
+        }
+    }
+
+    private fun isDebuggerConnesso(): Boolean {
+        // Rileva se un hacker ha attaccato un debugger per analizzare la memoria
+        return android.os.Debug.isDebuggerConnected() || android.os.Debug.waitingForDebugger()
+    }
+
+    private fun isFirmaManomessa(context: Context): Boolean {
+        try {
+            // Se stiamo sviluppando su Android Studio (Build di Debug), salta il controllo
+            val isDebuggable = (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+            if (isDebuggable) return false
+
+            val packageInfo = context.packageManager.getPackageInfo(
+                context.packageName,
+                android.content.pm.PackageManager.GET_SIGNATURES
+            )
+
+            val signatures = packageInfo.signatures
+            if (signatures == null || signatures.isEmpty()) return true
+
+            val firmaAttuale = signatures[0].hashCode().toString()
+
+            // IL CONTROLLO FINALE: Se la firma non corrisponde, l'app è stata modificata!
+            if (firmaAttuale != FIRMA_AUTORIZZATA_PRODUZIONE) {
+                return true // MANOMESSA!
+            }
+
+        } catch (e: Exception) {
+            return true // Nel dubbio, se il sistema va in errore (es. pacchetto manomesso), distruggiamo
+        }
+        return false // App integra
+    }
+}

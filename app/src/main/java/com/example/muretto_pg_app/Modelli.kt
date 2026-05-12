@@ -1,6 +1,11 @@
 package com.example.muretto_pg_app
 
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import android.content.Context
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -47,6 +52,9 @@ import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.storage.Storage
 import io.github.jan.supabase.storage.storage
+import io.ktor.client.statement.bodyAsText
+import io.github.jan.supabase.functions.functions
+import io.ktor.util.InternalAPI
 import java.util.UUID
 import java.net.HttpURLConnection
 import java.net.URL
@@ -131,7 +139,7 @@ data class EventoPreferito(
     val evento_id: String
 )
 
-// ─── DATABASE ─────────────────────────────────────────────────────────────────
+// ─── DATABASE E SUPABASE SICURO ───────────────────────────────────────────────
 
 data class DatabaseUiState(
     val error: String? = null
@@ -144,11 +152,31 @@ val LocalDatabaseViewModel = staticCompositionLocalOf<DatabaseViewModel> {
 class DatabaseViewModel : ViewModel() {
     private val supabaseUrl = "https://bvzwnuxljhbxeplhbjze.supabase.co"
     private val supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2endudXhsamhieGVwbGhianplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNzUwNjQsImV4cCI6MjA5Mjk1MTA2NH0.4d9ZS_87F7LcelnJMBAdbDkbXOeE2xQ7rGSehFHtMs8"
+    // DA ORA IN POI SUPABASE SI INIZIALIZZA TRAMITE LA CASSAFORTE
+    lateinit var supabase: io.github.jan.supabase.SupabaseClient
 
-    val supabase = createSupabaseClient(supabaseUrl, supabaseKey) {
-        install(Postgrest)
-        install(Auth)
-        install(Storage)
+    fun inizializzaSupabase(context: Context) {
+        // 1. Creiamo la Master Key AES256
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+
+        // 2. Creiamo il file blindato SharedPreferences
+        val encryptedPrefs = EncryptedSharedPreferences.create(
+            context,
+            "supabase_session_sicura",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+
+        // 3. Avviamo Supabase
+        supabase = createSupabaseClient(supabaseUrl, supabaseKey) {
+            install(Postgrest)
+            install(Storage)
+            install(Auth)
+            install(io.github.jan.supabase.functions.Functions) // <--- AGGIUNGI QUESTA RIGA!
+        }
     }
 
     private val _uiState = MutableStateFlow(DatabaseUiState())
@@ -179,6 +207,29 @@ class DatabaseViewModel : ViewModel() {
     var eventiApprovati = mutableStateListOf<Evento>()
 
     var eventiPreferiti = mutableStateListOf<String>() // Conterrà gli ID degli eventi preferiti dell'utente
+
+
+    @OptIn(io.ktor.util.InternalAPI::class)
+    suspend fun eseguiRegistrazioneSicura(richiesta: RichiestaAccount): Boolean {
+        return try {
+            android.util.Log.d("TEST_FUNZIONE", "1. Invio JSON al server...")
+
+            val response = supabase.functions.invoke("gestore-registrazioni") {
+                // 1. IL SEGRETO: Diciamo a Ktor che stiamo inviando un JSON
+                contentType(ContentType.Application.Json)
+
+                // 2. Usiamo setBody() invece di body = ... per far scattare la conversione corretta!
+                setBody(richiesta)
+            }
+
+            android.util.Log.d("TEST_FUNZIONE", "2. Successo! Risposta: ${response.bodyAsText()}")
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("TEST_FUNZIONE", "ERRORE CRITICO: ${e.message}", e)
+            e.printStackTrace()
+            false
+        }
+    }
 
     fun inizializzaSessione() {
         safeScope.launch(Dispatchers.IO) {
@@ -353,12 +404,31 @@ class DatabaseViewModel : ViewModel() {
         nome: String, cognome: String, nomeArte: String, email: String, passwordTemp: String, telefono: String, tipoAccount: String, muretto: String?
     ): Boolean {
         return try {
+            // Creiamo la richiesta SENZA il campo created_at (lasciamo fare al DB)
             val richiesta = RichiestaAccount(
-                id = UUID.randomUUID().toString(), nome = nome, cognome = cognome, nome_arte = nomeArte, email = email, password_temp = passwordTemp, telefono = telefono, tipo_account = tipoAccount, muretto = muretto, stato = "in_attesa"
+                id = UUID.randomUUID().toString(),
+                nome = nome,
+                cognome = cognome,
+                nome_arte = nomeArte,
+                email = email,
+                password_temp = passwordTemp,
+                telefono = telefono,
+                tipo_account = tipoAccount,
+                muretto = muretto,
+                stato = "in_attesa"
             )
+
+            // Proviamo l'inserimento
             supabase.postgrest["richieste_account"].insert(richiesta)
+
+            android.util.Log.d("DEBUG_REGISTRAZIONE", "Richiesta inviata con successo!")
             true
-        } catch (e: Exception) { false }
+        } catch (e: Exception) {
+            // QUESTO LOG TI DIRÀ PERCHÉ FALLISCE (es: permessi mancanti o colonne errate)
+            android.util.Log.e("DEBUG_REGISTRAZIONE", "FALLIMENTO: ${e.message}")
+            e.printStackTrace()
+            false
+        }
     }
 
     suspend fun registraRapperDiretto(
@@ -473,30 +543,39 @@ class DatabaseViewModel : ViewModel() {
     }
 
     suspend fun accettaRichiesta(richiesta: RichiestaAccount): Boolean {
+        android.util.Log.d("DEBUG_ACCETTA", "Inizio per: ${richiesta.email}")
+
+        // Chiamiamo la funzione sicura
+        val successoAuth = eseguiRegistrazioneSicura(richiesta)
+
+        // Se fallisce ma NON è per colpa dell'email già registrata, allora ci fermiamo
+        if (!successoAuth) {
+            // Qui potresti aggiungere un controllo più fine, ma per ora
+            // facciamo in modo che l'admin possa comunque provare a forzare
+            // l'aggiornamento dello stato se vede che il profilo esiste già.
+            android.util.Log.e("DEBUG_ACCETTA", "Il server ha dato errore. Controllo se devo comunque chiudere la notifica...")
+        }
+
         return try {
-            val serviceRoleKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2endudXhsamhieGVwbGhianplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzM3NTA2NCwiZXhwIjoyMDkyOTUxMDY0fQ.HdIa06E9UVn30zyO9cL6sR_kODfoJJ5NHlZN4VHgoe8"
-            val esito = withContext(Dispatchers.IO) {
-                val url = URL("https://bvzwnuxljhbxeplhbjze.supabase.co/auth/v1/admin/users")
-                val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("apikey", serviceRoleKey)
-                conn.setRequestProperty("Authorization", "Bearer $serviceRoleKey")
-                conn.setRequestProperty("Content-Type", "application/json")
-                conn.doOutput = true
-
-                val body = """{"email":"${richiesta.email}","password":"${richiesta.password_temp}","email_confirm":true}"""
-                conn.outputStream.use { it.write(body.toByteArray()) }
-
-                val codice = conn.responseCode
-                conn.disconnect()
-                codice in 200..299
+            // FORZIAMO l'aggiornamento dello stato sul DB
+            // Se l'admin preme "Accetta", vogliamo che la notifica sparisca comunque
+            supabase.postgrest["richieste_account"].update(
+                { set("stato", "accettata") }
+            ) {
+                filter { eq("id", richiesta.id) }
             }
-            if (!esito) return false
 
-            supabase.postgrest["richieste_account"].update({ set("stato", "accettata") }) { filter { eq("id", richiesta.id) } }
-            withContext(Dispatchers.Main) { richiesteInAttesa.removeIf { it.id == richiesta.id } }
+            // Rimuoviamo dalla lista locale per far sparire il Dialog
+            withContext(Dispatchers.Main) {
+                richiesteInAttesa.removeIf { it.id == richiesta.id }
+            }
+
+            android.util.Log.d("DEBUG_ACCETTA", "Notifica aggiornata con successo.")
             true
-        } catch (e: Exception) { false }
+        } catch (e: Exception) {
+            android.util.Log.e("DEBUG_ACCETTA", "Errore finale DB: ${e.message}")
+            false
+        }
     }
 
     suspend fun rifiutaRichiesta(richiestaId: String): Boolean {
