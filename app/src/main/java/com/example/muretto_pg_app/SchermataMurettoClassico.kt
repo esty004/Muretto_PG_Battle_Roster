@@ -56,8 +56,12 @@ fun SchermataMurettoClassico(
     val is2v2 = tipoTorneo != TipoTorneo.SINGOLO
 
     // --- AGGIORNAMENTO DATI DAL CLOUD ---
-    LaunchedEffect(Tema.isBarreFaul) {
-        val murettoId = if (Tema.isBarreFaul) "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e" else "09fbe1d3-0022-41b8-ba4b-edc887c145a2"
+    LaunchedEffect(Tema.murettoSelezionato) {
+        val murettoId = when (Tema.murettoSelezionato) {
+            MurettoAttivo.BARRE_FAUL -> "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e"
+            MurettoAttivo.ATENEO -> "INSERISCI-QUI-UUID-ATENEO" // Inserirai l'ID quando lo crei su Supabase
+            MurettoAttivo.PG -> "09fbe1d3-0022-41b8-ba4b-edc887c145a2"
+        }
         databaseViewModel.fetchMcsDalCloud(murettoId)
     }
 
@@ -80,18 +84,20 @@ fun SchermataMurettoClassico(
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Box(modifier = Modifier.fillMaxSize()) {
 
-            // --- NUOVO SFONDO CON IMMAGINE ---
+            // --- NUOVO SFONDO DINAMICO ---
             Image(
-                painter = painterResource(id = R.drawable.sfondo_muretto_classico),
+                painter = painterResource(id = if (Tema.isBarreFaul) R.drawable.sfondo_barre_faul else if(Tema.isAteneo) R.drawable.sfondo_ateneo else R.drawable.sfondo_muretto_classico),
                 contentDescription = "Sfondo Muretto Classico",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop // L'immagine riempirà tutto lo schermo senza deformarsi
             )
+            // Patina scura (al 50%) sopra lo sfondo per rendere leggibili i testi e le card
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
             // ---------------------------------
 
             Column(modifier = Modifier.fillMaxSize().padding(bottom = 80.dp)) {
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 10.dp)) {
-                    Text("SELEZIONA GLI MC", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+                    Text("SELEZIONA GLI MC", color = Color.White, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
                 }
 
                 if (tipoTorneo == TipoTorneo.COPPIE_PREDEFINITE) {
@@ -126,9 +132,14 @@ fun SchermataMurettoClassico(
                     ) {
                         items(listaFiltrata) { mc ->
                             val isSelezionato = mcsSelezionati.contains(mc.id)
+                            // Aggiungiamo il calcolo dell'indice
+                            val indiceSelezione = if (isSelezionato) mcsSelezionati.indexOf(mc.id) else -1
+
                             CardFreestylerTorneo(
                                 freestyler = mc,
                                 isSelezionato = isSelezionato,
+                                tipoTorneo = tipoTorneo, // Passiamo il tipo per capire se siamo in 2vs2 Predefinite
+                                indiceSelezione = indiceSelezione, // Passiamo l'indice!
                                 onClick = { mcsSelezionati = if (isSelezionato) mcsSelezionati - mc.id else mcsSelezionati + mc.id }
                             )
                         }
@@ -260,7 +271,12 @@ fun SchermataMurettoClassico(
 
                         if (esistenteInLista == null) {
                             val mcGlobale = databaseViewModel.cercaMcGlobale(nome)
-                            val nuovoMc = mcGlobale ?: Freestyler(System.currentTimeMillis().toString(), nome, "", if (Tema.isBarreFaul) "barre_faul" else "muretto_pg")
+                            val nuovoMc = mcGlobale ?: Freestyler(
+                                id = UUID.randomUUID().toString(),
+                                nome = nome,
+                                immagineUrl = "",
+                                muretto_id = if (Tema.isBarreFaul) "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e" else "09fbe1d3-0022-41b8-ba4b-edc887c145a2"
+                            )
                             databaseViewModel.listaMcsCloud.add(nuovoMc)
                         }
                         nomeNuovoMc = ""
@@ -274,13 +290,47 @@ fun SchermataMurettoClassico(
 }
 
 @Composable
-fun CardFreestylerTorneo(freestyler: Freestyler, isSelezionato: Boolean, onClick: () -> Unit) {
+fun CardFreestylerTorneo(
+    freestyler: Freestyler,
+    isSelezionato: Boolean,
+    tipoTorneo: TipoTorneo, // Aggiunto
+    indiceSelezione: Int,   // Aggiunto
+    onClick: () -> Unit
+) {
     val colorMatrix = remember(isSelezionato) { if (isSelezionato) ColorMatrix().apply { setToSaturation(0f) } else null }
     val safeImageUrl = freestyler.immagineUrl ?: ""
     val imageModel: Any = if (safeImageUrl.isBlank()) R.drawable.no_pic else safeImageUrl
 
+    // Logica per i bordi colorati a coppie!
+    val coloreBordo = remember(isSelezionato, indiceSelezione, tipoTorneo) {
+        if (!isSelezionato) return@remember Tema.colorePrincipale
+
+        // Se siamo in 2VS2 PREDEFINITE, coloro le coppie a due a due
+        if (tipoTorneo == TipoTorneo.COPPIE_PREDEFINITE && indiceSelezione >= 0) {
+            val indiceCoppia = indiceSelezione / 2
+            val coloriSquadre = listOf(
+                Color(0xFFFF3D00), // Squadra 1 (Rosso/Arancio vivo)
+                Color(0xFF00B0FF), // Squadra 2 (Azzurro vivo)
+                Color(0xFF00E676), // Squadra 3 (Verde vivo)
+                Color(0xFFFFEA00), // Squadra 4 (Giallo)
+                Color(0xFFD500F9), // Squadra 5 (Viola)
+                Color(0xFF1DE9B6)  // Squadra 6 (Teal)
+            )
+            coloriSquadre[indiceCoppia % coloriSquadre.size]
+        } else {
+            // Se è torneo singolo o coppie casuali, bordo standard verde se selezionato
+            Color.Green
+        }
+    }
+
     Box(
-        modifier = Modifier.fillMaxWidth().aspectRatio(0.8f).clip(RoundedCornerShape(12.dp)).border(3.dp, if(isSelezionato) Color.Green else Tema.colorePrincipale, RoundedCornerShape(12.dp)).background(Tema.coloreSfondoCard).clickable { onClick() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(0.8f)
+            .clip(RoundedCornerShape(12.dp))
+            .border(3.dp, coloreBordo, RoundedCornerShape(12.dp)) // Uso il nuovo coloreBordo
+            .background(Tema.coloreSfondoCard)
+            .clickable { onClick() },
         contentAlignment = Alignment.BottomCenter
     ) {
         AsyncImage(
@@ -296,7 +346,7 @@ fun CardFreestylerTorneo(freestyler: Freestyler, isSelezionato: Boolean, onClick
 
         if (isSelezionato) {
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.CheckCircle, contentDescription = "Selezionato", tint = Color.Green, modifier = Modifier.size(60.dp))
+                Icon(Icons.Default.CheckCircle, contentDescription = "Selezionato", tint = coloreBordo, modifier = Modifier.size(60.dp))
             }
         }
 

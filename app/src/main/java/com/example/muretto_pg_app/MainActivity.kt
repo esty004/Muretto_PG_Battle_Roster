@@ -216,6 +216,13 @@ fun AppNavigation() {
 
             composable("benvenuto") { SchermataDiBenvenuto(onTornaIndietro = { navController.popBackStack() }, onVaiAlMenu = { navController.navigate("menu") }) }
             composable("benvenuto_barre_faul") { SchermataDiBenvenutoBarreFaul(onTornaIndietro = { navController.popBackStack() }, onVaiAlMenu = { navController.navigate("menu") }) }
+            // Dentro AppNavigation -> NavHost
+            composable("benvenuto_ateneo") {
+                SchermataDiBenvenutoAteneo(
+                    onTornaIndietro = { navController.popBackStack() },
+                    onVaiAlMenu = { navController.navigate("menu") }
+                )
+            }
             composable("menu") { SchermataMenu(onTornaIndietro = { navController.popBackStack() }, onSelezionaModalita = { navController.navigate(it) }) }
 
             composable("trasferte") { SchermataTrasferte(onTornaIndietro = { navController.popBackStack() }, onVaiAllaMappa = { navController.navigate("mappa_trasferte") }) }
@@ -258,12 +265,20 @@ fun AppNavigation() {
 
 // ─── SCHERMATA HOME ───
 
+// ─── SCHERMATA HOME ───
+
 @Composable
 fun SchermataHome(onNavigate: (String) -> Unit) {
     val databaseViewModel = LocalDatabaseViewModel.current
     val numNotifiche = databaseViewModel.richiesteInAttesa.size + databaseViewModel.eventiInAttesa.size
     val scope = rememberCoroutineScope()
     var mostraMenuAdmin by remember { mutableStateOf(false) }
+
+    // --- AGGIUNTA FONDAMENTALE PER IL BUG DEI COLORI ---
+    // Ogni volta che si torna alla Home, resettiamo il tema a quello di base (PG)
+    LaunchedEffect(Unit) {
+        Tema.murettoSelezionato = MurettoAttivo.PG
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
 
@@ -310,13 +325,13 @@ fun SchermataHome(onNavigate: (String) -> Unit) {
                 )
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.weight(0.8f))
 
-            // MURETTI
+            // 1. MURETTI
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.85f)
-                    .height(180.dp)
+                    .height(135.dp) // Altezza adattata per 3 elementi
                     .clip(RoundedCornerShape(24.dp))
                     .background(Color.Black)
                     .border(3.dp, Tema.colorePrincipale, RoundedCornerShape(24.dp))
@@ -326,13 +341,13 @@ fun SchermataHome(onNavigate: (String) -> Unit) {
                 Text(text = "MURETTI", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily(Font(R.font.komtit__)), textAlign = TextAlign.Center)
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // TRASFERTE
+            // 2. TRASFERTE
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.85f)
-                    .height(180.dp)
+                    .height(135.dp)
                     .clip(RoundedCornerShape(24.dp))
                     .border(3.dp, Tema.colorePrincipale, RoundedCornerShape(24.dp))
                     .clickable { onNavigate("trasferte") },
@@ -349,7 +364,33 @@ fun SchermataHome(onNavigate: (String) -> Unit) {
                 Text(text = "TRASFERTE", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily(Font(R.font.komtit__)), textAlign = TextAlign.Center)
             }
 
-            Spacer(modifier = Modifier.weight(1.5f))
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 3. ALLENAMENTO (NUOVO)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .height(135.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .border(3.dp, Tema.colorePrincipale, RoundedCornerShape(24.dp))
+                    .clickable {
+                        Tema.murettoSelezionato = MurettoAttivo.PG // Nuovo metodo per forzare l'estetica
+                        onNavigate("allenamento")
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.allenamento),
+                    contentDescription = "Allenamento Sfondo",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
+
+                Text(text = "ALLENAMENTO", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily(Font(R.font.komtit__)), textAlign = TextAlign.Center)
+            }
+
+            Spacer(modifier = Modifier.weight(1.2f))
         }
 
         // Menu laterale condiviso
@@ -391,17 +432,20 @@ fun MenuLaterale(onNavigate: (String) -> Unit, onChiudi: () -> Unit, scope: kotl
         Spacer(modifier = Modifier.height(16.dp))
 
         if (databaseViewModel.isAdmin || databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO) {
-            MenuItem(titolo = "GESTIONE MC'S", icona = R.drawable.ic_music_note) { onNavigate("gestione_mcs") }
+            // Nuova icona per Gestione MC'S
+            MenuItem(titolo = "GESTIONE MC'S", icona = R.drawable.add) { onNavigate("gestione_mcs") }
         }
         if (databaseViewModel.isAdmin || databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO || databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_EVENTI) {
-            MenuItem(titolo = "AGGIUNGI EVENTO", icona = R.drawable.ic_music_note) { onNavigate("aggiungi_evento") }
+            // Nuova icona per Aggiungi Evento
+            MenuItem(titolo = "AGGIUNGI EVENTO", icona = R.drawable.evento_icon) { onNavigate("aggiungi_evento") }
         }
         if (databaseViewModel.ruoloAttuale != RuoloUtente.NESSUNO) {
-            MenuItem(titolo = "TRASFERTE PREFERITE", icona = R.drawable.ic_music_note) { onNavigate("trasferte_preferite") }
+            // Nuova icona per Trasferte Preferite
+            MenuItem(titolo = "TRASFERTE PREFERITE", icona = R.drawable.star_favorite) { onNavigate("trasferte_preferite") }
         }
         if (databaseViewModel.isAdmin) {
             Box(modifier = Modifier.fillMaxWidth()) {
-                MenuItem(titolo = "NOTIFICHE", icona = R.drawable.ic_music_note) { onNavigate("notifiche") }
+                MenuItem(titolo = "NOTIFICHE", icona = R.drawable.notice) { onNavigate("notifiche") }
                 if (numNotifiche > 0) {
                     Box(modifier = Modifier.align(Alignment.CenterEnd).padding(end = 20.dp).size(22.dp).background(Color.Red, CircleShape), contentAlignment = Alignment.Center) {
                         Text(numNotifiche.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -608,7 +652,7 @@ fun SchermataMappa(onPinClick: (String) -> Unit, onTornaIndietro: () -> Unit) {
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                         val bmp = android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.logo_muretto)
                         icon = BitmapDrawable(ctx.resources, Bitmap.createScaledBitmap(bmp, 200, 140, true))
-                        setOnMarkerClickListener { _, _ -> Tema.isBarreFaul = false; onPinClick("benvenuto"); true }
+                        setOnMarkerClickListener { _, _ -> Tema.murettoSelezionato = MurettoAttivo.PG; onPinClick("benvenuto"); true }
                     }
                     overlays.add(m1)
 
@@ -617,9 +661,22 @@ fun SchermataMappa(onPinClick: (String) -> Unit, onTornaIndietro: () -> Unit) {
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                         val bmp = android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.pin_barre_faul)
                         icon = BitmapDrawable(ctx.resources, Bitmap.createScaledBitmap(bmp, 200, 140, true))
-                        setOnMarkerClickListener { _, _ -> Tema.isBarreFaul = true; onPinClick("benvenuto_barre_faul"); true }
+                        setOnMarkerClickListener { _, _ -> Tema.murettoSelezionato = MurettoAttivo.BARRE_FAUL; onPinClick("benvenuto_barre_faul"); true }
                     }
                     overlays.add(m2)
+
+                    val m3 = Marker(this).apply {
+                        position = GeoPoint(41.878340, 12.521054)
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        val bmp = android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.pin_ateneo)
+                        icon = BitmapDrawable(ctx.resources, Bitmap.createScaledBitmap(bmp, 200, 140, true))
+                        setOnMarkerClickListener { _, _ ->
+                            Tema.murettoSelezionato = MurettoAttivo.ATENEO
+                            onPinClick("benvenuto_ateneo")
+                            true
+                        }
+                    }
+                    overlays.add(m3)
                 }
             }
         )
@@ -743,5 +800,26 @@ object SecurityGuard {
             return true // Nel dubbio, se il sistema va in errore (es. pacchetto manomesso), distruggiamo
         }
         return false // App integra
+    }
+}
+
+@Composable
+fun SchermataDiBenvenutoAteneo(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Unit) {
+    var inTransizione by remember { mutableStateOf(false) }
+    val scalaSfondo by animateFloatAsState(targetValue = if (inTransizione) 2.8f else 1f, animationSpec = tween(1300, easing = FastOutSlowInEasing), label = "")
+    val alphaContenuto by animateFloatAsState(targetValue = if (inTransizione) 0f else 1f, animationSpec = tween(700), finishedListener = { onVaiAlMenu() }, label = "")
+
+    Box(
+        modifier = Modifier.fillMaxSize().background(Color.Black).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { if (!inTransizione) inTransizione = true },
+        contentAlignment = Alignment.Center
+    ) {
+        Box(modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scalaSfondo; scaleY = scalaSfondo; alpha = alphaContenuto }) {
+            Image(painter = painterResource(id = R.drawable.sfondo_schermata_iniziale_ateneo), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        }
+        if (!inTransizione) {
+            IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.TopStart).padding(top = 60.dp, start = 16.dp)) {
+                Text("<", color = Color.White, fontSize = 45.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }

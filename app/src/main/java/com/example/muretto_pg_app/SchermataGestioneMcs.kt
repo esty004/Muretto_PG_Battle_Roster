@@ -69,9 +69,13 @@ fun SchermataGestioneMcs(onTornaIndietro: () -> Unit, onModificaMc: (String) -> 
                         contentPadding = PaddingValues(bottom = 100.dp)
                     ) {
                         items(databaseViewModel.listaMcsCloud) { mc ->
-                            CardFreestylerTorneo(freestyler = mc, isSelezionato = false) {
-                                onModificaMc(mc.id)
-                            }
+                            CardFreestylerTorneo(
+                                freestyler = mc,
+                                isSelezionato = false,
+                                tipoTorneo = TipoTorneo.SINGOLO, // Valore di default per non dare errore
+                                indiceSelezione = -1,           // Valore di default per non dare errore
+                                onClick = { onModificaMc(mc.id) }
+                            )
                         }
                     }
                 }

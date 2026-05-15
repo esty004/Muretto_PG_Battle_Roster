@@ -23,7 +23,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
@@ -82,104 +84,174 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
     var risultatoSpareggio by remember { mutableStateOf<ModalitaSpareggio?>(null) }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize()) {
 
-            Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
-                IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)) {
-                    Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato)
-                }
-                Text("ROUND ${round.numero}", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+            // 1. --- SFONDO GLOBALE DELLA SCHERMATA (Dinamico) ---
+            Image(
+                painter = painterResource(id = Tema.sfondoGenerale),
+                contentDescription = "Sfondo Schermata",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            // Patina scura fissa per leggere bene i contenuti esterni
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)))
 
-                if (vincitoreTemporaneoId != null && GestoreBattle.faseAttuale != FaseTorneo.FINALE) {
-                    IconButton(
-                        onClick = {
-                            val roundAggiornato = round.copy(completato = true, vincitoreId = vincitoreTemporaneoId)
-                            GestoreBattle.roundsAttuali[indiceRound] = roundAggiornato
-                            GestoreBattle.salvaProgresso(context)
-                            onTornaIndietro()
-                        },
-                        modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = "Conferma", tint = Color.Green, modifier = Modifier.size(40.dp))
+            Column(modifier = Modifier.fillMaxSize()) {
+
+                // HEADER
+                Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
+                    IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)) {
+                        Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato)
+                    }
+                    Text("ROUND ${round.numero}", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+
+                    if (vincitoreTemporaneoId != null && GestoreBattle.faseAttuale != FaseTorneo.FINALE) {
+                        IconButton(
+                            onClick = {
+                                val roundAggiornato = round.copy(completato = true, vincitoreId = vincitoreTemporaneoId)
+                                GestoreBattle.roundsAttuali[indiceRound] = roundAggiornato
+                                GestoreBattle.salvaProgresso(context)
+                                onTornaIndietro()
+                            },
+                            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = "Conferma", tint = Color.Green, modifier = Modifier.size(40.dp))
+                        }
                     }
                 }
-            }
 
-            Box(
-                modifier = Modifier.fillMaxWidth().weight(1f).padding(16.dp).clip(RoundedCornerShape(32.dp)).border(4.dp, Tema.colorePrincipale, RoundedCornerShape(32.dp)).background(brush = Tema.gradienteCard).padding(24.dp)
-            ) {
-                Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
+                // RIQUADRO CENTRALE (LA BATTLE)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(16.dp)
+                        .clip(RoundedCornerShape(32.dp))
+                        .border(4.dp, Tema.colorePrincipale, RoundedCornerShape(32.dp))
+                ) {
 
+                    // 2. --- SFONDO SPECIFICO DELLA BATTLE CARD (Cyberpunk) ---
+                    Image(
+                        painter = painterResource(id = R.drawable.sfondo_round_card),
+                        contentDescription = "Sfondo Battle",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .scale(1.2f), // ZOOM DEL 20%
+                        contentScale = ContentScale.Crop
+                    )
+                    // Patina scura (leggera) per far risaltare gli MC
+                    Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
+
+                    // CONTENUTO DELLA BATTLE
                     Column(
-                        modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
-                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
+                        modifier = Modifier.fillMaxSize().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        val righe = round.partecipanti.chunked(2)
 
-                        righe.forEachIndexed { index, riga ->
-                            if (index > 0) Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(50.dp).padding(vertical = 8.dp))
+                        Column(
+                            modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
+                            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
+                        ) {
+                            val righe = round.partecipanti.chunked(2)
 
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                                Box(modifier = Modifier.clickable { vincitoreTemporaneoId = if (vincitoreTemporaneoId == riga[0].id) null else riga[0].id }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
-                                    BoxMC(mc = riga[0], isVincitore = vincitoreTemporaneoId == riga[0].id, isSconfitto = vincitoreTemporaneoId != null && vincitoreTemporaneoId != riga[0].id, width = 140.dp, height = 180.dp)
+                            righe.forEachIndexed { index, riga ->
+                                if (index > 0) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.versus),
+                                        contentDescription = "Versus",
+                                        modifier = Modifier
+                                            .size(50.dp)
+                                            .padding(vertical = 8.dp)
+                                            .clip(CircleShape)
+                                    )
                                 }
 
-                                if (riga.size == 2) {
-                                    Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(50.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.Center, // CENTRATE LE CARD
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(modifier = Modifier.clickable { vincitoreTemporaneoId = if (vincitoreTemporaneoId == riga[0].id) null else riga[0].id }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                                        BoxMC(
+                                            mc = riga[0],
+                                            isVincitore = vincitoreTemporaneoId == riga[0].id,
+                                            isSconfitto = vincitoreTemporaneoId != null && vincitoreTemporaneoId != riga[0].id,
+                                            width = 120.dp, // FACCE GRANDI COME NEGLI OTTAVI
+                                            height = 160.dp
+                                        )
+                                    }
 
-                                    Box(modifier = Modifier.clickable { vincitoreTemporaneoId = if (vincitoreTemporaneoId == riga[1].id) null else riga[1].id }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
-                                        BoxMC(mc = riga[1], isVincitore = vincitoreTemporaneoId == riga[1].id, isSconfitto = vincitoreTemporaneoId != null && vincitoreTemporaneoId != riga[1].id, width = 140.dp, height = 180.dp)
+                                    if (riga.size == 2) {
+                                        Image(
+                                            painter = painterResource(id = R.drawable.versus),
+                                            contentDescription = "Versus",
+                                            modifier = Modifier
+                                                .size(90.dp) // VS GRANDE
+                                                .padding(horizontal = 12.dp)
+                                                .clip(CircleShape) // TAGLIATO A CERCHIO PER MASCHERARE IL JPG
+                                        )
+
+                                        Box(modifier = Modifier.clickable { vincitoreTemporaneoId = if (vincitoreTemporaneoId == riga[1].id) null else riga[1].id }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                                            BoxMC(
+                                                mc = riga[1],
+                                                isVincitore = vincitoreTemporaneoId == riga[1].id,
+                                                isSconfitto = vincitoreTemporaneoId != null && vincitoreTemporaneoId != riga[1].id,
+                                                width = 120.dp, // FACCE GRANDI COME NEGLI OTTAVI
+                                                height = 160.dp
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    Button(
-                        onClick = { mostraDialogRuota = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                        modifier = Modifier.fillMaxWidth(0.95f).height(65.dp).padding(top = 16.dp).border(2.dp, Color.White, RoundedCornerShape(12.dp))
-                    ) {
-                        Text("SPAREGGINO/MODALITÀ", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    }
-
-                    if (GestoreBattle.faseAttuale == FaseTorneo.FINALE && vincitoreTemporaneoId != null) {
-                        var mostraMessaggioFine by remember { mutableStateOf(false) }
-
-                        Button(onClick = { mostraMessaggioFine = true }, modifier = Modifier.fillMaxWidth(0.8f).height(60.dp).padding(top = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.Green)) {
-                            Text("FINE", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        Button(
+                            onClick = { mostraDialogRuota = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                            modifier = Modifier.fillMaxWidth(0.95f).height(65.dp).padding(top = 16.dp).border(2.dp, Color.White, RoundedCornerShape(12.dp))
+                        ) {
+                            Text("SPAREGGINO/MODALITÀ", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         }
 
-                        if (mostraMessaggioFine) {
-                            val nomeVincitore = round.partecipanti.find { it.id == vincitoreTemporaneoId }?.nome ?: ""
-                            val finalisti = round.partecipanti.joinToString(" VS ") { it.nome }
+                        if (GestoreBattle.faseAttuale == FaseTorneo.FINALE && vincitoreTemporaneoId != null) {
+                            var mostraMessaggioFine by remember { mutableStateOf(false) }
 
-                            AlertDialog(
-                                onDismissRequest = { mostraMessaggioFine = false },
-                                containerColor = Tema.coloreSfondoCard,
-                                title = { Text("VIVA L'HIP HOP!", color = Tema.coloreTesto, fontSize = 28.sp, fontFamily = MioFontPersonalizzato, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
-                                text = {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                                        Text("FINALISTI:", color = Tema.coloreTestoSecondario, fontSize = 16.sp)
-                                        Text(finalisti.uppercase(), color = Tema.coloreTesto, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Text("VINCITORE:", color = Color.Green, fontSize = 18.sp)
-                                        Text(nomeVincitore.uppercase(), color = Color.Green, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
-                                    }
-                                },
-                                confirmButton = {
-                                    Button(
-                                        colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
-                                        onClick = {
-                                            val roundAggiornato = round.copy(completato = true, vincitoreId = vincitoreTemporaneoId)
-                                            GestoreBattle.roundsAttuali[indiceRound] = roundAggiornato
-                                            GestoreBattle.salvaProgresso(context)
-                                            mostraMessaggioFine = false
-                                            onTornaIndietro()
+                            Button(onClick = { mostraMessaggioFine = true }, modifier = Modifier.fillMaxWidth(0.8f).height(60.dp).padding(top = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.Green)) {
+                                Text("FINE", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                            }
+
+                            if (mostraMessaggioFine) {
+                                val nomeVincitore = round.partecipanti.find { it.id == vincitoreTemporaneoId }?.nome ?: ""
+                                val finalisti = round.partecipanti.joinToString(" VS ") { it.nome }
+
+                                AlertDialog(
+                                    onDismissRequest = { mostraMessaggioFine = false },
+                                    containerColor = Tema.coloreSfondoCard,
+                                    title = { Text("VIVA L'HIP HOP!", color = Tema.coloreTesto, fontSize = 28.sp, fontFamily = MioFontPersonalizzato, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
+                                    text = {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                                            Text("FINALISTI:", color = Tema.coloreTestoSecondario, fontSize = 16.sp)
+                                            Text(finalisti.uppercase(), color = Tema.coloreTesto, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Text("VINCITORE:", color = Color.Green, fontSize = 18.sp)
+                                            Text(nomeVincitore.uppercase(), color = Color.Green, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
                                         }
-                                    ) { Text("CONFERMA VITTORIA", color = Color.White, fontWeight = FontWeight.Bold) }
-                                }
-                            )
+                                    },
+                                    confirmButton = {
+                                        Button(
+                                            colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
+                                            onClick = {
+                                                val roundAggiornato = round.copy(completato = true, vincitoreId = vincitoreTemporaneoId)
+                                                GestoreBattle.roundsAttuali[indiceRound] = roundAggiornato
+                                                GestoreBattle.salvaProgresso(context)
+                                                mostraMessaggioFine = false
+                                                onTornaIndietro()
+                                            }
+                                        ) { Text("CONFERMA VITTORIA", color = Color.White, fontWeight = FontWeight.Bold) }
+                                    }
+                                )
+                            }
                         }
                     }
                 }

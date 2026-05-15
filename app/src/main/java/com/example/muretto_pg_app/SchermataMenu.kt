@@ -27,29 +27,34 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> Unit) {
     val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
-    val listaModalita = listOf("Muretto classico", "2 VS 2", "Evento", "Allenamento")
+    // RIMOSSO "Allenamento" dalla lista
+    val listaModalita = listOf("Muretto classico", "2 VS 2", "Evento")
 
     var mostraDialog2vs2 by remember { mutableStateOf(false) }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Box(modifier = Modifier.fillMaxSize()) {
 
-            // --- NUOVO SFONDO CON IMMAGINE (Solo per Muretto PG) ---
-            if (!Tema.isBarreFaul) {
-                Image(
-                    painter = painterResource(id = R.drawable.sfondo_muretto_classico),
-                    contentDescription = "Sfondo Muretto Classico",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop // L'immagine riempirà tutto lo schermo senza deformarsi
-                )
-                // Patina scura (al 50%) sopra lo sfondo per rendere leggibili i testi e le card
-                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
-            }
-            // -------------------------------------------------------
+            // --- SFONDO DINAMICO ---
+            Image(
+                painter = painterResource(id = if (Tema.isBarreFaul) R.drawable.sfondo_barre_faul else if(Tema.isAteneo) R.drawable.sfondo_ateneo else R.drawable.sfondo_muretto_classico),
+                contentDescription = "Sfondo Menu",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            // Patina scura per leggibilità
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
 
             Column(modifier = Modifier.fillMaxSize()) {
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
-                    Text("SELEZIONA MODALITA'", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = FontFamily(Font(R.font.jackboa)), fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+                    Text(
+                        "SELEZIONA MODALITA'",
+                        color = Color.White,
+                        fontSize = 32.sp,
+                        fontFamily = FontFamily(Font(R.font.jackboa)),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
                 }
 
                 LazyColumn(
@@ -63,22 +68,18 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
                                 "Muretto classico" -> onSelezionaModalita("muretto_classico")
                                 "2 VS 2" -> mostraDialog2vs2 = true
                                 "Evento" -> onSelezionaModalita("evento")
-                                "Allenamento" -> onSelezionaModalita("allenamento")
                             }
                         })
                     }
                 }
             }
 
-            // BOTTONE INDIETRO IN BASSO A SINISTRA
             FloatingActionButton(
                 onClick = onTornaIndietro,
                 containerColor = Tema.colorePrincipale,
                 contentColor = Color.White,
                 shape = CircleShape,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 16.dp, bottom = 32.dp)
+                modifier = Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = 32.dp)
             ) {
                 Text("<", fontSize = 30.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = (-2).dp))
             }
@@ -112,28 +113,35 @@ fun CardModalita(nomeModalita: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(16f / 9f)
-            .clip(RoundedCornerShape(12.dp))
-            .border(3.dp, Color.White, RoundedCornerShape(12.dp))
+            // --- MODIFICA QUI: Altezza aumentata da 150.dp a 200.dp ---
+            .height(200.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .border(4.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp))
             .background(Tema.coloreSfondoCard)
             .clickable { onClick() },
         contentAlignment = Alignment.BottomCenter
     ) {
-        if (Tema.isBarreFaul) {
-            when (nomeModalita) {
-                "Muretto classico" -> Image(painter = painterResource(id = R.drawable.muretto_classico_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                "2 VS 2" -> Image(painter = painterResource(id = R.drawable.due_contro_due_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                "Evento" -> Image(painter = painterResource(id = R.drawable.evento_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                "Allenamento" -> Image(painter = painterResource(id = R.drawable.allenamento_barre_faul), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        val resourceId = when (Tema.murettoSelezionato) {
+            MurettoAttivo.ATENEO -> when (nomeModalita) {
+                "Muretto classico" -> R.drawable.muretto_classico_ateneo
+                "Evento" -> R.drawable.evento_ateneo
+                else -> R.drawable.due_contro_due // Default per 2vs2
             }
-        } else {
-            when (nomeModalita) {
-                "Muretto classico" -> Image(painter = painterResource(id = R.drawable.muretto_classico), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                "2 VS 2" -> Image(painter = painterResource(id = R.drawable.due_contro_due), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                "Evento" -> Image(painter = painterResource(id = R.drawable.evento), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                "Allenamento" -> Image(painter = painterResource(id = R.drawable.allenamento), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            MurettoAttivo.BARRE_FAUL -> when (nomeModalita) {
+                "Muretto classico" -> R.drawable.muretto_classico_barre_faul
+                "2 VS 2" -> R.drawable.due_contro_due_barre_faul
+                "Evento" -> R.drawable.evento_barre_faul
+                else -> R.drawable.muretto_classico
+            }
+            MurettoAttivo.PG -> when (nomeModalita) {
+                "Muretto classico" -> R.drawable.muretto_classico
+                "2 VS 2" -> R.drawable.due_contro_due
+                "Evento" -> R.drawable.evento
+                else -> R.drawable.muretto_classico
             }
         }
+
+        Image(painter = painterResource(id = resourceId), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
 
         Box(modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.6f)).padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
             Text(text = nomeModalita.uppercase(), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)

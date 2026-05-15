@@ -16,7 +16,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
@@ -45,7 +47,12 @@ fun SchermataOttavi(
 
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Box(modifier = Modifier.fillMaxSize()) {
-
+            Image(
+                painter = painterResource(id = Tema.sfondoGenerale),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
             Column(modifier = Modifier.fillMaxSize().padding(bottom = 100.dp)) {
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
                     IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)) {
@@ -145,23 +152,76 @@ fun SchermataOttavi(
 @Composable
 fun RoundCard(round: Round, onClick: () -> Unit) {
     Box(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).border(3.dp, Tema.colorePrincipale, RoundedCornerShape(24.dp)).background(brush = Tema.gradienteCard).clickable { onClick() }.padding(20.dp)
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+            .border(3.dp, Tema.colorePrincipale, RoundedCornerShape(24.dp))
+            .clickable { onClick() }
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-            Text("Round ${round.numero}", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(bottom = 16.dp))
+        // 2. SFONDO CARD: L'immagine specifica sfondo_round_card (con zoom)
+        Image(
+            painter = painterResource(id = R.drawable.sfondo_round_card),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize().scale(1.2f),
+            contentScale = ContentScale.Crop
+        )
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth().padding(20.dp)
+        ) {
+            Text(
+                "Round ${round.numero}",
+                color = Color.White,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
 
             if (round.partecipanti.isNotEmpty()) {
                 val righe = round.partecipanti.chunked(2)
 
                 righe.forEachIndexed { index, riga ->
-                    if (index > 0) Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(40.dp).padding(vertical = 8.dp))
+                    if (index > 0) {
+                        Image(
+                            painter = painterResource(id = R.drawable.versus),
+                            contentDescription = "Versus",
+                            modifier = Modifier
+                                .size(50.dp)
+                                .padding(vertical = 8.dp)
+                                .clip(CircleShape)
+                        )
+                    }
 
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
-                        BoxMC(mc = riga[0], isVincitore = round.vincitoreId == riga[0].id, isSconfitto = round.completato && round.vincitoreId != riga[0].id)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center, // CARDS PIÙ CENTRATE (avvicinate)
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        BoxMC(
+                            mc = riga[0],
+                            isVincitore = round.vincitoreId == riga[0].id,
+                            isSconfitto = round.completato && round.vincitoreId != riga[0].id,
+                            width = 120.dp,
+                            height = 160.dp
+                        )
 
                         if (riga.size == 2) {
-                            Image(painter = painterResource(id = R.drawable.versus), contentDescription = "Versus", modifier = Modifier.size(85.dp).padding(horizontal = 10.dp))
-                            BoxMC(mc = riga[1], isVincitore = round.vincitoreId == riga[1].id, isSconfitto = round.completato && round.vincitoreId != riga[1].id)
+                            Image(
+                                painter = painterResource(id = R.drawable.versus),
+                                contentDescription = "Versus",
+                                modifier = Modifier
+                                    .size(90.dp) // VERSUS PIÙ GRANDE (prima era 75)
+                                    .padding(horizontal = 12.dp)
+                                    .clip(CircleShape)
+                            )
+
+                            BoxMC(
+                                mc = riga[1],
+                                isVincitore = round.vincitoreId == riga[1].id,
+                                isSconfitto = round.completato && round.vincitoreId != riga[1].id,
+                                width = 120.dp,
+                                height = 160.dp
+                            )
                         }
                     }
                 }

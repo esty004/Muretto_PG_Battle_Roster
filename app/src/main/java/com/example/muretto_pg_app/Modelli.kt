@@ -66,29 +66,48 @@ import org.json.JSONObject
 // ─── TEMA E RUOLI ─────────────────────────────────────────────────────────────
 
 // Inseriscilo nel file Modelli.kt
-object Tema {
-    var isBarreFaul by mutableStateOf(false)
+enum class MurettoAttivo { PG, BARRE_FAUL, ATENEO }
 
-    val colorePrincipale: Color get() = if (isBarreFaul) Color(0xFF1E88E5) else Color(0xFFD32F2F)
-    val coloreSfondo: Color get() = if (isBarreFaul) Color(0xFFDCDCDC) else Color.Black
-    val coloreSfondoCard: Color get() = if (isBarreFaul) Color(0xFFF5F5F5) else Color(0xFF111111)
-    val coloreTesto: Color get() = if (isBarreFaul) Color.Black else Color.White
-    val coloreTestoSecondario: Color get() = if (isBarreFaul) Color.DarkGray else Color.Gray
+object Tema {
+    var murettoSelezionato by mutableStateOf(MurettoAttivo.PG)
+
+    // Helper per non rompere i controlli isBarreFaul esistenti negli altri file
+    val isBarreFaul get() = murettoSelezionato == MurettoAttivo.BARRE_FAUL
+    val isAteneo get() = murettoSelezionato == MurettoAttivo.ATENEO
+
+    val colorePrincipale: Color get() = when (murettoSelezionato) {
+        MurettoAttivo.BARRE_FAUL -> Color(0xFF1E88E5) // Blu
+        MurettoAttivo.ATENEO -> Color(0xFFFF9800)     // Arancione (Ateneo)
+        MurettoAttivo.PG -> Color(0xFFD32F2F)         // Rosso
+    }
+
+    val coloreSfondo: Color get() = when (murettoSelezionato) {
+        MurettoAttivo.BARRE_FAUL -> Color(0xFFDCDCDC) // Chiaro
+        else -> Color.Black                           // Nero (PG e Ateneo)
+    }
+
+    val coloreSfondoCard: Color get() = when (murettoSelezionato) {
+        MurettoAttivo.BARRE_FAUL -> Color(0xFFF5F5F5)
+        MurettoAttivo.ATENEO -> Color(0xFF1E1E1E)
+        MurettoAttivo.PG -> Color(0xFF111111)
+    }
+
+    val coloreTesto: Color get() = if (murettoSelezionato == MurettoAttivo.BARRE_FAUL) Color.Black else Color.White
+    val coloreTestoSecondario: Color get() = if (murettoSelezionato == MurettoAttivo.BARRE_FAUL) Color.DarkGray else Color.Gray
 
     val gradienteCard: Brush
-        get() = if (isBarreFaul) {
-            Brush.horizontalGradient(colors = listOf(Color(0xFF002244), Color(0xFF004488)))
-        } else {
-            Brush.horizontalGradient(colors = listOf(Color(0xFF3A0000), Color(0xFF00003A)))
+        get() = when (murettoSelezionato) {
+            MurettoAttivo.BARRE_FAUL -> Brush.horizontalGradient(colors = listOf(Color(0xFF002244), Color(0xFF004488)))
+            MurettoAttivo.ATENEO -> Brush.horizontalGradient(colors = listOf(Color(0xFF4A2B00), Color(0xFF804D00)))
+            MurettoAttivo.PG -> Brush.horizontalGradient(colors = listOf(Color(0xFF3A0000), Color(0xFF00003A)))
         }
 
-    // --- NUOVI SFONDI DINAMICI ---
-
-    // Lo sfondo generico per le schermate interne (Allenamento, Tornei, Gestione)
-    val sfondoGenerale: Int get() = if (isBarreFaul) R.drawable.sfondo_barre_faul else R.drawable.sfondo_muretto_classico
-
-    // Lo sfondo specifico per la schermata di Login/Registrazione
-    val sfondoIniziale: Int get() = if (isBarreFaul) R.drawable.sfondo_schermata_iniziale_barre_faul else R.drawable.sfondo_muretto_classico
+    // Sfondo per le schermate interne
+    val sfondoGenerale: Int get() = when (murettoSelezionato) {
+        MurettoAttivo.BARRE_FAUL -> R.drawable.sfondo_barre_faul
+        MurettoAttivo.ATENEO -> R.drawable.sfondo_ateneo
+        MurettoAttivo.PG -> R.drawable.sfondo_muretto_classico
+    }
 }
 
 enum class RuoloUtente { NESSUNO, ADMIN, ORGANIZZATORE_MURETTO, ORGANIZZATORE_EVENTI, RAPPER }
@@ -658,8 +677,27 @@ object GestoreBattle {
         is2v2 = true; tipoTorneoAttuale = tipo
         val lista = if (tipo == TipoTorneo.COPPIE_CASUALI) partecipanti.shuffled() else partecipanti.toList()
         val coppie = mutableListOf<Freestyler>()
-        for (i in 0 until (lista.size / 2) * 2 step 2) coppie.add(Freestyler("${lista[i].id}_${lista[i + 1].id}", "${lista[i].nome} & ${lista[i + 1].nome}", "local_2v2", if (Tema.isBarreFaul) "barre_faul" else "muretto_pg"))
-        if (lista.size % 2 != 0) coppie.add(lista.last())
+
+        for (i in 0 until (lista.size / 2) * 2 step 2) {
+            val mc1 = lista[i]
+            val mc2 = lista[i + 1]
+
+            // CONCATENIAMO GLI URL SEPARANDOLI CON UNA VIRGOLA!
+            // Se un mc non ha foto, mettiamo "no_pic" per gestire il fallback dopo
+            val url1 = if (mc1.immagineUrl.isNullOrBlank()) "no_pic" else mc1.immagineUrl
+            val url2 = if (mc2.immagineUrl.isNullOrBlank()) "no_pic" else mc2.immagineUrl
+            val urlCoppia = "$url1,$url2"
+
+            coppie.add(
+                Freestyler(
+                    id = "${mc1.id}_${mc2.id}",
+                    nome = "${mc1.nome} & ${mc2.nome}",
+                    immagineUrl = urlCoppia, // Salviamo la stringa concatenata!
+                    muretto_id = if (Tema.isBarreFaul) "barre_faul" else "muretto_pg"
+                )
+            )
+        }
+        if (lista.size % 2 != 0) coppie.add(lista.last()) // Il povero dispari da solo
         generaFase(determinaFase(coppie.size), coppie)
     }
     fun generaFase(fase: FaseTorneo, partecipanti: List<Freestyler>) {
@@ -750,7 +788,7 @@ fun BoxMC(
     isVincitore: Boolean = false,
     isSconfitto: Boolean = false,
     width: Dp = 100.dp,
-    height: Dp = 130.dp,
+    height: Dp = 140.dp, // AUMENTATA L'ALTEZZA QUI!
     coloreBordoCustom: Color? = null
 ) {
     val colorMatrix = if (isSconfitto) ColorMatrix().apply { setToSaturation(0f) } else null
@@ -760,16 +798,11 @@ fun BoxMC(
         else -> Tema.colorePrincipale
     }
 
-    // Se l'immagine è null dal database, usiamo una stringa vuota di default ""
     val safeImageUrl = mc.immagineUrl ?: ""
-    val is2v2 = safeImageUrl == "local_2v2"
-    val imageModel: Any = when {
-        is2v2 -> if (Tema.isBarreFaul) R.drawable.due_contro_due_barre_faul else R.drawable.due_contro_due
-        safeImageUrl.isBlank() -> R.drawable.no_pic
-        else -> safeImageUrl
-    }
 
-    val scaleMode = if (is2v2) ContentScale.Fit else ContentScale.Crop
+    // Controlliamo se è un URL combinato (2VS2)
+    val urlParti = safeImageUrl.split(",")
+    val is2v2 = urlParti.size == 2
 
     Box(
         modifier = Modifier
@@ -780,16 +813,49 @@ fun BoxMC(
             .background(Tema.coloreSfondoCard),
         contentAlignment = Alignment.BottomCenter
     ) {
-        AsyncImage(
-            model = imageModel,
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = scaleMode,
-            alignment = Alignment.TopCenter,
-            placeholder = painterResource(R.drawable.no_pic),
-            error = painterResource(R.drawable.no_pic),
-            colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null
-        )
+        if (is2v2) {
+            // DISEGNAMO LO SPLIT SCREEN!
+            Row(modifier = Modifier.fillMaxSize()) {
+                val url1 = if (urlParti[0] == "no_pic") R.drawable.no_pic else urlParti[0]
+                val url2 = if (urlParti[1] == "no_pic") R.drawable.no_pic else urlParti[1]
+
+                AsyncImage(
+                    model = url1,
+                    contentDescription = null,
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    contentScale = ContentScale.Crop,
+                    alignment = Alignment.TopCenter,
+                    placeholder = painterResource(R.drawable.no_pic),
+                    error = painterResource(R.drawable.no_pic),
+                    colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null
+                )
+                // Divisore nero al centro
+                Box(modifier = Modifier.width(2.dp).fillMaxHeight().background(Color.Black))
+                AsyncImage(
+                    model = url2,
+                    contentDescription = null,
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    contentScale = ContentScale.Crop,
+                    alignment = Alignment.TopCenter,
+                    placeholder = painterResource(R.drawable.no_pic),
+                    error = painterResource(R.drawable.no_pic),
+                    colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null
+                )
+            }
+        } else {
+            // MC SINGOLO NORMALE
+            val imageModel: Any = if (safeImageUrl.isBlank() || safeImageUrl == "no_pic") R.drawable.no_pic else safeImageUrl
+            AsyncImage(
+                model = imageModel,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.TopCenter,
+                placeholder = painterResource(R.drawable.no_pic),
+                error = painterResource(R.drawable.no_pic),
+                colorFilter = if (colorMatrix != null) ColorFilter.colorMatrix(colorMatrix) else null
+            )
+        }
 
         Box(
             modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.8f)).padding(vertical = 8.dp),
