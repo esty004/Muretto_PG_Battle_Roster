@@ -66,6 +66,11 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
     var staCaricando by remember { mutableStateOf(false) }
     var messaggioEsito by remember { mutableStateOf("") }
 
+    // NUOVI CAMPI
+    var insta by remember { mutableStateOf("") }
+    var maps by remember { mutableStateOf("") }
+    var descrizione by remember { mutableStateOf("") }
+
     // MAPPA E RICERCA
     var pinMarker by remember { mutableStateOf<GeoPoint?>(null) }
     var searchQuery by remember { mutableStateOf("") }
@@ -251,6 +256,33 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
                 )
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // NUOVI CAMPI: Insta, Maps, Descrizione
+            OutlinedTextField(
+                value = insta, onValueChange = { insta = it },
+                label = { Text("Link Instagram (opzionale)", color = Tema.coloreTestoSecondario) },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, focusedBorderColor = Tema.colorePrincipale),
+                singleLine = true
+            )
+
+            OutlinedTextField(
+                value = maps, onValueChange = { maps = it },
+                label = { Text("Link Google Maps (opzionale)", color = Tema.coloreTestoSecondario) },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, focusedBorderColor = Tema.colorePrincipale),
+                singleLine = true
+            )
+
+            OutlinedTextField(
+                value = descrizione, onValueChange = { descrizione = it },
+                label = { Text("Descrizione", color = Tema.coloreTestoSecondario) },
+                modifier = Modifier.fillMaxWidth().height(120.dp).padding(vertical = 4.dp),
+                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, focusedBorderColor = Tema.colorePrincipale),
+                maxLines = 5
+            )
+
             if (messaggioEsito.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(messaggioEsito, color = if (messaggioEsito.contains("Errore")) Color.Red else Color.Green, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
@@ -275,16 +307,17 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
                     scope.launch {
                         val bytesImmagine = imageUri?.let { uri -> context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }
 
-                        // INVIA EVENTO CON SCALA FISSA A 1.0f
+                        // INVIA EVENTO INCLUSI I NUOVI CAMPI
                         val successo = databaseViewModel.inserisciNuovoEvento(
                             titolo = titolo.trim(), locationNome = indirizzoTesto.trim(), lat = pinMarker!!.latitude, lng = pinMarker!!.longitude,
-                            dataOra = "$dataSelezionata, $oraSelezionata", tipo = tipo, prezzo = prezzo.trim(), scalaPin = 1.0f, imageBytes = bytesImmagine
+                            dataOra = "$dataSelezionata, $oraSelezionata", tipo = tipo, prezzo = prezzo.trim(), scalaPin = 1.0f, imageBytes = bytesImmagine,
+                            insta = insta.trim(), maps = maps.trim(), descrizione = descrizione.trim()
                         )
 
                         staCaricando = false
                         if (successo) {
                             messaggioEsito = "Evento inviato in attesa di approvazione Admin!"
-                            titolo = ""; indirizzoTesto = ""; dataSelezionata = ""; oraSelezionata = ""; imageUri = null; pinMarker = null
+                            titolo = ""; indirizzoTesto = ""; dataSelezionata = ""; oraSelezionata = ""; imageUri = null; pinMarker = null; insta = ""; maps = ""; descrizione = ""
                         } else {
                             messaggioEsito = "Errore durante l'invio dell'evento."
                         }

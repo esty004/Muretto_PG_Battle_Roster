@@ -162,7 +162,11 @@ data class Evento(
     val immagine_url: String?,
     val organizzatore_id: String,
     val stato: String = "in_attesa",
-    val scala_pin: Float = 1.0f
+    val scala_pin: Float = 1.0f,
+    // --- CAMPI RESI SICURI CON IL PUNTO INTERROGATIVO (?) ---
+    val insta: String? = null,
+    val maps: String? = null,
+    val descrizione: String? = null
 )
 
 @Serializable
@@ -422,7 +426,8 @@ class DatabaseViewModel : ViewModel() {
 
     suspend fun inserisciNuovoEvento(
         titolo: String, locationNome: String, lat: Double, lng: Double,
-        dataOra: String, tipo: String, prezzo: String, scalaPin: Float, imageBytes: ByteArray?
+        dataOra: String, tipo: String, prezzo: String, scalaPin: Float, imageBytes: ByteArray?,
+        insta: String, maps: String, descrizione: String // Nuovi parametri
     ): Boolean {
         return try {
             val user = supabase.auth.currentUserOrNull() ?: return false
@@ -434,22 +439,15 @@ class DatabaseViewModel : ViewModel() {
                 imageUrl = bucket.publicUrl(fileName)
             }
             val nuovoEvento = Evento(
-                titolo = titolo,
-                location_nome = locationNome,
-                lat = lat,
-                lng = lng,
-                data_ora = dataOra,
-                tipo = tipo,
-                prezzo = prezzo,
-                immagine_url = imageUrl,
-                organizzatore_id = user.id,
-                stato = "in_attesa",
-                scala_pin = scalaPin
+                titolo = titolo, location_nome = locationNome, lat = lat, lng = lng,
+                data_ora = dataOra, tipo = tipo, prezzo = prezzo, immagine_url = imageUrl,
+                organizzatore_id = user.id, stato = "in_attesa", scala_pin = scalaPin,
+                insta = insta, maps = maps, descrizione = descrizione // Nuovi campi
             )
             supabase.postgrest["eventi"].insert(nuovoEvento)
             true
         } catch (e: Exception) {
-            Log.e("ERRORE_SUPABASE", "Il database dice: ${e.message}", e)
+            android.util.Log.e("ERRORE_SUPABASE", "Il database dice: ${e.message}", e)
             false
         }
     }

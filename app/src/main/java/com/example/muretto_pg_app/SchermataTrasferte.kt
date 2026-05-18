@@ -1,5 +1,6 @@
 package com.example.muretto_pg_app
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -32,7 +34,12 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
 @Composable
-fun SchermataTrasferte(onTornaIndietro: () -> Unit, onVaiAllaMappa: () -> Unit, soloPreferiti: Boolean = false) {
+fun SchermataTrasferte(
+    onTornaIndietro: () -> Unit,
+    onVaiAllaMappa: () -> Unit,
+    onGestisciBattle: (String) -> Unit = {}, // <-- Risolto: Inserito parametro
+    soloPreferiti: Boolean = false
+) {
     val databaseViewModel = LocalDatabaseViewModel.current
     val MioFont = FontFamily(Font(R.font.komtit__))
 
@@ -50,7 +57,7 @@ fun SchermataTrasferte(onTornaIndietro: () -> Unit, onVaiAllaMappa: () -> Unit, 
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Box(modifier = Modifier.fillMaxSize()) {
 
-            // --- NUOVO SFONDO (Immagine per Muretto, Gradiente per Barre Faul) ---
+            // --- SFONDO ---
             if (!Tema.isBarreFaul) {
                 Image(
                     painter = painterResource(id = R.drawable.sfondo_muretto_classico),
@@ -58,7 +65,6 @@ fun SchermataTrasferte(onTornaIndietro: () -> Unit, onVaiAllaMappa: () -> Unit, 
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
-                // Patina scura per far leggere il testo
                 Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)))
             } else {
                 Box(modifier = Modifier.fillMaxSize().background(
@@ -72,7 +78,6 @@ fun SchermataTrasferte(onTornaIndietro: () -> Unit, onVaiAllaMappa: () -> Unit, 
                     )
                 ))
             }
-            // ---------------------------------------------------------------------
 
             Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 44.dp, bottom = 20.dp)) {
@@ -91,7 +96,13 @@ fun SchermataTrasferte(onTornaIndietro: () -> Unit, onVaiAllaMappa: () -> Unit, 
                         contentPadding = PaddingValues(bottom = 100.dp)
                     ) {
                         items(eventi) { evento ->
-                            CardPostEvento(evento = evento)
+                            CardPostEvento(
+                                evento = evento,
+                                isPreferito = databaseViewModel.eventiPreferiti.contains(evento.id),
+                                onTogglePreferito = { databaseViewModel.togglePreferito(evento.id) },
+                                isLoggato = databaseViewModel.ruoloAttuale != RuoloUtente.NESSUNO,
+                                onGestisciBattle = onGestisciBattle // <-- Risolto: Parametro passato alla Card
+                            )
                         }
                     }
                 }
@@ -109,7 +120,6 @@ fun SchermataTrasferte(onTornaIndietro: () -> Unit, onVaiAllaMappa: () -> Unit, 
                 Text("<", fontSize = 30.sp, fontFamily = MioFont, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = (-2).dp))
             }
 
-            // Mostriamo la mappa solo se non siamo nella pagina dei preferiti puri
             if (!soloPreferiti) {
                 FloatingActionButton(
                     onClick = onVaiAllaMappa,
@@ -134,66 +144,105 @@ fun SchermataTrasferte(onTornaIndietro: () -> Unit, onVaiAllaMappa: () -> Unit, 
 }
 
 @Composable
-fun CardPostEvento(evento: Evento) {
+fun CardPostEvento(evento: Evento, isPreferito: Boolean, onTogglePreferito: () -> Unit, isLoggato: Boolean, onGestisciBattle: (String) -> Unit) {
     val databaseViewModel = LocalDatabaseViewModel.current
-    val isLoggato = databaseViewModel.ruoloAttuale != RuoloUtente.NESSUNO
-    val isPreferito = databaseViewModel.eventiPreferiti.contains(evento.id)
+    var espanso by remember { mutableStateOf(false) }
+    val uriHandler = LocalUriHandler.current
+
+    // Controllo permessi
+    val puoGestire = databaseViewModel.isAdmin ||
+            databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_EVENTI ||
+            databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .border(3.dp, Color.White, RoundedCornerShape(12.dp)),
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { espanso = !espanso }
+            .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp)),
         colors = CardDefaults.cardColors(containerColor = Tema.coloreSfondoCard)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Box {
-                if (evento.immagine_url != null) {
+        Column {
+            Box(modifier = Modifier.fillMaxWidth().height(220.dp)) {
+                if(evento.immagine_url != null) {
                     AsyncImage(
                         model = evento.immagine_url,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxWidth().aspectRatio(1f),
-                        contentScale = ContentScale.Crop
+                        contentDescription = "Locandina Evento",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
                     )
                 } else {
                     Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f).background(Tema.gradienteCard), contentAlignment = Alignment.Center) {
                         Text(evento.titolo.take(1).uppercase(), color = Color.White, fontSize = 80.sp, fontWeight = FontWeight.Bold)
                     }
                 }
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)))
 
-                // STELLINA PREFERITI (Visibile solo se loggato)
                 if (isLoggato) {
                     IconButton(
-                        onClick = { databaseViewModel.togglePreferito(evento.id) },
-                        modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        onClick = onTogglePreferito,
+                        modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
                     ) {
                         Icon(
-                            imageVector = if (isPreferito) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                            painter = painterResource(id = R.drawable.star_favorite),
                             contentDescription = "Preferito",
                             tint = if (isPreferito) Color.Yellow else Color.White,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(38.dp)
                         )
                     }
                 }
+
+                Box(
+                    modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.7f)).align(Alignment.BottomStart).padding(12.dp)
+                ) {
+                    Text(evento.titolo.uppercase(), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily(Font(R.font.komtit__)))
+                }
             }
 
-            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                Text(text = evento.titolo.uppercase(), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = Icons.Default.Place, contentDescription = null, tint = Tema.colorePrincipale, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = evento.location_nome.uppercase(), color = Color.LightGray, fontSize = 14.sp)
-                }
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                    Icon(imageVector = Icons.Default.LocationOn, contentDescription = null, tint = Tema.colorePrincipale, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = evento.data_ora.uppercase(), color = Color.LightGray, fontSize = 14.sp)
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row {
-                    Text(text = "PREZZO: ", color = Color.Gray, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Text(text = evento.prezzo.uppercase(), color = Tema.colorePrincipale, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            AnimatedVisibility(visible = espanso) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(16.dp)
+                ) {
+                    Text("📍 ${evento.location_nome}", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("📅 ${evento.data_ora}", color = Color.DarkGray, fontSize = 16.sp)
+                    Text("🎤 ${evento.tipo}", color = Color.DarkGray, fontSize = 16.sp)
+                    Text("💰 ${evento.prezzo}", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+
+                    if (!evento.descrizione.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(evento.descrizione, color = Color.DarkGray, fontSize = 14.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        if (!evento.insta.isNullOrBlank()) {
+                            IconButton(onClick = { try { uriHandler.openUri(evento.insta) } catch (e: Exception) {} }) {
+                                Image(painterResource(id = R.drawable.instagram), contentDescription = "Instagram", modifier = Modifier.size(55.dp))
+                            }
+                        }
+                        if (!evento.maps.isNullOrBlank()) {
+                            IconButton(onClick = { try { uriHandler.openUri(evento.maps) } catch (e: Exception) {} }) {
+                                Image(painterResource(id = R.drawable.maps), contentDescription = "Maps", modifier = Modifier.size(55.dp))
+                            }
+                        }
+                    }
+
+                    // BOTTONE PER L'IA
+                    if (puoGestire) {
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Button(
+                            onClick = { onGestisciBattle(evento.id) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().height(55.dp)
+                        ) {
+                            Text("⚙️ GESTISCI BATTLE (IA)", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }

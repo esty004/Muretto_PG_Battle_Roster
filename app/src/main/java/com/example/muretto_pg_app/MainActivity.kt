@@ -254,6 +254,27 @@ fun AppNavigation() {
             composable("generatore_argomenti") { SchermataGeneratoreArgomenti { navController.popBackStack() } }
             composable("generatore_modalita") { SchermataGeneratoreModalita { navController.popBackStack() } }
             composable("generatore_parole") { SchermataGeneratoreParole { navController.popBackStack() } }
+            composable("evento") {
+                SchermataEventi(
+                    onTornaIndietro = { navController.popBackStack() },
+                    onNavigate = { navController.navigate(it) }
+                )
+            }
+            composable("trasferte") {
+                SchermataTrasferte(
+                    onTornaIndietro = { navController.popBackStack() },
+                    onVaiAllaMappa = { navController.navigate("mappa_trasferte") },
+                    onGestisciBattle = { eventoId -> navController.navigate("gestione_battle_evento/$eventoId") } // <-- NUOVO
+                )
+            }
+            composable("gestione_battle_evento/{eventoId}") { backStackEntry ->
+                val eventoId = backStackEntry.arguments?.getString("eventoId") ?: ""
+                // Questa schermata la creeremo nel prossimo step!
+                SchermataGestioneBattleEvento(
+                    eventoId = eventoId,
+                    onTornaIndietro = { navController.popBackStack() }
+                )
+            }
         }
 
         val schermateSenzaPlayer = setOf("home", "benvenuto", "benvenuto_barre_faul", "mappa", "login", "aggiungi_mc", "aggiungi_evento", "trasferte", "trasferte_preferite", "mappa_trasferte", "registrazione", "gestione_mcs", "modifica_mc")

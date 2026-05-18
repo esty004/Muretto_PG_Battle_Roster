@@ -9,6 +9,7 @@ import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
 import android.graphics.drawable.BitmapDrawable
 import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -25,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -50,6 +52,7 @@ import kotlin.math.min
 fun SchermataMappaTrasferte(onTornaIndietro: () -> Unit) {
     val databaseViewModel = LocalDatabaseViewModel.current
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
     val italyBounds = BoundingBox(47.1, 18.3, 35.5, 6.6)
     val centroMappa = GeoPoint(42.764, 12.244)
@@ -141,7 +144,10 @@ fun SchermataMappaTrasferte(onTornaIndietro: () -> Unit) {
 
             if (showBottomSheet && eventoSelezionato != null) {
                 ModalBottomSheet(
-                    onDismissRequest = { showBottomSheet = false }, sheetState = sheetState, containerColor = Tema.coloreSfondoCard, contentColor = Tema.coloreTesto,
+                    onDismissRequest = { showBottomSheet = false },
+                    sheetState = sheetState,
+                    containerColor = Color.White,
+                    contentColor = Color.Black,
                     dragHandle = { BottomSheetDefaults.DragHandle(color = Tema.colorePrincipale) }
                 ) {
                     Column(
@@ -155,7 +161,7 @@ fun SchermataMappaTrasferte(onTornaIndietro: () -> Unit) {
                         if (eventoSelezionato!!.immagine_url != null) {
                             AsyncImage(model = eventoSelezionato!!.immagine_url, contentDescription = "Locandina Evento", modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(16.dp)).border(2.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp)), contentScale = ContentScale.Crop)
                         } else {
-                            Box(modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(16.dp)).background(Color.DarkGray), contentAlignment = Alignment.Center) { Text("Nessuna Locandina", color = Color.Gray) }
+                            Box(modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(16.dp)).background(Color.LightGray), contentAlignment = Alignment.Center) { Text("Nessuna Locandina", color = Color.DarkGray) }
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -166,19 +172,29 @@ fun SchermataMappaTrasferte(onTornaIndietro: () -> Unit) {
                         Spacer(modifier = Modifier.height(8.dp))
                         InfoRow(icon = Icons.Default.Info, text = eventoSelezionato!!.tipo)
 
+                        if (!eventoSelezionato!!.descrizione.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(eventoSelezionato!!.descrizione!!, color = Color.DarkGray, fontSize = 14.sp, textAlign = TextAlign.Center)
+                        }
+
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Text(text = "PREZZO: ${eventoSelezionato!!.prezzo}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Tema.coloreTestoSecondario)
+                        Text(text = "PREZZO: ${eventoSelezionato!!.prezzo}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.Black)
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        Button(
-                            onClick = { Toast.makeText(context, "Navigazione verso ${eventoSelezionato!!.location_nome}...", Toast.LENGTH_SHORT).show() },
-                            modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale)
-                        ) {
-                            Icon(painterResource(id = R.drawable.ic_music_note), contentDescription = null, modifier = Modifier.size(24.dp), tint = Color.White)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("NAVIGA", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        // BOTTONI INSTA E MAPS
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            if (!eventoSelezionato!!.insta.isNullOrBlank()) {
+                                IconButton(onClick = { try { uriHandler.openUri(eventoSelezionato!!.insta!!) } catch (e: Exception) {} }) {
+                                    Image(painterResource(id = R.drawable.instagram), contentDescription = "Instagram", modifier = Modifier.size(70.dp)) // <--- Ingrandito da 60 a 70
+                                }
+                            }
+                            if (!eventoSelezionato!!.maps.isNullOrBlank()) {
+                                IconButton(onClick = { try { uriHandler.openUri(eventoSelezionato!!.maps!!) } catch (e: Exception) {} }) {
+                                    Image(painterResource(id = R.drawable.maps), contentDescription = "Maps", modifier = Modifier.size(70.dp)) // <--- Ingrandito da 60 a 70
+                                }
+                            }
                         }
                     }
                 }
@@ -235,8 +251,8 @@ fun creaPinConBitmap(eventBitmap: Bitmap?, scaleFactor: Float = 1f): Bitmap {
 @Composable
 fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-        Icon(icon, contentDescription = null, tint = Tema.coloreTestoSecondario, modifier = Modifier.size(20.dp))
+        Icon(icon, contentDescription = null, tint = Color.DarkGray, modifier = Modifier.size(24.dp)) // <--- Ingrandito da 20 a 24
         Spacer(modifier = Modifier.width(8.dp))
-        Text(text = text, color = Tema.coloreTesto, fontSize = 16.sp)
+        Text(text = text, color = Color.Black, fontSize = 16.sp)
     }
 }
