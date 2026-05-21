@@ -254,6 +254,9 @@ fun AppNavigation() {
             composable("generatore_argomenti") { SchermataGeneratoreArgomenti { navController.popBackStack() } }
             composable("generatore_modalita") { SchermataGeneratoreModalita { navController.popBackStack() } }
             composable("generatore_parole") { SchermataGeneratoreParole { navController.popBackStack() } }
+            composable("generatore_taboo") { SchermataGeneratoreTaboo { navController.popBackStack() } }
+            composable("generatore_linker") { SchermataGeneratoreLinker { navController.popBackStack() } }
+            composable("generatore_immagini") { SchermataGeneratoreImmagini { navController.popBackStack() } }
             composable("evento") {
                 SchermataEventi(
                     onTornaIndietro = { navController.popBackStack() },

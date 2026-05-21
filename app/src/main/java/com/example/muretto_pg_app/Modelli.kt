@@ -38,6 +38,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -174,6 +176,15 @@ data class EventoPreferito(
     val user_id: String,
     val evento_id: String
 )
+
+@Serializable
+data class Word(val valore: String)
+
+@Serializable
+data class Topic(val valore: String, val parole_vietate: String? = null)
+
+@Serializable
+data class Mode(val valore: String)
 
 // ─── DATABASE E SUPABASE SICURO ───────────────────────────────────────────────
 
@@ -654,6 +665,57 @@ class DatabaseViewModel : ViewModel() {
             true
         } catch (e: Exception) { false }
     }
+
+    // --- NUOVE FUNZIONI GENERATORI (DB REALTIME) ---
+
+    suspend fun fetchRandomWords(quantita: Int): List<String> {
+        return try {
+            // Prendiamo un pool di 200 parole e ne scegliamo X a caso
+            val result = supabase.postgrest["common_words"].select().decodeList<Word>()
+            result.shuffled().take(quantita).map { it.valore }
+        } catch (e: Exception) {
+            Log.e("Supabase", "Errore fetch parole: ${e.message}")
+            emptyList()
+        }
+    }
+
+    suspend fun fetchRandomTopic(): String {
+        return try {
+            val result = supabase.postgrest["topics"].select().decodeList<Topic>()
+            result.randomOrNull()?.valore ?: "ERRORE CARICAMENTO"
+        } catch (e: Exception) {
+            "ERRORE CONNESSIONE"
+        }
+    }
+
+    suspend fun fetchRandomMode(): String {
+        return try {
+            val result = supabase.postgrest["modes"].select().decodeList<Mode>()
+            result.randomOrNull()?.valore ?: "ERRORE CARICAMENTO"
+        } catch (e: Exception) {
+            "ERRORE CONNESSIONE"
+        }
+    }
+
+    suspend fun fetchRandomTaboo(): Topic? {
+        return try {
+            val result = supabase.postgrest["topics"].select().decodeList<Topic>()
+            result.filter { !it.parole_vietate.isNullOrBlank() }.randomOrNull()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun fetchLinkerData(): Pair<String, List<String>> = coroutineScope {
+        try {
+            val topicTask = async { supabase.postgrest["topics"].select().decodeList<Topic>().random().valore }
+            val wordsTask = async { supabase.postgrest["common_words"].select().decodeList<Word>().shuffled().take(3).map { it.valore } }
+            
+            Pair(topicTask.await(), wordsTask.await())
+        } catch (e: Exception) {
+            Pair("ERRORE", listOf("ERRORE", "ERRORE", "ERRORE"))
+        }
+    }
 }
 
 // ─── TORNEO ───────────────────────────────────────────────────────────────────
@@ -770,13 +832,6 @@ object GestoreAllenamento {
         }
         battleGenerate = nuoveBattle
     }
-}
-
-object DatiAllenamento {
-    private fun fetchValori(context: Context, rawResId: Int): List<String> = try { Gson().fromJson(context.resources.openRawResource(rawResId).bufferedReader().use { it.readText() }, object : TypeToken<List<String>>() {}.type) } catch (e: Exception) { emptyList() }
-    fun caricaArgomenti(context: Context): List<String> = fetchValori(context, R.raw.topics)
-    fun caricaModalita(context: Context): List<String> = fetchValori(context, R.raw.modes)
-    fun caricaParole(context: Context): List<String> = fetchValori(context, R.raw.common_words)
 }
 
 // ─── COMPONENTE BoxMC (Risolti Bug Foto 2v2 e Croce Rossa) ─────────────────────

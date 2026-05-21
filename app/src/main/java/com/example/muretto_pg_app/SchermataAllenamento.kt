@@ -347,7 +347,14 @@ fun CardFreestyler(freestyler: Freestyler, isSelezionato: Boolean, onClick: () -
 
 @Composable
 fun SezioneGeneratori(font: FontFamily, onSelezionaAllenamento: (String) -> Unit) {
-    val opzioniAllenamento = listOf("Generatore argomenti", "Generatore modalita", "Generatore parole")
+    val opzioniAllenamento = listOf(
+        "Generatore parole",
+        "Generatore argomenti",
+        "Generatore modalita",
+        "Generatore taboo",
+        "Generatore linker",
+        "Generatore immagini"
+    )
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(24.dp), modifier = Modifier.fillMaxSize()) {
         listItems(opzioniAllenamento) { nome -> CardAllenamento(nomeOpzione = nome, onClick = { onSelezionaAllenamento(nome) }, font = font) }
     }

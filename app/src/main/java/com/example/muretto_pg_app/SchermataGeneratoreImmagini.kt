@@ -4,32 +4,27 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
+import coil.compose.AsyncImage
 
 @Composable
-fun SchermataGeneratoreModalita(onTornaIndietro: () -> Unit) {
-    val databaseViewModel = LocalDatabaseViewModel.current
+fun SchermataGeneratoreImmagini(onTornaIndietro: () -> Unit) {
     val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
-    var modalitaCorrente by remember { mutableStateOf("PREMI PER\nGENERARE") }
-    val scope = rememberCoroutineScope()
-    var staCaricando by remember { mutableStateOf(false) }
+    var imageUrl by remember { mutableStateOf<String?>(null) }
+    var key by remember { mutableIntStateOf(0) } // Per forzare il ricaricamento dell'immagine random
 
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Column(
@@ -43,31 +38,37 @@ fun SchermataGeneratoreModalita(onTornaIndietro: () -> Unit) {
                 ) {
                     Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
                 }
-                Text("MODALITA'", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+                Text("IMMAGINI", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.weight(0.5f))
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(250.dp)
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(16.dp))
                     .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp))
-                    .background(Tema.coloreSfondoCard, RoundedCornerShape(16.dp))
-                    .padding(24.dp),
+                    .background(Tema.coloreSfondoCard),
                 contentAlignment = Alignment.Center
             ) {
-                if (staCaricando) {
-                    CircularProgressIndicator(color = Tema.colorePrincipale)
-                } else {
+                if (imageUrl == null) {
                     Text(
-                        text = modalitaCorrente.uppercase(),
+                        text = "PREMI PER\nGENERARE",
                         color = Tema.coloreTesto,
                         fontSize = 34.sp,
                         fontFamily = MioFontPersonalizzato,
                         fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 40.sp
+                        textAlign = TextAlign.Center
+                    )
+                } else {
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = "Random Image",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        placeholder = null,
+                        error = painterResource(R.drawable.no_pic)
                     )
                 }
             }
@@ -76,20 +77,17 @@ fun SchermataGeneratoreModalita(onTornaIndietro: () -> Unit) {
 
             Button(
                 onClick = {
-                    scope.launch {
-                        staCaricando = true
-                        modalitaCorrente = databaseViewModel.fetchRandomMode()
-                        staCaricando = false
-                    }
+                    key = (1..1000000).random()
+                    imageUrl = "https://picsum.photos/800/800?random=$key"
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
                 modifier = Modifier.fillMaxWidth().height(60.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("GENERA MODALITA'", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("GENERA IMMAGINE", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }
 
-            Spacer(modifier = Modifier.weight(1.2f))
+            Spacer(modifier = Modifier.weight(1f))
         }
     }
 }

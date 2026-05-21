@@ -9,6 +9,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,13 +21,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 
 @Composable
 fun SchermataGeneratoreArgomenti(onTornaIndietro: () -> Unit) {
-    val context = LocalContext.current
+    val databaseViewModel = LocalDatabaseViewModel.current
     val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
-    val argomentiPool = remember { DatiAllenamento.caricaArgomenti(context) }
     var argomentoCorrente by remember { mutableStateOf("PREMI PER\nGENERARE") }
+    val scope = rememberCoroutineScope()
+    var staCaricando by remember { mutableStateOf(false) }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Column(
@@ -54,21 +57,31 @@ fun SchermataGeneratoreArgomenti(onTornaIndietro: () -> Unit) {
                     .padding(24.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = argomentoCorrente.uppercase(),
-                    color = Tema.coloreTesto,
-                    fontSize = 38.sp,
-                    fontFamily = MioFontPersonalizzato,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 44.sp
-                )
+                if (staCaricando) {
+                    CircularProgressIndicator(color = Tema.colorePrincipale)
+                } else {
+                    Text(
+                        text = argomentoCorrente.uppercase(),
+                        color = Tema.coloreTesto,
+                        fontSize = 38.sp,
+                        fontFamily = MioFontPersonalizzato,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 44.sp
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(40.dp))
 
             Button(
-                onClick = { if (argomentiPool.isNotEmpty()) argomentoCorrente = argomentiPool.random() },
+                onClick = {
+                    scope.launch {
+                        staCaricando = true
+                        argomentoCorrente = databaseViewModel.fetchRandomTopic()
+                        staCaricando = false
+                    }
+                },
                 colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
                 modifier = Modifier.fillMaxWidth().height(60.dp),
                 shape = RoundedCornerShape(12.dp)

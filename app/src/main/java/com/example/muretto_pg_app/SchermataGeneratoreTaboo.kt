@@ -4,17 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -23,11 +17,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun SchermataGeneratoreModalita(onTornaIndietro: () -> Unit) {
+fun SchermataGeneratoreTaboo(onTornaIndietro: () -> Unit) {
     val databaseViewModel = LocalDatabaseViewModel.current
     val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
-    var modalitaCorrente by remember { mutableStateOf("PREMI PER\nGENERARE") }
+    var tabooCorrente by remember { mutableStateOf<Topic?>(null) }
     val scope = rememberCoroutineScope()
     var staCaricando by remember { mutableStateOf(false) }
 
@@ -43,7 +38,7 @@ fun SchermataGeneratoreModalita(onTornaIndietro: () -> Unit) {
                 ) {
                     Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold)
                 }
-                Text("MODALITA'", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+                Text("TABOO", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFontPersonalizzato, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
             }
 
             Spacer(modifier = Modifier.weight(1f))
@@ -51,7 +46,7 @@ fun SchermataGeneratoreModalita(onTornaIndietro: () -> Unit) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(250.dp)
+                    .height(300.dp)
                     .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp))
                     .background(Tema.coloreSfondoCard, RoundedCornerShape(16.dp))
                     .padding(24.dp),
@@ -59,16 +54,51 @@ fun SchermataGeneratoreModalita(onTornaIndietro: () -> Unit) {
             ) {
                 if (staCaricando) {
                     CircularProgressIndicator(color = Tema.colorePrincipale)
-                } else {
+                } else if (tabooCorrente == null) {
                     Text(
-                        text = modalitaCorrente.uppercase(),
+                        text = "PREMI PER\nGENERARE",
                         color = Tema.coloreTesto,
                         fontSize = 34.sp,
                         fontFamily = MioFontPersonalizzato,
                         fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 40.sp
+                        textAlign = TextAlign.Center
                     )
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = tabooCorrente!!.valore.uppercase(),
+                            color = Color.White,
+                            fontSize = 38.sp,
+                            fontFamily = MioFontPersonalizzato,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        
+                        // Badge per le parole vietate
+                        val vietate = tabooCorrente!!.parole_vietate?.split(",")?.map { it.trim() } ?: emptyList()
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            maxItemsInEachRow = 3
+                        ) {
+                            vietate.forEach { parola ->
+                                Surface(
+                                    modifier = Modifier.padding(4.dp),
+                                    color = Color(0xFFD32F2F), // bg-red-600 logic
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = parola.uppercase(),
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -78,7 +108,7 @@ fun SchermataGeneratoreModalita(onTornaIndietro: () -> Unit) {
                 onClick = {
                     scope.launch {
                         staCaricando = true
-                        modalitaCorrente = databaseViewModel.fetchRandomMode()
+                        tabooCorrente = databaseViewModel.fetchRandomTaboo()
                         staCaricando = false
                     }
                 },
@@ -86,7 +116,7 @@ fun SchermataGeneratoreModalita(onTornaIndietro: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().height(60.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("GENERA MODALITA'", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("GENERA TABOO", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.weight(1.2f))

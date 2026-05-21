@@ -20,12 +20,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun SchermataGeneratoreParole(onTornaIndietro: () -> Unit) {
-    val context = LocalContext.current
+    val databaseViewModel = LocalDatabaseViewModel.current
     val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
-    val paroleDaJson = remember { DatiAllenamento.caricaParole(context) }
     var tabSelezionata by remember { mutableIntStateOf(0) }
     var quantitaParole by remember { mutableIntStateOf(1) }
 
@@ -71,9 +71,9 @@ fun SchermataGeneratoreParole(onTornaIndietro: () -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
 
             if (tabSelezionata == 0) {
-                ModalitaClassica(MioFontPersonalizzato, quantitaParole, paroleDaJson)
+                ModalitaClassica(MioFontPersonalizzato, quantitaParole, databaseViewModel)
             } else {
-                ModalitaATempo(MioFontPersonalizzato, quantitaParole, paroleDaJson)
+                ModalitaATempo(MioFontPersonalizzato, quantitaParole, databaseViewModel)
             }
         }
     }
@@ -98,8 +98,10 @@ fun SelettoreQuantita(quantita: Int, onQuantitaChange: (Int) -> Unit, font: Font
 }
 
 @Composable
-fun ModalitaClassica(font: FontFamily, quantita: Int, parolePool: List<String>) {
+fun ModalitaClassica(font: FontFamily, quantita: Int, databaseViewModel: DatabaseViewModel) {
     var paroleCorrenti by remember { mutableStateOf(listOf("PREMI PER", "ESTRARRE")) }
+    val scope = rememberCoroutineScope()
+    var staCaricando by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(modifier = Modifier.height(8.dp))
@@ -112,28 +114,38 @@ fun ModalitaClassica(font: FontFamily, quantita: Int, parolePool: List<String>) 
                 .padding(12.dp),
             contentAlignment = Alignment.Center
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            ) {
-                paroleCorrenti.forEach { parola ->
-                    Text(
-                        text = parola.uppercase(),
-                        color = Tema.coloreTesto,
-                        fontSize = if (quantita > 6) 32.sp else 46.sp,
-                        fontFamily = font,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        lineHeight = if (quantita > 6) 40.sp else 54.sp,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
+            if (staCaricando) {
+                CircularProgressIndicator(color = Tema.colorePrincipale)
+            } else {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                ) {
+                    paroleCorrenti.forEach { parola ->
+                        Text(
+                            text = parola.uppercase(),
+                            color = Tema.coloreTesto,
+                            fontSize = if (quantita > 6) 32.sp else 46.sp,
+                            fontFamily = font,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            lineHeight = if (quantita > 6) 40.sp else 54.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
                 }
             }
         }
         Spacer(modifier = Modifier.height(24.dp))
         Button(
-            onClick = { if (parolePool.isNotEmpty()) paroleCorrenti = parolePool.shuffled().take(quantita) },
+            onClick = {
+                scope.launch {
+                    staCaricando = true
+                    paroleCorrenti = databaseViewModel.fetchRandomWords(quantita)
+                    staCaricando = false
+                }
+            },
             colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
             modifier = Modifier.fillMaxWidth().height(60.dp),
             shape = RoundedCornerShape(12.dp)
@@ -145,7 +157,7 @@ fun ModalitaClassica(font: FontFamily, quantita: Int, parolePool: List<String>) 
 }
 
 @Composable
-fun ModalitaATempo(font: FontFamily, quantita: Int, parolePool: List<String>) {
+fun ModalitaATempo(font: FontFamily, quantita: Int, databaseViewModel: DatabaseViewModel) {
     var paroleCorrenti by remember { mutableStateOf(listOf("START PER", "INIZIARE")) }
     var attivo by remember { mutableStateOf(false) }
     var tipoTempo by remember { mutableIntStateOf(0) }
@@ -157,7 +169,7 @@ fun ModalitaATempo(font: FontFamily, quantita: Int, parolePool: List<String>) {
     LaunchedEffect(attivo, quantita, intervalloMillis) {
         if (attivo) {
             while (attivo) {
-                if (parolePool.isNotEmpty()) paroleCorrenti = parolePool.shuffled().take(quantita)
+                paroleCorrenti = databaseViewModel.fetchRandomWords(quantita)
                 delay(intervalloMillis)
             }
         }
