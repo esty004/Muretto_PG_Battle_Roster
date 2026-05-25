@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.launch
 
 @Composable
 fun SchermataTrasferte(
@@ -146,13 +147,70 @@ fun SchermataTrasferte(
 @Composable
 fun CardPostEvento(evento: Evento, isPreferito: Boolean, onTogglePreferito: () -> Unit, isLoggato: Boolean, onGestisciBattle: (String) -> Unit) {
     val databaseViewModel = LocalDatabaseViewModel.current
+    val scope = rememberCoroutineScope()
     var espanso by remember { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
 
-    // Controllo permessi
+    // Dialog di conferma eliminazione
+    var mostraDialogElimina by remember { mutableStateOf(false) }
+
+    // Controllo permessi per l'IA
     val puoGestire = databaseViewModel.isAdmin ||
             databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_EVENTI ||
             databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO
+
+    // Controllo permessi per l'eliminazione: Admin o l'organizzatore dell'evento stesso
+    val puoEliminare = databaseViewModel.isAdmin ||
+            (databaseViewModel.profiloAttuale?.id == evento.organizzatore_id)
+
+    if (mostraDialogElimina) {
+        AlertDialog(
+            onDismissRequest = { mostraDialogElimina = false },
+            containerColor = Tema.coloreSfondoCard,
+            title = { Text("GESTIONE EVENTO", color = Tema.coloreTesto, fontWeight = FontWeight.Bold) },
+            text = { Text("Cosa vuoi fare con questo evento? L'archiviazione lo manterrà nel database per le statistiche.", color = Tema.coloreTestoSecondario) },
+            confirmButton = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                        shape = RoundedCornerShape(12.dp),
+                        onClick = {
+                            scope.launch {
+                                databaseViewModel.archiviaEvento(evento.id)
+                                mostraDialogElimina = false
+                            }
+                        }
+                    ) { Text("ARCHIVIA (SOFT DELETE)", color = Color.White, fontWeight = FontWeight.Bold) }
+
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                        shape = RoundedCornerShape(12.dp),
+                        onClick = {
+                            scope.launch {
+                                databaseViewModel.eliminaEventoDefinitivamente(evento.id)
+                                mostraDialogElimina = false
+                            }
+                        }
+                    ) { Text("ELIMINA DEFINITIVAMENTE", color = Color.White, fontWeight = FontWeight.Bold) }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    TextButton(
+                        onClick = { mostraDialogElimina = false },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("ANNULLA", color = Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        )
+    }
 
     Card(
         modifier = Modifier
@@ -178,17 +236,28 @@ fun CardPostEvento(evento: Evento, isPreferito: Boolean, onTogglePreferito: () -
                 }
                 Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)))
 
-                if (isLoggato) {
-                    IconButton(
-                        onClick = onTogglePreferito,
-                        modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.star_favorite),
-                            contentDescription = "Preferito",
-                            tint = if (isPreferito) Color.Yellow else Color.White,
-                            modifier = Modifier.size(38.dp)
-                        )
+                Row(modifier = Modifier.align(Alignment.TopEnd).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (isLoggato) {
+                        IconButton(
+                            onClick = onTogglePreferito,
+                            modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.star_favorite),
+                                contentDescription = "Preferito",
+                                tint = if (isPreferito) Color.Yellow else Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
+                    if (puoEliminare) {
+                        IconButton(
+                            onClick = { mostraDialogElimina = true },
+                            modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        ) {
+                            Text("🗑️", fontSize = 20.sp)
+                        }
                     }
                 }
 

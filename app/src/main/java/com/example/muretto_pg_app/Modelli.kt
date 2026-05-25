@@ -168,7 +168,8 @@ data class Evento(
     // --- CAMPI RESI SICURI CON IL PUNTO INTERROGATIVO (?) ---
     val insta: String? = null,
     val maps: String? = null,
-    val descrizione: String? = null
+    val descrizione: String? = null,
+    val deleted_at: String? = null
 )
 
 @Serializable
@@ -664,6 +665,32 @@ class DatabaseViewModel : ViewModel() {
             withContext(Dispatchers.Main) { eventiInAttesa.removeIf { it.id == eventoId } }
             true
         } catch (e: Exception) { false }
+    }
+
+    suspend fun archiviaEvento(eventoId: String): Boolean {
+        return try {
+            supabase.postgrest["eventi"].update({ set("stato", "concluso") }) { filter { eq("id", eventoId) } }
+            withContext(Dispatchers.Main) {
+                eventiApprovati.removeIf { it.id == eventoId }
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("DatabaseViewModel", "Errore archiviazione evento", e)
+            false
+        }
+    }
+
+    suspend fun eliminaEventoDefinitivamente(eventoId: String): Boolean {
+        return try {
+            supabase.postgrest["eventi"].delete { filter { eq("id", eventoId) } }
+            withContext(Dispatchers.Main) {
+                eventiApprovati.removeIf { it.id == eventoId }
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("DatabaseViewModel", "Errore eliminazione definitiva evento", e)
+            false
+        }
     }
 
     // --- NUOVE FUNZIONI GENERATORI (DB REALTIME) ---
