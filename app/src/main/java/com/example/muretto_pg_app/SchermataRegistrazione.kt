@@ -1,7 +1,9 @@
 package com.example.muretto_pg_app
 
 import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,7 +16,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -67,131 +71,162 @@ fun SchermataRegistrazione(onTornaIndietro: () -> Unit) {
         unfocusedTrailingIconColor = Color.LightGray
     )
 
-    if (registrazioneOk) {
-        Box(modifier = Modifier.fillMaxSize().background(Tema.coloreSfondo), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp).background(Tema.coloreSfondoCard, RoundedCornerShape(20.dp)).padding(32.dp)) {
-                Text("✅", fontSize = 60.sp)
-                Spacer(modifier = Modifier.height(16.dp))
-                if (tipoAccountSelezionato.contains("Rapper")) {
-                    Text("Sei dentro!", color = Tema.coloreTesto, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    Text("Account attivato. Torna al login per accedere.", color = Tema.coloreTestoSecondario, modifier = Modifier.padding(top = 8.dp))
-                } else {
-                    Text("Richiesta inviata!", color = Tema.coloreTesto, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    Text("Un Admin la revisionerà a breve.", color = Tema.coloreTestoSecondario, modifier = Modifier.padding(top = 8.dp))
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-                Button(onClick = onTornaIndietro, colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale)) {
-                    Text("TORNA AL LOGIN", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-        return
-    }
-
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(modifier = Modifier.fillMaxWidth().padding(top = 44.dp, bottom = 20.dp)) {
-                IconButton(onClick = onTornaIndietro, modifier = Modifier.align(Alignment.CenterStart)) {
-                    Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFont)
-                }
-                Text("REGISTRAZIONE", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFont, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
-            }
+        Box(modifier = Modifier.fillMaxSize()) {
+            // --- SFONDO DINAMICO ---
+            Image(
+                painter = painterResource(id = if (Tema.isBarreFaul) R.drawable.sfondo_barre_faul else if(Tema.isAteneo) R.drawable.sfondo_ateneo else R.drawable.sfondo_muretto_classico),
+                contentDescription = "Sfondo Registrazione",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.65f)))
 
-            Column(modifier = Modifier.fillMaxWidth(0.9f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(value = nome, onValueChange = { nome = it }, label = { Text("Nome") }, colors = coloriInput, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = cognome, onValueChange = { cognome = it }, label = { Text("Cognome") }, colors = coloriInput, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = nomeArte, onValueChange = { nomeArte = it }, label = { Text("Nome d'arte (A.K.A)") }, colors = coloriInput, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = telefono, onValueChange = { telefono = it }, label = { Text("Numero di Telefono") }, colors = coloriInput, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, colors = coloriInput, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Password") }, visualTransformation = PasswordVisualTransformation(), colors = coloriInput, modifier = Modifier.fillMaxWidth())
-
-                ExposedDropdownMenuBox(expanded = menuTipoAperto, onExpandedChange = { menuTipoAperto = !menuTipoAperto }) {
-                    OutlinedTextField(
-                        value = tipoAccountSelezionato, onValueChange = {}, readOnly = true, label = { Text("Tipo Account") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuTipoAperto) }, colors = coloriInput, modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(expanded = menuTipoAperto, onDismissRequest = { menuTipoAperto = false }, modifier = Modifier.background(Tema.coloreSfondoCard)) {
-                        tipiAccount.forEach { opzione ->
-                            DropdownMenuItem(
-                                text = { Text(opzione, color = Tema.coloreTesto) },
-                                onClick = { tipoAccountSelezionato = opzione; menuTipoAperto = false }
-                            )
+            if (registrazioneOk) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .padding(24.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(Tema.coloreSfondoCard)
+                            .border(3.dp, Tema.colorePrincipale, RoundedCornerShape(24.dp))
+                            .padding(32.dp)
+                    ) {
+                        Text("✅", fontSize = 60.sp)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        if (tipoAccountSelezionato.contains("Rapper")) {
+                            Text("SEI DENTRO!", color = Tema.coloreTesto, fontSize = 24.sp, fontWeight = FontWeight.Bold, fontFamily = MioFont)
+                            Text("Account attivato. Torna al login per accedere.", color = Tema.coloreTestoSecondario, modifier = Modifier.padding(top = 8.dp))
+                        } else {
+                            Text("RICHIESTA INVIATA!", color = Tema.coloreTesto, fontSize = 24.sp, fontWeight = FontWeight.Bold, fontFamily = MioFont)
+                            Text("Un Admin la revisionerà a breve.", color = Tema.coloreTestoSecondario, modifier = Modifier.padding(top = 8.dp))
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = onTornaIndietro,
+                            colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().height(50.dp)
+                        ) {
+                            Text("TORNA AL LOGIN", color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
-
-                if (tipoAccountSelezionato.contains("Organizzatore Muretto")) {
-                    ExposedDropdownMenuBox(expanded = menuMurettoAperto, onExpandedChange = { menuMurettoAperto = !menuMurettoAperto }) {
-                        OutlinedTextField(
-                            value = murettoSelezionato, onValueChange = {}, readOnly = true, label = { Text("Muretto gestito") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuMurettoAperto) }, colors = coloriInput, modifier = Modifier.menuAnchor().fillMaxWidth()
-                        )
-                        ExposedDropdownMenu(expanded = menuMurettoAperto, onDismissRequest = { menuMurettoAperto = false }, modifier = Modifier.background(Tema.coloreSfondoCard)) {
-                            muretti.forEach { m ->
-                                DropdownMenuItem(
-                                    text = { Text(m, color = Tema.coloreTesto) },
-                                    onClick = { murettoSelezionato = m; menuMurettoAperto = false }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                if (messaggio.isNotEmpty()) {
-                    Text(messaggio, color = Color.Red, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp))
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Button(
-                    onClick = {
-                        if (nome.isBlank() || cognome.isBlank() || nomeArte.isBlank() || email.isBlank() || password.isBlank() || telefono.isBlank()) {
-                            messaggio = "Compila tutti i campi!"
-                            return@Button
-                        }
-                        if (password.length < 6) {
-                            messaggio = "La password deve avere almeno 6 caratteri."
-                            return@Button
-                        }
-                        staCaricando = true
-                        messaggio = ""
-
-                        scope.launch {
-                            val tipoDatabase = when {
-                                tipoAccountSelezionato.contains("Rapper") -> "rapper"
-                                tipoAccountSelezionato.contains("Eventi") -> "organizzatore_eventi"
-                                else -> "organizzatore_muretto"
-                            }
-                            val murettoDatabase = if (tipoDatabase == "organizzatore_muretto") {
-                                if (murettoSelezionato == "Barre Faul") "barre_faul" else "muretto_pg"
-                            } else null
-
-                            val successo = if (tipoDatabase == "rapper") {
-                                databaseViewModel.registraRapperDiretto(nome.trim(), cognome.trim(), nomeArte.trim(), email.trim(), password.trim(), telefono.trim())
-                            } else {
-                                databaseViewModel.inviaRichiestaAccount(nome.trim(), cognome.trim(), nomeArte.trim(), email.trim(), password.trim(), telefono.trim(), tipoDatabase, murettoDatabase)
-                            }
-
-                            staCaricando = false
-                            if (successo) {
-                                registrazioneOk = true
-                            } else {
-                                messaggio = "Errore durante la registrazione. Riprova."
-                            }
-                        }
-                    },
-                    enabled = !staCaricando,
-                    colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
-                    shape = CircleShape,
-                    modifier = Modifier.fillMaxWidth().height(60.dp)
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (staCaricando) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                    else Text("INVIA", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Box(modifier = Modifier.fillMaxWidth().padding(top = 44.dp, bottom = 20.dp)) {
+                        IconButton(onClick = onTornaIndietro, modifier = Modifier.align(Alignment.CenterStart)) {
+                            Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFont)
+                        }
+                        Text("REGISTRAZIONE", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFont, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth(0.95f)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(Tema.coloreSfondoCard.copy(alpha = 0.85f))
+                            .border(2.dp, Tema.colorePrincipale.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedTextField(value = nome, onValueChange = { nome = it }, label = { Text("Nome") }, colors = coloriInput, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                        OutlinedTextField(value = cognome, onValueChange = { cognome = it }, label = { Text("Cognome") }, colors = coloriInput, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                        OutlinedTextField(value = nomeArte, onValueChange = { nomeArte = it }, label = { Text("Nome d'arte (A.K.A)") }, colors = coloriInput, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                        OutlinedTextField(value = telefono, onValueChange = { telefono = it }, label = { Text("Numero di Telefono") }, colors = coloriInput, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, colors = coloriInput, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                        OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Password") }, visualTransformation = PasswordVisualTransformation(), colors = coloriInput, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+
+                        ExposedDropdownMenuBox(expanded = menuTipoAperto, onExpandedChange = { menuTipoAperto = !menuTipoAperto }) {
+                            OutlinedTextField(
+                                value = tipoAccountSelezionato, onValueChange = {}, readOnly = true, label = { Text("Tipo Account") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuTipoAperto) }, colors = coloriInput, modifier = Modifier.menuAnchor().fillMaxWidth(), shape = RoundedCornerShape(12.dp)
+                            )
+                            ExposedDropdownMenu(expanded = menuTipoAperto, onDismissRequest = { menuTipoAperto = false }, modifier = Modifier.background(Tema.coloreSfondoCard)) {
+                                tipiAccount.forEach { opzione ->
+                                    DropdownMenuItem(
+                                        text = { Text(opzione, color = Tema.coloreTesto) },
+                                        onClick = { tipoAccountSelezionato = opzione; menuTipoAperto = false }
+                                    )
+                                }
+                            }
+                        }
+
+                        if (tipoAccountSelezionato.contains("Organizzatore Muretto")) {
+                            ExposedDropdownMenuBox(expanded = menuMurettoAperto, onExpandedChange = { menuMurettoAperto = !menuMurettoAperto }) {
+                                OutlinedTextField(
+                                    value = murettoSelezionato, onValueChange = {}, readOnly = true, label = { Text("Muretto gestito") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuMurettoAperto) }, colors = coloriInput, modifier = Modifier.menuAnchor().fillMaxWidth(), shape = RoundedCornerShape(12.dp)
+                                )
+                                ExposedDropdownMenu(expanded = menuMurettoAperto, onDismissRequest = { menuMurettoAperto = false }, modifier = Modifier.background(Tema.coloreSfondoCard)) {
+                                    muretti.forEach { m ->
+                                        DropdownMenuItem(
+                                            text = { Text(m, color = Tema.coloreTesto) },
+                                            onClick = { murettoSelezionato = m; menuMurettoAperto = false }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        if (messaggio.isNotEmpty()) {
+                            Text(messaggio, color = Color.Red, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp))
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Button(
+                            onClick = {
+                                if (nome.isBlank() || cognome.isBlank() || nomeArte.isBlank() || email.isBlank() || password.isBlank() || telefono.isBlank()) {
+                                    messaggio = "Compila tutti i campi!"
+                                    return@Button
+                                }
+                                if (password.length < 6) {
+                                    messaggio = "La password deve avere almeno 6 caratteri."
+                                    return@Button
+                                }
+                                staCaricando = true
+                                messaggio = ""
+
+                                scope.launch {
+                                    val tipoDatabase = when {
+                                        tipoAccountSelezionato.contains("Rapper") -> "rapper"
+                                        tipoAccountSelezionato.contains("Eventi") -> "organizzatore_eventi"
+                                        else -> "organizzatore_muretto"
+                                    }
+                                    val murettoDatabase = if (tipoDatabase == "organizzatore_muretto") {
+                                        if (murettoSelezionato == "Barre Faul") "barre_faul" else "muretto_pg"
+                                    } else null
+
+                                    val successo = if (tipoDatabase == "rapper") {
+                                        databaseViewModel.registraRapperDiretto(nome.trim(), cognome.trim(), nomeArte.trim(), email.trim(), password.trim(), telefono.trim())
+                                    } else {
+                                        databaseViewModel.inviaRichiestaAccount(nome.trim(), cognome.trim(), nomeArte.trim(), email.trim(), password.trim(), telefono.trim(), tipoDatabase, murettoDatabase)
+                                    }
+
+                                    staCaricando = false
+                                    if (successo) {
+                                        registrazioneOk = true
+                                    } else {
+                                        messaggio = "Errore durante la registrazione. Riprova."
+                                    }
+                                }
+                            },
+                            enabled = !staCaricando,
+                            colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().height(55.dp)
+                        ) {
+                            if (staCaricando) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                            else Text("INVIA", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = MioFont)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(40.dp))
                 }
-                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
