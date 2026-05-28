@@ -50,7 +50,7 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
 
     // Sincronizza l'allenamento col Cloud all'avvio (SENZA resettare le scelte!)
     LaunchedEffect(Tema.isBarreFaul) {
-        val murettoId = if (Tema.isBarreFaul) "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e" else "09fbe1d3-0022-41b8-ba4b-edc887c145a2"
+        val murettoId = Tema.ottieniIdMurettoAttivo()
         databaseViewModel.fetchMcsDalCloud(murettoId)
     }
 

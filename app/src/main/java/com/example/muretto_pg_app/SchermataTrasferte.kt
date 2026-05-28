@@ -58,26 +58,22 @@ fun SchermataTrasferte(
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Box(modifier = Modifier.fillMaxSize()) {
 
-            // --- SFONDO ---
-            if (!Tema.isBarreFaul) {
-                Image(
-                    painter = painterResource(id = R.drawable.sfondo_muretto_classico),
-                    contentDescription = "Sfondo Trasferte",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)))
-            } else {
+            // --- SFONDO DINAMICO ---
+            Image(
+                painter = painterResource(id = Tema.sfondoGenerale),
+                contentDescription = "Sfondo Trasferte",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            // Se siamo in un muretto con gradiente speciale (es. Barre Faul) o sfondi particolari, possiamo gestire la patina
+            if (Tema.isBarreFaul) {
                 Box(modifier = Modifier.fillMaxSize().background(
                     Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF000000),
-                            Tema.colorePrincipale,
-                            Tema.coloreSfondo,
-                            Tema.colorePrincipale.copy(alpha = 0f)
-                        )
+                        colors = listOf(Color(0xFF000000), Tema.colorePrincipale, Tema.coloreSfondo, Tema.colorePrincipale.copy(alpha = 0f))
                     )
                 ))
+            } else {
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)))
             }
 
             Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {

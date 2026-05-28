@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SchermataAggiungiMc(onTornaIndietro: () -> Unit) {
     val databaseViewModel = LocalDatabaseViewModel.current
@@ -101,20 +102,27 @@ fun SchermataAggiungiMc(onTornaIndietro: () -> Unit) {
 
             // Selettore Muretto
             Text("A quale Muretto appartiene?", color = Tema.coloreTesto, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
-            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Button(
-                    onClick = { murettoSelezionatoId = "09fbe1d3-0022-41b8-ba4b-edc887c145a2" }, // PG,
-                    modifier = Modifier.weight(1f).height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (murettoSelezionatoId == "09fbe1d3-0022-41b8-ba4b-edc887c145a2") Color(0xFFD32F2F) else Color.DarkGray),
-                    shape = RoundedCornerShape(8.dp)
-                ) { Text("Muretto PG", color = Color.White) }
 
-                Button(
-                    onClick = { murettoSelezionatoId = "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e" },
-                    modifier = Modifier.weight(1f).height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (murettoSelezionatoId == "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e") Color(0xFF1E88E5) else Color.DarkGray),
-                    shape = RoundedCornerShape(8.dp)
-                ) { Text("Barre Faul", color = Color.White) }
+            val murettiMap = mapOf(
+                "Muretto PG" to "09fbe1d3-0022-41b8-ba4b-edc887c145a2",
+                "Barre Faul" to "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e",
+                "Fortitudo" to "22ea8a2f-d45d-40b2-a6ee-841058f12f99"
+            )
+            var nomeMurettoSelezionato by remember { mutableStateOf("Muretto PG") }
+            var menuMurettoMc by remember { mutableStateOf(false) }
+
+            ExposedDropdownMenuBox(expanded = menuMurettoMc, onExpandedChange = { menuMurettoMc = !menuMurettoMc }) {
+                OutlinedTextField(
+                    value = nomeMurettoSelezionato, onValueChange = {}, readOnly = true,
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuMurettoMc) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, focusedBorderColor = Tema.colorePrincipale),
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
+                ExposedDropdownMenu(expanded = menuMurettoMc, onDismissRequest = { menuMurettoMc = false }, modifier = Modifier.background(Tema.coloreSfondoCard)) {
+                    murettiMap.keys.forEach { opzione ->
+                        DropdownMenuItem(text = { Text(opzione, color = Tema.coloreTesto) }, onClick = { nomeMurettoSelezionato = opzione; murettoSelezionatoId = murettiMap[opzione]!!; menuMurettoMc = false })
+                    }
+                }
             }
 
             if (messaggioEsito.isNotEmpty()) {

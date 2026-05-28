@@ -127,8 +127,7 @@ fun SchermataOttavi(
 
                         // --- MECCANICA GLOBALE (Aggiunta in corsa) ---
                         val mcGlobale = databaseViewModel.cercaMcGlobale(nome)
-                        val nuovoMembro = mcGlobale ?: Freestyler(UUID.randomUUID().toString(), nome, "", if (Tema.isBarreFaul) "barre_faul" else "muretto_pg")
-
+                        val nuovoMembro = mcGlobale ?: Freestyler(UUID.randomUUID().toString(), nome, "", Tema.ottieniIdMurettoAttivo())
                         val roundAperti = GestoreBattle.roundsAttuali.filter { !it.completato }
                         if (roundAperti.isNotEmpty()) {
                             val roundPiuVuoto = roundAperti.minByOrNull { it.partecipanti.size }

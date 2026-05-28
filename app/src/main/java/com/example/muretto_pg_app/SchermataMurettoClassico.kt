@@ -57,11 +57,7 @@ fun SchermataMurettoClassico(
 
     // --- AGGIORNAMENTO DATI DAL CLOUD ---
     LaunchedEffect(Tema.murettoSelezionato) {
-        val murettoId = when (Tema.murettoSelezionato) {
-            MurettoAttivo.BARRE_FAUL -> "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e"
-            MurettoAttivo.ATENEO -> "INSERISCI-QUI-UUID-ATENEO" // Inserirai l'ID quando lo crei su Supabase
-            MurettoAttivo.PG -> "09fbe1d3-0022-41b8-ba4b-edc887c145a2"
-        }
+        val murettoId = Tema.ottieniIdMurettoAttivo()
         databaseViewModel.fetchMcsDalCloud(murettoId)
     }
 
@@ -86,7 +82,7 @@ fun SchermataMurettoClassico(
 
             // --- NUOVO SFONDO DINAMICO ---
             Image(
-                painter = painterResource(id = if (Tema.isBarreFaul) R.drawable.sfondo_barre_faul else if(Tema.isAteneo) R.drawable.sfondo_ateneo else R.drawable.sfondo_muretto_classico),
+                painter = painterResource(id = Tema.sfondoGenerale),
                 contentDescription = "Sfondo Muretto Classico",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop // L'immagine riempirà tutto lo schermo senza deformarsi

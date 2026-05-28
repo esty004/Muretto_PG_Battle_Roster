@@ -46,7 +46,7 @@ fun SchermataRegistrazione(onTornaIndietro: () -> Unit) {
     var tipoAccountSelezionato by remember { mutableStateOf(tipiAccount[0]) }
     var menuTipoAperto by remember { mutableStateOf(false) }
 
-    val muretti = listOf("Muretto PG", "Barre Faul")
+    val muretti = listOf("Muretto PG", "Barre Faul", "Ateneo", "Fortitudo")
     var murettoSelezionato by remember { mutableStateOf(muretti[0]) }
     var menuMurettoAperto by remember { mutableStateOf(false) }
 
@@ -166,7 +166,12 @@ fun SchermataRegistrazione(onTornaIndietro: () -> Unit) {
                                 else -> "organizzatore_muretto"
                             }
                             val murettoDatabase = if (tipoDatabase == "organizzatore_muretto") {
-                                if (murettoSelezionato == "Barre Faul") "barre_faul" else "muretto_pg"
+                                when (murettoSelezionato) {
+                                    "Barre Faul" -> "barre_faul"
+                                    "Ateneo" -> "ateneo"
+                                    "Fortitudo" -> "fortitudo"
+                                    else -> "muretto_pg"
+                                }
                             } else null
 
                             val successo = if (tipoDatabase == "rapper") {

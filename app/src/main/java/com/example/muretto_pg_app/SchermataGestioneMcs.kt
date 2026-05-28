@@ -33,7 +33,13 @@ fun SchermataGestioneMcs(onTornaIndietro: () -> Unit, onModificaMc: (String) -> 
 
     // SchermataGestioneMcs.kt
     LaunchedEffect(tabSelezionata) {
-        val murettoId = if (tabSelezionata == 0) "09fbe1d3-0022-41b8-ba4b-edc887c145a2" else "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e"
+        val murettoId = when(tabSelezionata) {
+            0 -> "09fbe1d3-0022-41b8-ba4b-edc887c145a2" // PG
+            1 -> "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e" // Barre Faul
+            2 -> "INSERISCI-QUI-UUID-ATENEO"
+            3 -> "22ea8a2f-d45d-40b2-a6ee-841058f12f99" // Fortitudo
+            else -> "09fbe1d3-0022-41b8-ba4b-edc887c145a2"
+        }
         databaseViewModel.fetchMcsDalCloud(murettoId)
     }
 
@@ -46,13 +52,15 @@ fun SchermataGestioneMcs(onTornaIndietro: () -> Unit, onModificaMc: (String) -> 
                 }
 
                 if (isAdmin) {
-                    TabRow(
-                        selectedTabIndex = tabSelezionata, containerColor = Color.Transparent, contentColor = Tema.colorePrincipale,
+                    ScrollableTabRow(
+                        selectedTabIndex = tabSelezionata, containerColor = Color.Transparent, contentColor = Tema.colorePrincipale, edgePadding = 0.dp,
                         indicator = { tabPositions -> TabRowDefaults.SecondaryIndicator(modifier = Modifier.tabIndicatorOffset(tabPositions[tabSelezionata]), color = Tema.colorePrincipale) },
                         divider = {}
                     ) {
-                        Tab(selected = tabSelezionata == 0, onClick = { tabSelezionata = 0 }, text = { Text("MURETTO PG", color = if (tabSelezionata == 0) Tema.coloreTesto else Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold) })
-                        Tab(selected = tabSelezionata == 1, onClick = { tabSelezionata = 1 }, text = { Text("BARRE FAUL", color = if (tabSelezionata == 1) Tema.coloreTesto else Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold) })
+                        val tabs = listOf("MURETTO PG", "BARRE FAUL", "ATENEO", "FORTITUDO")
+                        tabs.forEachIndexed { index, titolo ->
+                            Tab(selected = tabSelezionata == index, onClick = { tabSelezionata = index }, text = { Text(titolo, color = if (tabSelezionata == index) Tema.coloreTesto else Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold) })
+                        }
                     }
                 }
 

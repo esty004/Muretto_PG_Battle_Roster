@@ -67,30 +67,31 @@ import org.json.JSONObject
 
 // ─── TEMA E RUOLI ─────────────────────────────────────────────────────────────
 
-// Inseriscilo nel file Modelli.kt
-enum class MurettoAttivo { PG, BARRE_FAUL, ATENEO }
+enum class MurettoAttivo { PG, BARRE_FAUL, ATENEO, FORTITUDO }
 
 object Tema {
     var murettoSelezionato by mutableStateOf(MurettoAttivo.PG)
 
-    // Helper per non rompere i controlli isBarreFaul esistenti negli altri file
     val isBarreFaul get() = murettoSelezionato == MurettoAttivo.BARRE_FAUL
     val isAteneo get() = murettoSelezionato == MurettoAttivo.ATENEO
+    val isFortitudo get() = murettoSelezionato == MurettoAttivo.FORTITUDO
 
     val colorePrincipale: Color get() = when (murettoSelezionato) {
         MurettoAttivo.BARRE_FAUL -> Color(0xFF1E88E5) // Blu
-        MurettoAttivo.ATENEO -> Color(0xFFFF9800)     // Arancione (Ateneo)
+        MurettoAttivo.ATENEO -> Color(0xFFFF9800)     // Arancione
+        MurettoAttivo.FORTITUDO -> Color(0xFFFFEB3B)  // Giallo Fortitudo
         MurettoAttivo.PG -> Color(0xFFD32F2F)         // Rosso
     }
 
     val coloreSfondo: Color get() = when (murettoSelezionato) {
-        MurettoAttivo.BARRE_FAUL -> Color(0xFFDCDCDC) // Chiaro
-        else -> Color.Black                           // Nero (PG e Ateneo)
+        MurettoAttivo.BARRE_FAUL -> Color(0xFFDCDCDC)
+        else -> Color.Black
     }
 
     val coloreSfondoCard: Color get() = when (murettoSelezionato) {
         MurettoAttivo.BARRE_FAUL -> Color(0xFFF5F5F5)
         MurettoAttivo.ATENEO -> Color(0xFF1E1E1E)
+        MurettoAttivo.FORTITUDO -> Color(0xFF111111) // Sfondo scuro per far brillare il giallo
         MurettoAttivo.PG -> Color(0xFF111111)
     }
 
@@ -101,14 +102,23 @@ object Tema {
         get() = when (murettoSelezionato) {
             MurettoAttivo.BARRE_FAUL -> Brush.horizontalGradient(colors = listOf(Color(0xFF002244), Color(0xFF004488)))
             MurettoAttivo.ATENEO -> Brush.horizontalGradient(colors = listOf(Color(0xFF4A2B00), Color(0xFF804D00)))
+            MurettoAttivo.FORTITUDO -> Brush.horizontalGradient(colors = listOf(Color(0xFF4D4D00), Color(0xFF808000))) // Sfumatura oro scuro
             MurettoAttivo.PG -> Brush.horizontalGradient(colors = listOf(Color(0xFF3A0000), Color(0xFF00003A)))
         }
 
-    // Sfondo per le schermate interne
     val sfondoGenerale: Int get() = when (murettoSelezionato) {
         MurettoAttivo.BARRE_FAUL -> R.drawable.sfondo_barre_faul
         MurettoAttivo.ATENEO -> R.drawable.sfondo_ateneo
+        MurettoAttivo.FORTITUDO -> R.drawable.sfondo_fortitudo // Nuovo Sfondo!
         MurettoAttivo.PG -> R.drawable.sfondo_muretto_classico
+    }
+
+    // Helper per ottenere l'UUID del DB al volo
+    fun ottieniIdMurettoAttivo(): String = when (murettoSelezionato) {
+        MurettoAttivo.BARRE_FAUL -> "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e"
+        MurettoAttivo.ATENEO -> "INSERISCI-QUI-UUID-ATENEO"
+        MurettoAttivo.FORTITUDO -> "22ea8a2f-d45d-40b2-a6ee-841058f12f99"
+        MurettoAttivo.PG -> "09fbe1d3-0022-41b8-ba4b-edc887c145a2"
     }
 }
 
@@ -394,9 +404,13 @@ class DatabaseViewModel : ViewModel() {
 
             val esistenti = supabase.postgrest["mcs"].select { filter { eq("muretto_id", murettoId) } }.decodeList<Freestyler>()
 
+            // ECCO LA MODIFICA: GESTIONE DEGLI ID PER FORTITUDO
             val nuovoId = if (murettoId == "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e") { // Barre Faul
                 val maxNum = esistenti.mapNotNull { it.id.replace("bf", "").toIntOrNull() }.maxOrNull() ?: 0
                 "bf${maxNum + 1}"
+            } else if (murettoId == "22ea8a2f-d45d-40b2-a6ee-841058f12f99") { // Fortitudo
+                val maxNum = esistenti.mapNotNull { it.id.replace("fo", "").toIntOrNull() }.maxOrNull() ?: 0
+                "fo${maxNum + 1}"
             } else { // Muretto PG
                 val maxNum = esistenti.mapNotNull { it.id.toIntOrNull() }.maxOrNull() ?: 0
                 (maxNum + 1).toString()

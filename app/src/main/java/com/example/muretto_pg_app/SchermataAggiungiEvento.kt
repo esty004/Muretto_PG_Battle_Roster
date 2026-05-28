@@ -13,6 +13,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,6 +33,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -73,7 +78,7 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
 
     // MAPPA E RICERCA
     var pinMarker by remember { mutableStateOf<GeoPoint?>(null) }
-    var searchQuery by remember { mutableStateOf("") }
+    var mostraMappaIntera by remember { mutableStateOf(false) } // <--- Variabile per il FullScreen
 
     val selettoreImmagine = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         imageUri = uri
@@ -124,76 +129,30 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // RICERCA E MAPPA INTERATTIVA
-            OutlinedTextField(
-                value = searchQuery, onValueChange = { searchQuery = it },
-                label = { Text("Cerca città o indirizzo...", color = Tema.coloreTestoSecondario) },
-                trailingIcon = {
-                    IconButton(onClick = {
-                        if (searchQuery.isNotBlank()) {
-                            staCaricando = true
-                            scope.launch {
-                                val coordinate = ottieniCoordinate(searchQuery.trim())
-                                staCaricando = false
-                                if (coordinate != null) {
-                                    pinMarker = GeoPoint(coordinate.first, coordinate.second)
-                                } else {
-                                    messaggioEsito = "Indirizzo non trovato. Tocca la mappa per posizionare il pin manualmente."
-                                }
-                            }
-                        }
-                    }) { Icon(Icons.Default.Search, contentDescription = "Cerca", tint = Tema.colorePrincipale) }
-                },
-                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, focusedBorderColor = Tema.colorePrincipale),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Tocca la mappa per mettere il pin esattamente dove vuoi!", color = Tema.colorePrincipale, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // MAPPA ANDROIDVIEW
-            Box(modifier = Modifier.fillMaxWidth().height(250.dp).clip(RoundedCornerShape(12.dp)).border(2.dp, Tema.colorePrincipale, RoundedCornerShape(12.dp))) {
-                AndroidView(
-                    factory = { ctx ->
-                        MapView(ctx).apply {
-                            setTileSource(TileSourceFactory.MAPNIK)
-                            setMultiTouchControls(true)
-                            controller.setZoom(6.0)
-                            controller.setCenter(GeoPoint(42.5, 12.5)) // Centro Italia
-
-                            val trueDarkModeMatrix = android.graphics.ColorMatrix(floatArrayOf(
-                                0.0f, 0.0f, -1.0f, 0.0f, 255.0f,
-                                0.0f, -1.0f, 0.0f, 0.0f, 255.0f,
-                                -1.0f, 0.0f, 0.0f, 0.0f, 255.0f,
-                                0.0f, 0.0f, 0.0f, 1.0f, 0.0f
-                            ))
-                            overlayManager.tilesOverlay.setColorFilter(android.graphics.ColorMatrixColorFilter(trueDarkModeMatrix))
-
-                            val receiver = object : MapEventsReceiver {
-                                override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
-                                    if (p != null) pinMarker = p
-                                    return true
-                                }
-                                override fun longPressHelper(p: GeoPoint?): Boolean = false
-                            }
-                            overlays.add(MapEventsOverlay(receiver))
-                        }
-                    },
-                    update = { map ->
-                        map.overlays.removeAll { it is Marker }
-                        pinMarker?.let { pt ->
-                            val marker = Marker(map)
-                            marker.position = pt
-                            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                            val defaultBmp = android.graphics.BitmapFactory.decodeResource(context.resources, R.drawable.logo_muretto)
-                            marker.icon = android.graphics.drawable.BitmapDrawable(context.resources, android.graphics.Bitmap.createScaledBitmap(defaultBmp, 100, 70, true))
-                            map.overlays.add(marker)
-                            map.controller.animateTo(pt)
-                        }
-                        map.invalidate()
+            // --- RIQUADRO PER APRIRE LA MAPPA ---
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Tema.coloreSfondoCard)
+                    .border(2.dp, Tema.colorePrincipale, RoundedCornerShape(12.dp))
+                    .clickable { mostraMappaIntera = true },
+                contentAlignment = Alignment.Center
+            ) {
+                if (pinMarker != null) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.LocationOn, contentDescription = null, tint = Tema.colorePrincipale, modifier = Modifier.size(30.dp))
+                        Text("📍 Posizione salvata con successo!", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Tocca per modificare", color = Color.Gray, fontSize = 12.sp)
                     }
-                )
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.Place, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(30.dp))
+                        Text("Tocca qui per aprire la mappa", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("e posizionare l'evento", color = Color.Gray, fontSize = 12.sp)
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -332,6 +291,140 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
                 else Text("INVIA EVENTO", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(20.dp))
+        }
+    }
+
+    // --- DIALOG MAPPA A SCHERMO INTERO ---
+    if (mostraMappaIntera) {
+        var searchQueryLocale by remember { mutableStateOf("") }
+        var staCercandoIndirizzo by remember { mutableStateOf(false) }
+        var mapError by remember { mutableStateOf("") }
+
+        Dialog(
+            onDismissRequest = { mostraMappaIntera = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false) // Occupa tutto lo schermo
+        ) {
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+
+                // MAPPA ANDROIDVIEW A SCHERMO INTERO
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { ctx ->
+                        MapView(ctx).apply {
+                            setTileSource(TileSourceFactory.MAPNIK)
+                            setMultiTouchControls(true)
+                            controller.setZoom(6.0)
+                            // Se c'è già un pin, la mappa si apre su quel pin
+                            if (pinMarker != null) {
+                                controller.setCenter(pinMarker)
+                                controller.setZoom(12.0)
+                            } else {
+                                controller.setCenter(GeoPoint(42.5, 12.5)) // Centro Italia
+                            }
+
+                            val trueDarkModeMatrix = android.graphics.ColorMatrix(floatArrayOf(
+                                0.0f, 0.0f, -1.0f, 0.0f, 255.0f,
+                                0.0f, -1.0f, 0.0f, 0.0f, 255.0f,
+                                -1.0f, 0.0f, 0.0f, 0.0f, 255.0f,
+                                0.0f, 0.0f, 0.0f, 1.0f, 0.0f
+                            ))
+                            overlayManager.tilesOverlay.setColorFilter(android.graphics.ColorMatrixColorFilter(trueDarkModeMatrix))
+
+                            val receiver = object : MapEventsReceiver {
+                                override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
+                                    if (p != null) {
+                                        pinMarker = p
+                                        mapError = ""
+                                    }
+                                    return true
+                                }
+                                override fun longPressHelper(p: GeoPoint?): Boolean = false
+                            }
+                            overlays.add(MapEventsOverlay(receiver))
+                        }
+                    },
+                    update = { map ->
+                        map.overlays.removeAll { it is Marker }
+                        pinMarker?.let { pt ->
+                            val marker = Marker(map)
+                            marker.position = pt
+                            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                            val defaultBmp = android.graphics.BitmapFactory.decodeResource(context.resources, R.drawable.logo_muretto)
+                            marker.icon = android.graphics.drawable.BitmapDrawable(context.resources, android.graphics.Bitmap.createScaledBitmap(defaultBmp, 100, 70, true))
+                            map.overlays.add(marker)
+                            map.controller.animateTo(pt)
+                        }
+                        map.invalidate()
+                    }
+                )
+
+                // OVERLAY IN ALTO: BARRA DI RICERCA
+                Column(
+                    modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Tasto Indietro
+                        IconButton(
+                            onClick = { mostraMappaIntera = false },
+                            modifier = Modifier.background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                        ) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Chiudi", tint = Color.White)
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Barra di Ricerca
+                        OutlinedTextField(
+                            value = searchQueryLocale, onValueChange = { searchQueryLocale = it },
+                            placeholder = { Text("Cerca città o via...", color = Color.Gray) },
+                            singleLine = true,
+                            trailingIcon = {
+                                IconButton(onClick = {
+                                    if (searchQueryLocale.isNotBlank()) {
+                                        staCercandoIndirizzo = true
+                                        mapError = ""
+                                        scope.launch {
+                                            val coordinate = ottieniCoordinate(searchQueryLocale.trim())
+                                            staCercandoIndirizzo = false
+                                            if (coordinate != null) {
+                                                pinMarker = GeoPoint(coordinate.first, coordinate.second)
+                                            } else {
+                                                mapError = "Posizione non trovata."
+                                            }
+                                        }
+                                    }
+                                }) {
+                                    if (staCercandoIndirizzo) {
+                                        CircularProgressIndicator(color = Tema.colorePrincipale, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                    } else {
+                                        Icon(Icons.Default.Search, contentDescription = "Cerca", tint = Tema.colorePrincipale)
+                                    }
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                                focusedContainerColor = Color.Black.copy(alpha = 0.8f), unfocusedContainerColor = Color.Black.copy(alpha = 0.8f),
+                                focusedBorderColor = Tema.colorePrincipale, unfocusedBorderColor = Color.Transparent
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    if (mapError.isNotEmpty()) {
+                        Text(mapError, color = Color.Red, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp, start = 56.dp).background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(4.dp)).padding(4.dp))
+                    }
+                }
+
+                // PULSANTE DI CONFERMA IN BASSO
+                Button(
+                    onClick = { mostraMappaIntera = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp).fillMaxWidth(0.85f).height(55.dp)
+                ) {
+                    Text(if (pinMarker != null) "CONFERMA POSIZIONE" else "CHIUDI MAPPA", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }

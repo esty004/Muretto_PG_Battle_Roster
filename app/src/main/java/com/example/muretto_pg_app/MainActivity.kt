@@ -223,6 +223,12 @@ fun AppNavigation() {
                     onVaiAlMenu = { navController.navigate("menu") }
                 )
             }
+            composable("benvenuto_fortitudo") {
+                SchermataDiBenvenutoFortitudo(
+                    onTornaIndietro = { navController.popBackStack() },
+                    onVaiAlMenu = { navController.navigate("menu") }
+                )
+            }
             composable("menu") { SchermataMenu(onTornaIndietro = { navController.popBackStack() }, onSelezionaModalita = { navController.navigate(it) }) }
 
             composable("trasferte") { SchermataTrasferte(onTornaIndietro = { navController.popBackStack() }, onVaiAllaMappa = { navController.navigate("mappa_trasferte") }) }
@@ -257,8 +263,8 @@ fun AppNavigation() {
             composable("generatore_taboo") { SchermataGeneratoreTaboo { navController.popBackStack() } }
             composable("generatore_linker") { SchermataGeneratoreLinker { navController.popBackStack() } }
             composable("generatore_immagini") { SchermataGeneratoreImmagini { navController.popBackStack() } }
-            composable("evento") {
-                SchermataEventi(
+            composable("contest") {
+                SchermataContest( // <-- CAMBIATO DA SchermataEventi A SchermataContest
                     onTornaIndietro = { navController.popBackStack() },
                     onNavigate = { navController.navigate(it) }
                 )
@@ -276,6 +282,21 @@ fun AppNavigation() {
                 SchermataGestioneBattleEvento(
                     eventoId = eventoId,
                     onTornaIndietro = { navController.popBackStack() }
+                )
+            }
+            composable("aggiungi_contest") {
+                SchermataCreaContest(
+                    onTornaIndietro = { navController.popBackStack() }
+                )
+            }
+            // Aggiungi questo nel blocco NavHost
+            composable("lista_contest_globali") {
+                // Per ora possiamo riusare la SchermataTrasferte senza il bottone Mappa,
+                // in modo che mostri l'elenco come evento globale
+                SchermataTrasferte(
+                    onTornaIndietro = { navController.popBackStack() },
+                    onVaiAllaMappa = { /* I contest potrebbero non avere la mappa globale, o puoi mettercela */ },
+                    onGestisciBattle = { eventoId -> navController.navigate("gestione_battle_evento/$eventoId") }
                 )
             }
         }
@@ -355,7 +376,7 @@ fun SchermataHome(onNavigate: (String) -> Unit) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.85f)
-                    .height(135.dp) // Altezza adattata per 3 elementi
+                    .height(130.dp) // Altezza leggermente ridotta per farceli stare tutti e 4
                     .clip(RoundedCornerShape(24.dp))
                     .background(Color.Black)
                     .border(3.dp, Tema.colorePrincipale, RoundedCornerShape(24.dp))
@@ -365,13 +386,13 @@ fun SchermataHome(onNavigate: (String) -> Unit) {
                 Text(text = "MURETTI", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily(Font(R.font.komtit__)), textAlign = TextAlign.Center)
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // 2. TRASFERTE
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.85f)
-                    .height(135.dp)
+                    .height(130.dp)
                     .clip(RoundedCornerShape(24.dp))
                     .border(3.dp, Tema.colorePrincipale, RoundedCornerShape(24.dp))
                     .clickable { onNavigate("trasferte") },
@@ -384,21 +405,20 @@ fun SchermataHome(onNavigate: (String) -> Unit) {
                     contentScale = ContentScale.Crop
                 )
                 Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
-
                 Text(text = "TRASFERTE", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily(Font(R.font.komtit__)), textAlign = TextAlign.Center)
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // 3. ALLENAMENTO (NUOVO)
+            // 3. ALLENAMENTO
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.85f)
-                    .height(135.dp)
+                    .height(130.dp)
                     .clip(RoundedCornerShape(24.dp))
                     .border(3.dp, Tema.colorePrincipale, RoundedCornerShape(24.dp))
                     .clickable {
-                        Tema.murettoSelezionato = MurettoAttivo.PG // Nuovo metodo per forzare l'estetica
+                        Tema.murettoSelezionato = MurettoAttivo.PG
                         onNavigate("allenamento")
                     },
                 contentAlignment = Alignment.Center
@@ -410,8 +430,24 @@ fun SchermataHome(onNavigate: (String) -> Unit) {
                     contentScale = ContentScale.Crop
                 )
                 Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
-
                 Text(text = "ALLENAMENTO", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily(Font(R.font.komtit__)), textAlign = TextAlign.Center)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 4. NUOVO BOTTONE CONTEST
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .height(130.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Tema.coloreSfondoCard) // Per ora usa un colore di sfondo solido, o aggiungi un'immagine come le altre
+                    .border(3.dp, Tema.colorePrincipale, RoundedCornerShape(24.dp))
+                    .clickable { onNavigate("lista_contest_globali") }, // <- Creeremo una rotta apposta per vedere tutti i contest
+                contentAlignment = Alignment.Center
+            ) {
+                // Se vuoi un'immagine di sfondo, puoi metterla qui come in Trasferte
+                Text(text = "CONTEST", color = Tema.coloreTesto, fontSize = 32.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily(Font(R.font.komtit__)), textAlign = TextAlign.Center)
             }
 
             Spacer(modifier = Modifier.weight(1.2f))
@@ -701,6 +737,20 @@ fun SchermataMappa(onPinClick: (String) -> Unit, onTornaIndietro: () -> Unit) {
                         }
                     }
                     overlays.add(m3)
+
+                    val m4 = Marker(this).apply {
+                        // Le tue coordinate convertite in decimale per la mappa!
+                        position = GeoPoint(44.078778, 10.099889)
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        val bmp = android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.pin_fortitudo)
+                        icon = BitmapDrawable(ctx.resources, Bitmap.createScaledBitmap(bmp, 200, 140, true))
+                        setOnMarkerClickListener { _, _ ->
+                            Tema.murettoSelezionato = MurettoAttivo.FORTITUDO
+                            onPinClick("benvenuto_fortitudo")
+                            true
+                        }
+                    }
+                    overlays.add(m4)
                 }
             }
         )
@@ -839,6 +889,27 @@ fun SchermataDiBenvenutoAteneo(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> U
     ) {
         Box(modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scalaSfondo; scaleY = scalaSfondo; alpha = alphaContenuto }) {
             Image(painter = painterResource(id = R.drawable.sfondo_schermata_iniziale_ateneo), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        }
+        if (!inTransizione) {
+            IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.TopStart).padding(top = 60.dp, start = 16.dp)) {
+                Text("<", color = Color.White, fontSize = 45.sp, fontFamily = FontFamily(Font(R.font.komtit__)), fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+fun SchermataDiBenvenutoFortitudo(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Unit) {
+    var inTransizione by remember { mutableStateOf(false) }
+    val scalaSfondo by animateFloatAsState(targetValue = if (inTransizione) 2.8f else 1f, animationSpec = tween(1300, easing = FastOutSlowInEasing), label = "")
+    val alphaContenuto by animateFloatAsState(targetValue = if (inTransizione) 0f else 1f, animationSpec = tween(700), finishedListener = { onVaiAlMenu() }, label = "")
+
+    Box(
+        modifier = Modifier.fillMaxSize().background(Color.Black).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { if (!inTransizione) inTransizione = true },
+        contentAlignment = Alignment.Center
+    ) {
+        Box(modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scalaSfondo; scaleY = scalaSfondo; alpha = alphaContenuto }) {
+            Image(painter = painterResource(id = R.drawable.sfondo_schermata_iniziale_fortitudo), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         }
         if (!inTransizione) {
             IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.TopStart).padding(top = 60.dp, start = 16.dp)) {

@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.sp
 fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> Unit) {
     val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
     // RIMOSSO "Allenamento" dalla lista
-    val listaModalita = listOf("Muretto classico", "2 VS 2", "Evento")
+    val listaModalita = listOf("Muretto classico", "2 VS 2", "Contest")
 
     var mostraDialog2vs2 by remember { mutableStateOf(false) }
 
@@ -37,7 +37,7 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
 
             // --- SFONDO DINAMICO ---
             Image(
-                painter = painterResource(id = if (Tema.isBarreFaul) R.drawable.sfondo_barre_faul else if(Tema.isAteneo) R.drawable.sfondo_ateneo else R.drawable.sfondo_muretto_classico),
+                painter = painterResource(id = Tema.sfondoGenerale),
                 contentDescription = "Sfondo Menu",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
@@ -67,7 +67,7 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
                             when (nome) {
                                 "Muretto classico" -> onSelezionaModalita("muretto_classico")
                                 "2 VS 2" -> mostraDialog2vs2 = true
-                                "Evento" -> onSelezionaModalita("evento")
+                                "Contest" -> onSelezionaModalita("contest")
                             }
                         })
                     }
@@ -124,19 +124,25 @@ fun CardModalita(nomeModalita: String, onClick: () -> Unit) {
         val resourceId = when (Tema.murettoSelezionato) {
             MurettoAttivo.ATENEO -> when (nomeModalita) {
                 "Muretto classico" -> R.drawable.muretto_classico_ateneo
-                "Evento" -> R.drawable.evento_ateneo
-                else -> R.drawable.due_contro_due // Default per 2vs2
+                "Contest" -> R.drawable.evento_ateneo
+                else -> R.drawable.due_contro_due
+            }
+            MurettoAttivo.FORTITUDO -> when (nomeModalita) {
+                "Muretto classico" -> R.drawable.muretto_classico_fortitudo
+                "2 VS 2" -> R.drawable.due_contro_due_fortitudo
+                "Contest" -> R.drawable.evento_fortitudo
+                else -> R.drawable.muretto_classico_fortitudo
             }
             MurettoAttivo.BARRE_FAUL -> when (nomeModalita) {
                 "Muretto classico" -> R.drawable.muretto_classico_barre_faul
                 "2 VS 2" -> R.drawable.due_contro_due_barre_faul
-                "Evento" -> R.drawable.evento_barre_faul
+                "Contest" -> R.drawable.evento_barre_faul
                 else -> R.drawable.muretto_classico
             }
             MurettoAttivo.PG -> when (nomeModalita) {
                 "Muretto classico" -> R.drawable.muretto_classico
                 "2 VS 2" -> R.drawable.due_contro_due
-                "Evento" -> R.drawable.evento
+                "Contest" -> R.drawable.evento
                 else -> R.drawable.muretto_classico
             }
         }
