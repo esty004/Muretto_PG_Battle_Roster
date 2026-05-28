@@ -166,16 +166,16 @@ fun SchermataRegistrazione(onTornaIndietro: () -> Unit) {
 
                         scope.launch {
                             val tipoDatabase = when {
-                                tipoAccountSelezionato.contains("Rapper") -> "rapper"
-                                tipoAccountSelezionato.contains("Eventi") -> "organizzatore_eventi"
+                                tipoAccountSelezionato.startsWith("Rapper") -> "rapper"
+                                tipoAccountSelezionato.startsWith("Organizzatore Eventi") -> "organizzatore_eventi"
                                 else -> "organizzatore_muretto"
                             }
                             val murettoDatabase = if (tipoDatabase == "organizzatore_muretto") {
                                 when (murettoSelezionato) {
-                                    "Barre Faul" -> "barre_faul"
-                                    "Ateneo" -> "ateneo"
-                                    "Fortitudo" -> "fortitudo"
-                                    else -> "muretto_pg"
+                                    "Barre Faul" -> "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e"
+                                    "Fortitudo" -> "22ea8a2f-d45d-40b2-a6ee-841058f12f99"
+                                    "Ateneo" -> "d20af410-652c-4d91-ab62-3aae3b2a8db2" // Inserisci qui l'UUID di Ateneo se ce l'hai nel DB!
+                                    else -> "09fbe1d3-0022-41b8-ba4b-edc887c145a2" // Muretto PG
                                 }
                             } else null
 

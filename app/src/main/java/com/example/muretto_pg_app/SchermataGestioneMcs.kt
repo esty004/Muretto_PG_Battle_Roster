@@ -29,7 +29,17 @@ fun SchermataGestioneMcs(onTornaIndietro: () -> Unit, onModificaMc: (String) -> 
     val isAdmin = databaseViewModel.isAdmin
     val murettoOrganizzatore = databaseViewModel.profiloAttuale?.muretto_id
 
-    var tabSelezionata by remember { mutableIntStateOf(if (!isAdmin && murettoOrganizzatore == "barre_faul") 1 else 0) }
+    var tabSelezionata by remember {
+        mutableIntStateOf(
+            if (isAdmin) 0
+            else when (murettoOrganizzatore) {
+                "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e" -> 1 // Barre Faul
+                "IL_TUO_UUID_DI_ATENEO" -> 2               // Ateneo (se hai messo il vero UUID nel DB)
+                "22ea8a2f-d45d-40b2-a6ee-841058f12f99" -> 3 // Fortitudo
+                else -> 0                                  // Muretto PG (Default)
+            }
+        )
+    }
 
     // SchermataGestioneMcs.kt
     LaunchedEffect(tabSelezionata) {
