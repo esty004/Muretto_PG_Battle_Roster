@@ -77,7 +77,12 @@ fun SchermataMurettoClassico(
         if (mostraNotepad) mostraNotepad = false else focusManager.clearFocus()
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
+    Surface(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding(), // <--- IL FIX MAGICO DELLA TASTIERA!
+        color = Tema.coloreSfondo
+    ) {
         Box(modifier = Modifier.fillMaxSize()) {
 
             // --- NUOVO SFONDO DINAMICO ---

@@ -96,7 +96,12 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
         calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true
     )
 
-    Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
+    Surface(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding(), // <--- IL FIX MAGICO DELLA TASTIERA!
+        color = Tema.coloreSfondo
+    ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally

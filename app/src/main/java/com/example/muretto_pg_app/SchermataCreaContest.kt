@@ -115,7 +115,12 @@ fun SchermataCreaContest(onTornaIndietro: () -> Unit) {
         Color(0xFF00BCD4)  // Ciano
     )
 
-    Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
+    Surface(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding(), // <--- IL FIX MAGICO DELLA TASTIERA!
+        color = Tema.coloreSfondo
+    ) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
 
             // HEADER E BARRA DI PROGRESSO

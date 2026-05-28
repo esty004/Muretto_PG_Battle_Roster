@@ -46,7 +46,12 @@ fun SchermataAggiungiMc(onTornaIndietro: () -> Unit) {
         imageUri = uri
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
+    Surface(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding(), // <--- IL FIX MAGICO DELLA TASTIERA!
+        color = Tema.coloreSfondo
+    ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally

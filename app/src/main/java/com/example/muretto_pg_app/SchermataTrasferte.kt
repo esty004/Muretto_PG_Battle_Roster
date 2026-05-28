@@ -295,19 +295,6 @@ fun CardPostEvento(evento: Evento, isPreferito: Boolean, onTogglePreferito: () -
                             }
                         }
                     }
-
-                    // BOTTONE PER L'IA
-                    if (puoGestire) {
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Button(
-                            onClick = { onGestisciBattle(evento.id) },
-                            colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth().height(55.dp)
-                        ) {
-                            Text("⚙️ GESTISCI BATTLE (IA)", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
                 }
             }
         }

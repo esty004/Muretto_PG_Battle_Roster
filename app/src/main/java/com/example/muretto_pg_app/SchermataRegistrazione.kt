@@ -88,7 +88,12 @@ fun SchermataRegistrazione(onTornaIndietro: () -> Unit) {
         return
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
+    Surface(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding(), // <--- IL FIX MAGICO DELLA TASTIERA!
+        color = Tema.coloreSfondo
+    ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally

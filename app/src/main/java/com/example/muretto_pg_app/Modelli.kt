@@ -533,7 +533,12 @@ class DatabaseViewModel : ViewModel() {
                     val responseStr = conn.inputStream.bufferedReader().use { it.readText() }
                     val jsonResponse = JSONObject(responseStr)
                     jsonResponse.getString("id")
-                } else null
+                } else {
+                    // --- STAMPIAMO L'ERRORE DI SUPABASE ---
+                    val errorStr = conn.errorStream?.bufferedReader()?.use { it.readText() }
+                    android.util.Log.e("DEBUG_RAPPER", "Supabase Auth ha rifiutato: HTTP $codice - Dettaglio: $errorStr")
+                    null
+                }
             }
 
             if (nuovoUserId != null) {
@@ -545,13 +550,20 @@ class DatabaseViewModel : ViewModel() {
                     telefono = telefono,
                     tipo_account = "rapper"
                 )
-                supabase.postgrest["profili"].insert(nuovoProfilo)
-                true
+                try {
+                    supabase.postgrest["profili"].insert(nuovoProfilo)
+                    android.util.Log.d("DEBUG_RAPPER", "Profilo inserito con successo!")
+                    true
+                } catch (e: Exception) {
+                    // --- STAMPIAMO L'ERRORE DEL DATABASE ---
+                    android.util.Log.e("DEBUG_RAPPER", "Errore inserimento nella tabella profili: ${e.message}", e)
+                    false
+                }
             } else {
                 false
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("DEBUG_RAPPER", "Errore di connessione generale: ${e.message}", e)
             false
         }
     }
