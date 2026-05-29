@@ -32,44 +32,32 @@ import kotlinx.coroutines.launch
 fun SchermataNotifiche(onTornaIndietro: () -> Unit) {
     val databaseViewModel = LocalDatabaseViewModel.current
     val MioFont = FontFamily(Font(R.font.komtit__))
+
+    // Divisione chirurgica delle notifiche!
     val richieste = databaseViewModel.richiesteInAttesa
-    val eventi = databaseViewModel.eventiInAttesa
+    val eventiNormali = databaseViewModel.eventiInAttesa.filter { it.contest_design == null }
+    val contestInAttesa = databaseViewModel.eventiInAttesa.filter { it.contest_design != null }
 
     var tabSelezionata by remember { mutableIntStateOf(0) }
     var richiestaSelezionata by remember { mutableStateOf<RichiestaAccount?>(null) }
     var eventoSelezionato by remember { mutableStateOf<Evento?>(null) }
 
-    // Aggiorna al caricamento
     LaunchedEffect(Unit) {
         databaseViewModel.fetchRichiesteInAttesa()
         databaseViewModel.fetchEventiInAttesa()
     }
 
-    // Dialog dettaglio richiesta account
-    richiestaSelezionata?.let { richiesta ->
-        DialogDettaglioRichiesta(richiesta = richiesta, onDismiss = { richiestaSelezionata = null }, onChiudi = { richiestaSelezionata = null })
-    }
-
-    // Dialog dettaglio evento
-    eventoSelezionato?.let { evento ->
-        DialogDettaglioEvento(evento = evento, onDismiss = { eventoSelezionato = null }, onChiudi = { eventoSelezionato = null })
-    }
+    richiestaSelezionata?.let { richiesta -> DialogDettaglioRichiesta(richiesta = richiesta, onDismiss = { richiestaSelezionata = null }, onChiudi = { richiestaSelezionata = null }) }
+    eventoSelezionato?.let { evento -> DialogDettaglioEvento(evento = evento, onDismiss = { eventoSelezionato = null }, onChiudi = { eventoSelezionato = null }) }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF1A1A1A)) {
         Column(modifier = Modifier.fillMaxSize()) {
 
-            // Header
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 56.dp, bottom = 10.dp, start = 16.dp, end = 16.dp)
-            ) {
-                IconButton(onClick = onTornaIndietro, modifier = Modifier.align(Alignment.CenterStart)) {
-                    Text("<", color = Color.White, fontSize = 45.sp, fontFamily = MioFont)
-                }
+            Box(modifier = Modifier.fillMaxWidth().padding(top = 56.dp, bottom = 10.dp, start = 16.dp, end = 16.dp)) {
+                IconButton(onClick = onTornaIndietro, modifier = Modifier.align(Alignment.CenterStart)) { Text("<", color = Color.White, fontSize = 45.sp, fontFamily = MioFont) }
                 Text("NOTIFICHE", color = Color.White, fontSize = 28.sp, fontFamily = MioFont, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
 
-                val totaleNotifiche = richieste.size + eventi.size
+                val totaleNotifiche = richieste.size + eventiNormali.size + contestInAttesa.size
                 if (totaleNotifiche > 0) {
                     Box(modifier = Modifier.align(Alignment.CenterEnd).size(28.dp).background(Color.Red, CircleShape), contentAlignment = Alignment.Center) {
                         Text(totaleNotifiche.toString(), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -77,30 +65,21 @@ fun SchermataNotifiche(onTornaIndietro: () -> Unit) {
                 }
             }
 
-            // TABS (Schede)
+            // TABS A TRE SCHEDE!
             TabRow(
                 selectedTabIndex = tabSelezionata,
                 containerColor = Color.Transparent,
                 contentColor = Color(0xFF4CAF50),
-                indicator = { tabPositions ->
-                    TabRowDefaults.SecondaryIndicator(modifier = Modifier.tabIndicatorOffset(tabPositions[tabSelezionata]), color = Color(0xFF4CAF50))
-                },
+                indicator = { tabPositions -> TabRowDefaults.SecondaryIndicator(modifier = Modifier.tabIndicatorOffset(tabPositions[tabSelezionata]), color = Color(0xFF4CAF50)) },
                 divider = {}
             ) {
-                Tab(
-                    selected = tabSelezionata == 0,
-                    onClick = { tabSelezionata = 0 },
-                    text = { Text("ACCOUNT (${richieste.size})", color = if (tabSelezionata == 0) Color.White else Color.Gray, fontWeight = FontWeight.Bold) }
-                )
-                Tab(
-                    selected = tabSelezionata == 1,
-                    onClick = { tabSelezionata = 1 },
-                    text = { Text("EVENTI (${eventi.size})", color = if (tabSelezionata == 1) Color.White else Color.Gray, fontWeight = FontWeight.Bold) }
-                )
+                Tab(selected = tabSelezionata == 0, onClick = { tabSelezionata = 0 }, text = { Text("ACCOUNT (${richieste.size})", color = if (tabSelezionata == 0) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 12.sp) })
+                Tab(selected = tabSelezionata == 1, onClick = { tabSelezionata = 1 }, text = { Text("EVENTI (${eventiNormali.size})", color = if (tabSelezionata == 1) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 12.sp) })
+                Tab(selected = tabSelezionata == 2, onClick = { tabSelezionata = 2 }, text = { Text("CONTEST (${contestInAttesa.size})", color = if (tabSelezionata == 2) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 12.sp) })
             }
 
-            // LISTA
-            val listaCorrenteVuota = (tabSelezionata == 0 && richieste.isEmpty()) || (tabSelezionata == 1 && eventi.isEmpty())
+            // LISTA DINAMICA
+            val listaCorrenteVuota = (tabSelezionata == 0 && richieste.isEmpty()) || (tabSelezionata == 1 && eventiNormali.isEmpty()) || (tabSelezionata == 2 && contestInAttesa.isEmpty())
 
             if (listaCorrenteVuota) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -112,10 +91,10 @@ fun SchermataNotifiche(onTornaIndietro: () -> Unit) {
                 }
             } else {
                 LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (tabSelezionata == 0) {
-                        items(richieste) { r -> CardRichiesta(richiesta = r, onClick = { richiestaSelezionata = r }) }
-                    } else {
-                        items(eventi) { e -> CardEventoInAttesa(evento = e, onClick = { eventoSelezionato = e }) }
+                    when (tabSelezionata) {
+                        0 -> items(richieste) { r -> CardRichiesta(richiesta = r, onClick = { richiestaSelezionata = r }) }
+                        1 -> items(eventiNormali) { e -> CardEventoInAttesa(evento = e, onClick = { eventoSelezionato = e }) }
+                        2 -> items(contestInAttesa) { c -> CardEventoInAttesa(evento = c, isContest = true, onClick = { eventoSelezionato = c }) }
                     }
                 }
             }
@@ -129,10 +108,7 @@ fun SchermataNotifiche(onTornaIndietro: () -> Unit) {
 fun CardRichiesta(richiesta: RichiestaAccount, onClick: () -> Unit) {
     val etichettaTipo = when (richiesta.tipo_account) { "organizzatore_muretto" -> "Org. Muretto"; "organizzatore_eventi" -> "Org. Eventi"; else -> richiesta.tipo_account }
     val coloreTipo = when (richiesta.tipo_account) { "organizzatore_muretto" -> Color(0xFFD32F2F); "organizzatore_eventi" -> Color(0xFF1E88E5); else -> Color.Gray }
-
-    Box(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).border(2.dp, Color(0xFF333333), RoundedCornerShape(16.dp)).background(Color(0xFF222222)).clickable { onClick() }.padding(16.dp)
-    ) {
+    Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).border(2.dp, Color(0xFF333333), RoundedCornerShape(16.dp)).background(Color(0xFF222222)).clickable { onClick() }.padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(10.dp).background(Color.Red, CircleShape))
             Spacer(modifier = Modifier.width(12.dp))
@@ -150,10 +126,11 @@ fun CardRichiesta(richiesta: RichiestaAccount, onClick: () -> Unit) {
 }
 
 @Composable
-fun CardEventoInAttesa(evento: Evento, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).border(2.dp, Color(0xFF333333), RoundedCornerShape(16.dp)).background(Color(0xFF222222)).clickable { onClick() }.padding(16.dp)
-    ) {
+fun CardEventoInAttesa(evento: Evento, isContest: Boolean = false, onClick: () -> Unit) {
+    val coloreTag = if (isContest) Color(0xFFFF9800) else Color(0xFF4CAF50)
+    val etichetta = if (isContest) "NUOVO CONTEST" else "NUOVO EVENTO"
+
+    Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).border(2.dp, Color(0xFF333333), RoundedCornerShape(16.dp)).background(Color(0xFF222222)).clickable { onClick() }.padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(10.dp).background(Color.Red, CircleShape))
             Spacer(modifier = Modifier.width(12.dp))
@@ -161,8 +138,8 @@ fun CardEventoInAttesa(evento: Evento, onClick: () -> Unit) {
                 Text(evento.titolo.uppercase(), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text("${evento.data_ora} • ${evento.location_nome}", color = Color.Gray, fontSize = 12.sp)
                 Spacer(modifier = Modifier.height(4.dp))
-                Box(modifier = Modifier.background(Color(0xFF4CAF50).copy(alpha = 0.2f), RoundedCornerShape(6.dp)).border(1.dp, Color(0xFF4CAF50), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 2.dp)) {
-                    Text("NUOVO EVENTO", color = Color(0xFF4CAF50), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Box(modifier = Modifier.background(coloreTag.copy(alpha = 0.2f), RoundedCornerShape(6.dp)).border(1.dp, coloreTag, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 2.dp)) {
+                    Text(etichetta, color = coloreTag, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             }
             Text("›", color = Color.Gray, fontSize = 24.sp)

@@ -369,11 +369,29 @@ fun SchermataCreaContest(onTornaIndietro: () -> Unit) {
                                     scope.launch {
                                         val bytesImmagine = imageUri?.let { uri -> context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }
 
-                                        // QUI SALVIAMO L'EVENTO NEL DB
+                                        // Conversione Colori in stringhe esadecimali per il DB
+                                        fun Color.toHex(): String {
+                                            val a = (this.alpha * 255).toInt()
+                                            val r = (this.red * 255).toInt()
+                                            val g = (this.green * 255).toInt()
+                                            val b = (this.blue * 255).toInt()
+                                            return String.format("#%02X%02X%02X%02X", a, r, g, b)
+                                        }
+
+                                        val bytesSfondo = sfondoCustomUri?.let { uri -> context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }
+
+                                        // QUI SALVIAMO L'EVENTO NEL DB CON I DATI DEL CONTEST!
                                         val successo = databaseViewModel.inserisciNuovoEvento(
                                             titolo = titolo, locationNome = locationTesto, lat = pinMarker!!.latitude, lng = pinMarker!!.longitude,
                                             dataOra = "$dataSelezionata, $oraSelezionata", tipo = modalitaSelezionata, prezzo = prezzo, scalaPin = 1.0f, imageBytes = bytesImmagine,
-                                            insta = insta, maps = maps, descrizione = "Contest ufficiale"
+                                            insta = insta, maps = maps, descrizione = "Contest ufficiale",
+
+                                            tipoStile = stileSelezionato,
+                                            colorePrimario = if (stileSelezionato == "CUSTOM") coloreBottoni.toHex() else null,
+                                            coloreSfondo = if (stileSelezionato == "CUSTOM") coloreCornici.toHex() else null,
+                                            coloreTesto = null,
+                                            sfondoCustomBytes = bytesSfondo,
+                                            isContest = true // <--- AGGIUNGI QUESTA RIGA MAGICA!
                                         )
 
                                         staSalvandoTutto = false

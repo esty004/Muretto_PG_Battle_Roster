@@ -264,9 +264,17 @@ fun AppNavigation() {
             composable("generatore_linker") { SchermataGeneratoreLinker { navController.popBackStack() } }
             composable("generatore_immagini") { SchermataGeneratoreImmagini { navController.popBackStack() } }
             composable("contest") {
-                SchermataContest( // <-- CAMBIATO DA SchermataEventi A SchermataContest
+                SchermataContest(
+                    isGlobale = false, // Passiamo FALSE per filtrare per muretto locale
                     onTornaIndietro = { navController.popBackStack() },
                     onNavigate = { navController.navigate(it) }
+                )
+            }
+            composable("dettaglio_contest/{id}") { backStackEntry ->
+                val contestId = backStackEntry.arguments?.getString("id") ?: ""
+                SchermataGestioneBattleEvento(
+                    eventoId = contestId,
+                    onTornaIndietro = { navController.popBackStack() }
                 )
             }
             composable("trasferte") {
@@ -291,12 +299,10 @@ fun AppNavigation() {
             }
             // Aggiungi questo nel blocco NavHost
             composable("lista_contest_globali") {
-                // Per ora possiamo riusare la SchermataTrasferte senza il bottone Mappa,
-                // in modo che mostri l'elenco come evento globale
-                SchermataTrasferte(
+                SchermataContest(
+                    isGlobale = true, // Passiamo TRUE per mostrare tutti i contest
                     onTornaIndietro = { navController.popBackStack() },
-                    onVaiAllaMappa = { /* I contest potrebbero non avere la mappa globale, o puoi mettercela */ },
-                    onGestisciBattle = { eventoId -> navController.navigate("gestione_battle_evento/$eventoId") }
+                    onNavigate = { navController.navigate(it) }
                 )
             }
         }

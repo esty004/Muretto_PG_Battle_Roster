@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,20 +23,34 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 
 @Composable
-fun SchermataContest(onTornaIndietro: () -> Unit, onNavigate: (String) -> Unit) {
+fun SchermataContest(isGlobale: Boolean, onTornaIndietro: () -> Unit, onNavigate: (String) -> Unit) {
     val databaseViewModel = LocalDatabaseViewModel.current
     val MioFont = FontFamily(Font(R.font.komtit__))
 
-    // Controllo dei permessi: Admin, Org. Muretto o Org. Eventi
-    val puoCreaContest = databaseViewModel.isAdmin ||
-            databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO ||
-            databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_EVENTI
+    // Filtro per mostrare SOLO i Contest (eventi con design o etichettati come tali)
+    val tuttiIContest = databaseViewModel.eventiApprovati.filter { it.contest_design != null }
 
-    // Recupero i contest. Per ora stiamo usando la lista 'eventiApprovati'
-    // in futuro potrai filtrare solo quelli di tipo "Contest"
-    val listaContest = databaseViewModel.eventiApprovati
+    // Logica di visualizzazione (Globale vs Locale)
+    val listaContest = if (isGlobale) {
+        tuttiIContest
+    } else {
+        val murettoCorrente = Tema.ottieniIdMurettoAttivo()
+        tuttiIContest.filter { it.muretto_id == murettoCorrente }
+    }
+
+    // Regole per mostrare il bottone "+ CREA CONTEST"
+    val puoCreaContest = when {
+        databaseViewModel.isAdmin -> true
+        isGlobale && databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_EVENTI -> true
+        !isGlobale && databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO -> true
+        else -> false
+    }
+
+    // Stato per il PopUp bloccante per i Rapper/Senza Account
+    var mostraPopupBlocco by remember { mutableStateOf<Evento?>(null) }
 
     LaunchedEffect(Unit) {
         databaseViewModel.fetchEventiApprovati()
@@ -43,69 +58,96 @@ fun SchermataContest(onTornaIndietro: () -> Unit, onNavigate: (String) -> Unit) 
 
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Box(modifier = Modifier.fillMaxSize()) {
-
-            // --- SFONDO DINAMICO ---
-            Image(
-                painter = painterResource(id = Tema.sfondoGenerale),
-                contentDescription = "Sfondo Menu",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-            // Patina scura per leggibilità
-            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
+            Image(painter = painterResource(id = Tema.sfondoGenerale), contentDescription = "Sfondo", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)))
 
             Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
 
-                // HEADER
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 60.dp, bottom = 20.dp)) {
                     IconButton(onClick = { onTornaIndietro() }, modifier = Modifier.align(Alignment.CenterStart)) {
                         Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFont)
                     }
-                    Text("CONTEST", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFont, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+                    Text(if (isGlobale) "TUTTI I CONTEST" else "CONTEST LOCALI", color = Tema.coloreTesto, fontSize = 32.sp, fontFamily = MioFont, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // SE L'UTENTE HA I PERMESSI, MOSTRA LA CARD "CREA CONTEST"
                 if (puoCreaContest) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp) // Altezza ridotta per far spazio alla lista
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(Tema.coloreSfondoCard)
-                            .border(3.dp, Tema.colorePrincipale, RoundedCornerShape(24.dp))
-                            .clickable { onNavigate("aggiungi_contest") },
+                        modifier = Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(20.dp)).background(Tema.coloreSfondoCard).border(3.dp, Tema.colorePrincipale, RoundedCornerShape(20.dp)).clickable { onNavigate("aggiungi_contest") },
                         contentAlignment = Alignment.Center
-                    ) {
-                        Text("+ CREA CONTEST", color = Tema.coloreTesto, fontSize = 24.sp, fontWeight = FontWeight.Bold, fontFamily = MioFont, textAlign = TextAlign.Center)
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
+                    ) { Text("+ CREA NUOVO CONTEST", color = Tema.coloreTesto, fontSize = 22.sp, fontWeight = FontWeight.Bold, fontFamily = MioFont) }
+                    Spacer(modifier = Modifier.height(20.dp))
                 }
 
-                // LISTA DEI CONTEST
                 if (listaContest.isEmpty()) {
                     Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                        Text("Ancora nessun contest attivo...", color = Tema.coloreTestoSecondario, fontSize = 20.sp, fontFamily = MioFont, textAlign = TextAlign.Center)
+                        Text("Nessun contest attivo al momento.", color = Tema.coloreTestoSecondario, fontSize = 20.sp, fontFamily = MioFont, textAlign = TextAlign.Center)
                     }
                 } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxWidth().weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(20.dp),
-                        contentPadding = PaddingValues(bottom = 80.dp)
-                    ) {
+                    LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(20.dp), contentPadding = PaddingValues(bottom = 80.dp)) {
                         items(listaContest) { contest ->
-                            // Riutilizzo il tuo design perfetto della CardPostEvento!
-                            CardPostEvento(
-                                evento = contest,
-                                isPreferito = databaseViewModel.eventiPreferiti.contains(contest.id),
-                                onTogglePreferito = { databaseViewModel.togglePreferito(contest.id) },
-                                isLoggato = databaseViewModel.ruoloAttuale != RuoloUtente.NESSUNO,
-                                onGestisciBattle = { eventoId -> onNavigate("gestione_battle_evento/$eventoId") }
+                            CardContest(
+                                contest = contest,
+                                onClick = {
+                                    val haPermessi = databaseViewModel.isAdmin ||
+                                            databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO ||
+                                            databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_EVENTI
+                                    if (haPermessi) {
+                                        // Li mandiamo alla schermata di gestione che creeremo nel Prossimo Step
+                                        onNavigate("dettaglio_contest/${contest.id}")
+                                    } else {
+                                        // Mostriamo l'avviso ai normali utenti
+                                        mostraPopupBlocco = contest
+                                    }
+                                }
                             )
                         }
                     }
+                }
+            }
+        }
+    }
+
+    if (mostraPopupBlocco != null) {
+        val contest = mostraPopupBlocco!!
+        AlertDialog(
+            onDismissRequest = { mostraPopupBlocco = null },
+            containerColor = Tema.coloreSfondoCard,
+            title = { Text("ATTENZIONE", color = Tema.coloreTesto, fontFamily = MioFont, fontSize = 24.sp) },
+            text = { Text("Evento non ancora iniziato.\nData d'inizio: ${contest.data_ora}", color = Tema.coloreTestoSecondario, fontSize = 16.sp) },
+            confirmButton = {
+                Button(colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), onClick = { mostraPopupBlocco = null }) {
+                    Text("VAI ALLA TRASFERTA", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostraPopupBlocco = null }) { Text("CHIUDI", color = Tema.coloreTestoSecondario) }
+            }
+        )
+    }
+}
+
+@Composable
+fun CardContest(contest: Evento, onClick: () -> Unit) {
+    // Leggiamo i colori custom se esistono, altrimenti usiamo quelli del muretto base
+    val design = contest.contest_design
+    val coloreCornice = design?.colore_sfondo?.let { android.graphics.Color.parseColor(it) }?.let { Color(it) } ?: Tema.colorePrincipale
+
+    Box(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Tema.coloreSfondoCard).border(3.dp, coloreCornice, RoundedCornerShape(20.dp)).clickable { onClick() }
+    ) {
+        Column {
+            if (contest.immagine_url != null) {
+                AsyncImage(model = contest.immagine_url, contentDescription = "Locandina", modifier = Modifier.fillMaxWidth().height(160.dp), contentScale = ContentScale.Crop)
+            }
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(contest.titolo.uppercase(), color = Tema.coloreTesto, fontSize = 22.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily(Font(R.font.jackboa)))
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("📍 ${contest.location_nome}", color = Tema.coloreTestoSecondario, fontSize = 14.sp)
+                Text("📅 ${contest.data_ora}", color = Tema.coloreTestoSecondario, fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Box(modifier = Modifier.fillMaxWidth().background(coloreCornice, RoundedCornerShape(8.dp)).padding(8.dp), contentAlignment = Alignment.Center) {
+                    Text("TOCCA PER ENTRARE", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }
         }

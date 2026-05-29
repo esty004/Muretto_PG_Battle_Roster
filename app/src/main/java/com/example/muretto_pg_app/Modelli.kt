@@ -59,6 +59,7 @@ import io.github.jan.supabase.storage.Storage
 import io.github.jan.supabase.storage.storage
 import io.ktor.client.statement.bodyAsText
 import io.github.jan.supabase.functions.functions
+import io.github.jan.supabase.postgrest.query.Columns
 import io.ktor.util.InternalAPI
 import java.util.UUID
 import java.net.HttpURLConnection
@@ -162,24 +163,43 @@ data class RichiestaAccount(
 )
 
 @Serializable
+data class ContestDesign(
+    val evento_id: String,
+    val tipo_stile: String = "DEFAULT",
+    val colore_primario: String? = null,
+    val colore_sfondo: String? = null,
+    val colore_testo: String? = null,
+    val sfondo_custom_url: String? = null,
+    // PREPARAZIONE PER I VOTI
+    val sistema_voti: String? = null,
+    val voto_pubblico: Boolean = false,
+    val numero_giudici: Int = 0,
+    val codici_accesso_giudici: String? = null,
+    val codice_accesso_pubblico: String? = null,
+    val qr_code_pubblico: String? = null,
+    val link_pubblico: String? = null
+)
+
+@Serializable
 data class Evento(
     val id: String = java.util.UUID.randomUUID().toString(),
-    val titolo: String,
-    val location_nome: String,
-    val lat: Double,
-    val lng: Double,
-    val data_ora: String,
-    val tipo: String,
-    val prezzo: String,
-    val immagine_url: String?,
-    val organizzatore_id: String,
+    val titolo: String = "",
+    val location_nome: String = "",
+    val lat: Double = 0.0,
+    val lng: Double = 0.0,
+    val data_ora: String = "",
+    val tipo: String = "",
+    val prezzo: String = "",
+    val immagine_url: String? = null,
+    val organizzatore_id: String? = null,
     val stato: String = "in_attesa",
-    val scala_pin: Float = 1.0f,
-    // --- CAMPI RESI SICURI CON IL PUNTO INTERROGATIVO (?) ---
+    val scala_pin: Float? = 1.0f,
     val insta: String? = null,
     val maps: String? = null,
     val descrizione: String? = null,
-    val deleted_at: String? = null
+    val deleted_at: String? = null,
+    val muretto_id: String? = null, // <- AGGIUNTO PER CAPIRE DI CHI È IL CONTEST
+    val contest_design: ContestDesign? = null
 )
 
 @Serializable
@@ -453,27 +473,87 @@ class DatabaseViewModel : ViewModel() {
     suspend fun inserisciNuovoEvento(
         titolo: String, locationNome: String, lat: Double, lng: Double,
         dataOra: String, tipo: String, prezzo: String, scalaPin: Float, imageBytes: ByteArray?,
-        insta: String, maps: String, descrizione: String // Nuovi parametri
+        insta: String, maps: String, descrizione: String,
+        tipoStile: String = "DEFAULT",
+        colorePrimario: String? = null,
+        coloreSfondo: String? = null,
+        coloreTesto: String? = null,
+        sfondoCustomBytes: ByteArray? = null,
+        isContest: Boolean = false // <--- 1. NUOVO PARAMETRO AGGIUNTO!
     ): Boolean {
         return try {
             val user = supabase.auth.currentUserOrNull() ?: return false
             var imageUrl: String? = null
+
             if (imageBytes != null) {
-                val fileName = "evento_${UUID.randomUUID()}.jpg"
+                val fileName = "evento_${java.util.UUID.randomUUID()}.jpg"
                 val bucket = supabase.storage["locandine_eventi"]
                 bucket.upload(fileName, imageBytes, upsert = true)
                 imageUrl = bucket.publicUrl(fileName)
             }
+
+            val idEvento = java.util.UUID.randomUUID().toString()
+            val murettoAssegnato = profiloAttuale?.muretto_id
+
             val nuovoEvento = Evento(
-                titolo = titolo, location_nome = locationNome, lat = lat, lng = lng,
+                id = idEvento, titolo = titolo, location_nome = locationNome, lat = lat, lng = lng,
                 data_ora = dataOra, tipo = tipo, prezzo = prezzo, immagine_url = imageUrl,
                 organizzatore_id = user.id, stato = "in_attesa", scala_pin = scalaPin,
-                insta = insta, maps = maps, descrizione = descrizione // Nuovi campi
+                insta = insta, maps = maps, descrizione = descrizione, muretto_id = murettoAssegnato
             )
+
             supabase.postgrest["eventi"].insert(nuovoEvento)
+
+            // <--- 2. IL FIX È QUI: Salviamo SEMPRE il design se è un contest!
+            if (isContest) {
+                var sfondoUrl: String? = null
+                if (sfondoCustomBytes != null) {
+                    val bgName = "sfondo_contest_${java.util.UUID.randomUUID()}.jpg"
+                    val bgBucket = supabase.storage["locandine_eventi"]
+                    bgBucket.upload(bgName, sfondoCustomBytes, upsert = true)
+                    sfondoUrl = bgBucket.publicUrl(bgName)
+                }
+
+                val design = ContestDesign(
+                    evento_id = idEvento, tipo_stile = tipoStile, colore_primario = colorePrimario,
+                    colore_sfondo = coloreSfondo, colore_testo = coloreTesto, sfondo_custom_url = sfondoUrl
+                )
+                supabase.postgrest["contest_design"].insert(design)
+            }
             true
         } catch (e: Exception) {
             android.util.Log.e("ERRORE_SUPABASE", "Il database dice: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun salvaImpostazioniVerdetti(
+        eventoId: String,
+        sistemaVoti: String,
+        votoPubblico: Boolean,
+        numeroGiudici: Int,
+        codiciGiudici: String?,
+        codicePubblico: String?,
+        qrCodePubblico: String?,
+        linkPubblico: String?
+    ): Boolean {
+        return try {
+            // Aggiorniamo la riga del design/impostazioni per questo specifico contest
+            supabase.postgrest["contest_design"].update({
+                set("sistema_voti", sistemaVoti)
+                set("voto_pubblico", votoPubblico)
+                set("numero_giudici", numeroGiudici)
+                set("codici_accesso_giudici", codiciGiudici)
+                set("codice_accesso_pubblico", codicePubblico)
+                set("qr_code_pubblico", qrCodePubblico)
+                set("link_pubblico", linkPubblico)
+            }) { filter { eq("evento_id", eventoId) } }
+
+            // Ricarichiamo gli eventi in modo che l'app veda subito i nuovi QR Code
+            fetchEventiApprovati()
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("DatabaseViewModel", "Errore salvataggio verdetti: ${e.message}")
             false
         }
     }
@@ -583,7 +663,10 @@ class DatabaseViewModel : ViewModel() {
     fun fetchEventiInAttesa() {
         safeScope.launch(Dispatchers.IO) {
             try {
-                val eventi = supabase.postgrest["eventi"].select { filter { eq("stato", "in_attesa") } }.decodeList<Evento>()
+                // IL FIX: Chiediamo anche il design!
+                val eventi = supabase.postgrest["eventi"]
+                    .select(columns = Columns.raw("*, contest_design(*)")) { filter { eq("stato", "in_attesa") } }
+                    .decodeList<Evento>()
                 withContext(Dispatchers.Main) {
                     eventiInAttesa.clear()
                     eventiInAttesa.addAll(eventi)
@@ -595,12 +678,17 @@ class DatabaseViewModel : ViewModel() {
     fun fetchEventiApprovati() {
         safeScope.launch(Dispatchers.IO) {
             try {
-                val eventi = supabase.postgrest["eventi"].select { filter { eq("stato", "approvato") } }.decodeList<Evento>()
+                // IL FIX: Chiediamo anche il design!
+                val eventi = supabase.postgrest["eventi"]
+                    .select(columns = Columns.raw("*, contest_design(*)")) { filter { eq("stato", "approvato") } }
+                    .decodeList<Evento>()
                 withContext(Dispatchers.Main) {
                     eventiApprovati.clear()
                     eventiApprovati.addAll(eventi)
                 }
-            } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore eventi approvati", e) }
+            } catch (e: Exception) {
+                android.util.Log.e("DEBUG_TRASFERTE", "Errore fatale nella lettura eventi: ${e.message}", e)
+            }
         }
     }
 
