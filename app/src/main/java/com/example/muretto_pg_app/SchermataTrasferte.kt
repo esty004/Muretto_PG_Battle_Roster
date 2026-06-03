@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,8 +39,9 @@ import kotlinx.coroutines.launch
 fun SchermataTrasferte(
     onTornaIndietro: () -> Unit,
     onVaiAllaMappa: () -> Unit,
-    onGestisciBattle: (String) -> Unit = {}, // <-- Risolto: Inserito parametro
-    soloPreferiti: Boolean = false
+    onGestisciBattle: (String) -> Unit = {},
+    soloPreferiti: Boolean = false,
+    eventoIdIniziale: String? = null
 ) {
     val databaseViewModel = LocalDatabaseViewModel.current
     val MioFont = FontFamily(Font(R.font.komtit__))
@@ -87,7 +89,15 @@ fun SchermataTrasferte(
                         Text(if (soloPreferiti) "Nessuna trasferta salvata." else "Nessuna trasferta programmata.", color = Color.LightGray, textAlign = TextAlign.Center)
                     }
                 } else {
+                    val listState = rememberLazyListState()
+                    LaunchedEffect(eventi.size, eventoIdIniziale) {
+                        if (eventoIdIniziale != null) {
+                            val idx = eventi.indexOfFirst { it.id == eventoIdIniziale }
+                            if (idx >= 0) listState.animateScrollToItem(idx)
+                        }
+                    }
                     LazyColumn(
+                        state = listState,                     // <-- AGGIUNTO
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(24.dp),
                         contentPadding = PaddingValues(bottom = 100.dp)
@@ -98,7 +108,8 @@ fun SchermataTrasferte(
                                 isPreferito = databaseViewModel.eventiPreferiti.contains(evento.id),
                                 onTogglePreferito = { databaseViewModel.togglePreferito(evento.id) },
                                 isLoggato = databaseViewModel.ruoloAttuale != RuoloUtente.NESSUNO,
-                                onGestisciBattle = onGestisciBattle // <-- Risolto: Parametro passato alla Card
+                                onGestisciBattle = onGestisciBattle,
+                                espansoIniziale = (evento.id == eventoIdIniziale)   // <-- AGGIUNTO
                             )
                         }
                     }
@@ -141,10 +152,9 @@ fun SchermataTrasferte(
 }
 
 @Composable
-fun CardPostEvento(evento: Evento, isPreferito: Boolean, onTogglePreferito: () -> Unit, isLoggato: Boolean, onGestisciBattle: (String) -> Unit) {
-    val databaseViewModel = LocalDatabaseViewModel.current
+fun CardPostEvento(evento: Evento, isPreferito: Boolean, onTogglePreferito: () -> Unit, isLoggato: Boolean, onGestisciBattle: (String) -> Unit, espansoIniziale: Boolean = false) {    val databaseViewModel = LocalDatabaseViewModel.current
     val scope = rememberCoroutineScope()
-    var espanso by remember { mutableStateOf(false) }
+    var espanso by remember { mutableStateOf(espansoIniziale) }
     val uriHandler = LocalUriHandler.current
 
     // Dialog di conferma eliminazione

@@ -177,8 +177,11 @@ data class ContestDesign(
     val codici_accesso_giudici: String? = null,
     val codice_accesso_pubblico: String? = null,
     val qr_code_pubblico: String? = null,
-    val link_pubblico: String? = null
+    val link_pubblico: String? = null,
+    val descrizione_delega: String? = null,
+    val delega_completata: Boolean = false
 )
+
 
 @Serializable
 data class Evento(
@@ -315,6 +318,9 @@ class DatabaseViewModel : ViewModel() {
                 setBody(payloadJSON)
                 contentType(io.ktor.http.ContentType.Application.Json)
             }
+
+            val corpo = response.bodyAsText()
+            JSONObject(corpo).optBoolean("success", false)
 
             android.util.Log.d("TEST_FUNZIONE", "3. Successo! Risposta: ${response.bodyAsText()}")
             true
@@ -479,7 +485,8 @@ class DatabaseViewModel : ViewModel() {
         coloreSfondo: String? = null,
         coloreTesto: String? = null,
         sfondoCustomBytes: ByteArray? = null,
-        isContest: Boolean = false // <--- 1. NUOVO PARAMETRO AGGIUNTO!
+        isContest: Boolean = false, // <--- 1. NUOVO PARAMETRO AGGIUNTO!
+        descrizioneDelega: String? = null
     ): Boolean {
         return try {
             val user = supabase.auth.currentUserOrNull() ?: return false
@@ -516,7 +523,8 @@ class DatabaseViewModel : ViewModel() {
 
                 val design = ContestDesign(
                     evento_id = idEvento, tipo_stile = tipoStile, colore_primario = colorePrimario,
-                    colore_sfondo = coloreSfondo, colore_testo = coloreTesto, sfondo_custom_url = sfondoUrl
+                    colore_sfondo = coloreSfondo, colore_testo = coloreTesto, sfondo_custom_url = sfondoUrl,
+                    descrizione_delega = if (tipoStile == "DELEGA") descrizioneDelega else null
                 )
                 supabase.postgrest["contest_design"].insert(design)
             }
@@ -591,59 +599,29 @@ class DatabaseViewModel : ViewModel() {
     }
 
     suspend fun registraRapperDiretto(
-        nome: String, cognome: String, nomeArte: String, email: String, passwordTemp: String, telefono: String
+        nome: String, cognome: String, nomeArte: String,
+        email: String, passwordTemp: String, telefono: String
     ): Boolean {
         return try {
-            val serviceRoleKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2endudXhsamhieGVwbGhianplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzM3NTA2NCwiZXhwIjoyMDkyOTUxMDY0fQ.HdIa06E9UVn30zyO9cL6sR_kODfoJJ5NHlZN4VHgoe8"
+            // Stessa cifratura che la Edge Function sa decifrare
+            val passwordCriptata = CryptoHelper.encrypt(passwordTemp)
 
-            val nuovoUserId = withContext(Dispatchers.IO) {
-                val url = URL("https://bvzwnuxljhbxeplhbjze.supabase.co/auth/v1/admin/users")
-                val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("apikey", serviceRoleKey)
-                conn.setRequestProperty("Authorization", "Bearer $serviceRoleKey")
-                conn.setRequestProperty("Content-Type", "application/json")
-                conn.doOutput = true
+            val richiesta = RichiestaAccount(
+                id = UUID.randomUUID().toString(),
+                nome = nome,
+                cognome = cognome,
+                nome_arte = nomeArte,
+                email = email,
+                password_temp = passwordCriptata,
+                telefono = telefono,
+                tipo_account = "rapper",
+                muretto_id = null
+            )
 
-                val body = """{"email":"$email","password":"$passwordTemp","email_confirm":true}"""
-                conn.outputStream.use { it.write(body.toByteArray()) }
-
-                val codice = conn.responseCode
-                if (codice in 200..299) {
-                    val responseStr = conn.inputStream.bufferedReader().use { it.readText() }
-                    val jsonResponse = JSONObject(responseStr)
-                    jsonResponse.getString("id")
-                } else {
-                    // --- STAMPIAMO L'ERRORE DI SUPABASE ---
-                    val errorStr = conn.errorStream?.bufferedReader()?.use { it.readText() }
-                    android.util.Log.e("DEBUG_RAPPER", "Supabase Auth ha rifiutato: HTTP $codice - Dettaglio: $errorStr")
-                    null
-                }
-            }
-
-            if (nuovoUserId != null) {
-                val nuovoProfilo = ProfiloUtente(
-                    id = nuovoUserId,
-                    nome = nome,
-                    cognome = cognome,
-                    nome_arte = nomeArte,
-                    telefono = telefono,
-                    tipo_account = "rapper"
-                )
-                try {
-                    supabase.postgrest["profili"].insert(nuovoProfilo)
-                    android.util.Log.d("DEBUG_RAPPER", "Profilo inserito con successo!")
-                    true
-                } catch (e: Exception) {
-                    // --- STAMPIAMO L'ERRORE DEL DATABASE ---
-                    android.util.Log.e("DEBUG_RAPPER", "Errore inserimento nella tabella profili: ${e.message}", e)
-                    false
-                }
-            } else {
-                false
-            }
+            // Riusa lo stesso percorso sicuro degli organizzatori
+            eseguiRegistrazioneSicura(richiesta)
         } catch (e: Exception) {
-            android.util.Log.e("DEBUG_RAPPER", "Errore di connessione generale: ${e.message}", e)
+            android.util.Log.e("DEBUG_RAPPER", "Errore registrazione rapper: ${e.message}", e)
             false
         }
     }
@@ -860,8 +838,8 @@ class DatabaseViewModel : ViewModel() {
 }
 
 // ─── TORNEO ───────────────────────────────────────────────────────────────────
-data class Round(val id: String, val numero: Int, var partecipanti: List<Freestyler>, var completato: Boolean = false, var vincitoreId: String? = null)
-enum class FaseTorneo { OTTAVI, QUARTI, SEMIFINALE, FINALE }
+@Serializable
+data class Round(val id: String, val numero: Int, var partecipanti: List<Freestyler>, var completato: Boolean = false, var vincitoreId: String? = null)enum class FaseTorneo { OTTAVI, QUARTI, SEMIFINALE, FINALE }
 enum class TipoTorneo { SINGOLO, COPPIE_CASUALI, COPPIE_PREDEFINITE }
 
 object GestoreBattle {

@@ -112,16 +112,16 @@ fun SchermataContest(isGlobale: Boolean, onTornaIndietro: () -> Unit, onNavigate
         AlertDialog(
             onDismissRequest = { mostraPopupBlocco = null },
             containerColor = Tema.coloreSfondoCard,
-            title = { Text("ATTENZIONE", color = Tema.coloreTesto, fontFamily = MioFont, fontSize = 24.sp) },
-            text = { Text("Evento non ancora iniziato.\nData d'inizio: ${contest.data_ora}", color = Tema.coloreTestoSecondario, fontSize = 16.sp) },
+            title = { Text("CONTEST", color = Tema.coloreTesto, fontFamily = MioFont, fontSize = 24.sp) },
+            text = { Text("Inizio: ${contest.data_ora}\nApri la trasferta per tutti i dettagli.", color = Tema.coloreTestoSecondario, fontSize = 16.sp) },
             confirmButton = {
-                Button(colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), onClick = { mostraPopupBlocco = null }) {
-                    Text("VAI ALLA TRASFERTA", color = Color.White, fontWeight = FontWeight.Bold)
-                }
+                Button(colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), onClick = {
+                    val id = contest.id
+                    mostraPopupBlocco = null
+                    onNavigate("trasferte_focus/$id")   // <-- ora naviga davvero al post
+                }) { Text("VAI ALLA TRASFERTA", color = Color.White, fontWeight = FontWeight.Bold) }
             },
-            dismissButton = {
-                TextButton(onClick = { mostraPopupBlocco = null }) { Text("CHIUDI", color = Tema.coloreTestoSecondario) }
-            }
+            dismissButton = { TextButton(onClick = { mostraPopupBlocco = null }) { Text("CHIUDI", color = Tema.coloreTestoSecondario) } }
         )
     }
 }

@@ -29,7 +29,7 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 
 @Composable
-fun SchermataNotifiche(onTornaIndietro: () -> Unit) {
+fun SchermataNotifiche(onTornaIndietro: () -> Unit, onNavigate: (String) -> Unit = {}) {
     val databaseViewModel = LocalDatabaseViewModel.current
     val MioFont = FontFamily(Font(R.font.komtit__))
 
@@ -37,7 +37,7 @@ fun SchermataNotifiche(onTornaIndietro: () -> Unit) {
     val richieste = databaseViewModel.richiesteInAttesa
     val eventiNormali = databaseViewModel.eventiInAttesa.filter { it.contest_design == null }
     val contestInAttesa = databaseViewModel.eventiInAttesa.filter { it.contest_design != null }
-
+    val contestInDelega = StatoDelegaContest.lista
     var tabSelezionata by remember { mutableIntStateOf(0) }
     var richiestaSelezionata by remember { mutableStateOf<RichiestaAccount?>(null) }
     var eventoSelezionato by remember { mutableStateOf<Evento?>(null) }
@@ -45,6 +45,7 @@ fun SchermataNotifiche(onTornaIndietro: () -> Unit) {
     LaunchedEffect(Unit) {
         databaseViewModel.fetchRichiesteInAttesa()
         databaseViewModel.fetchEventiInAttesa()
+        databaseViewModel.fetchContestInDelega()
     }
 
     richiestaSelezionata?.let { richiesta -> DialogDettaglioRichiesta(richiesta = richiesta, onDismiss = { richiestaSelezionata = null }, onChiudi = { richiestaSelezionata = null }) }
@@ -76,11 +77,11 @@ fun SchermataNotifiche(onTornaIndietro: () -> Unit) {
                 Tab(selected = tabSelezionata == 0, onClick = { tabSelezionata = 0 }, text = { Text("ACCOUNT (${richieste.size})", color = if (tabSelezionata == 0) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 12.sp) })
                 Tab(selected = tabSelezionata == 1, onClick = { tabSelezionata = 1 }, text = { Text("EVENTI (${eventiNormali.size})", color = if (tabSelezionata == 1) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 12.sp) })
                 Tab(selected = tabSelezionata == 2, onClick = { tabSelezionata = 2 }, text = { Text("CONTEST (${contestInAttesa.size})", color = if (tabSelezionata == 2) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 12.sp) })
+                Tab(selected = tabSelezionata == 3, onClick = { tabSelezionata = 3 }, text = { Text("ESTETICHE (${contestInDelega.size})", color = if (tabSelezionata == 3) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 12.sp) })
             }
 
             // LISTA DINAMICA
-            val listaCorrenteVuota = (tabSelezionata == 0 && richieste.isEmpty()) || (tabSelezionata == 1 && eventiNormali.isEmpty()) || (tabSelezionata == 2 && contestInAttesa.isEmpty())
-
+            val listaCorrenteVuota = (tabSelezionata == 0 && richieste.isEmpty()) || (tabSelezionata == 1 && eventiNormali.isEmpty()) || (tabSelezionata == 2 && contestInAttesa.isEmpty()) || (tabSelezionata == 3 && contestInDelega.isEmpty())
             if (listaCorrenteVuota) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -95,6 +96,16 @@ fun SchermataNotifiche(onTornaIndietro: () -> Unit) {
                         0 -> items(richieste) { r -> CardRichiesta(richiesta = r, onClick = { richiestaSelezionata = r }) }
                         1 -> items(eventiNormali) { e -> CardEventoInAttesa(evento = e, onClick = { eventoSelezionato = e }) }
                         2 -> items(contestInAttesa) { c -> CardEventoInAttesa(evento = c, isContest = true, onClick = { eventoSelezionato = c }) }
+                        3 -> items(contestInDelega) { c ->
+                            Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).border(2.dp, Color(0xFF9C27B0), RoundedCornerShape(16.dp)).background(Color(0xFF222222)).clickable { onNavigate("dettaglio_contest/${c.id}") }.padding(16.dp)) {
+                                Column {
+                                    Text(c.titolo.uppercase(), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                    Text("Richiesta stile: ${c.contest_design?.descrizione_delega ?: "—"}", color = Color.Gray, fontSize = 13.sp)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("TOCCA PER IMPOSTARE L'ESTETICA ›", color = Color(0xFF9C27B0), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
                     }
                 }
             }

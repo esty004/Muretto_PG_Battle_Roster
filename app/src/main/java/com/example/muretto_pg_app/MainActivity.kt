@@ -62,6 +62,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.CompositionLocalProvider // <-- Aggiunto per il ViewModel
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -210,7 +212,7 @@ fun AppNavigation() {
             composable("mappa") { SchermataMappa(onPinClick = { navController.navigate(it) }, onTornaIndietro = { navController.popBackStack() }) }
             composable("login") { SchermataLogin(onLoginSuccess = { navController.popBackStack() }, onTornaIndietro = { navController.popBackStack() }, onVaiARegistrazione = { navController.navigate("registrazione") }) }
             composable("registrazione") { SchermataRegistrazione(onTornaIndietro = { navController.popBackStack() }) }
-            composable("notifiche") { SchermataNotifiche(onTornaIndietro = { navController.popBackStack() }) }
+            composable("notifiche") { SchermataNotifiche(onTornaIndietro = { navController.popBackStack() }, onNavigate = { navController.navigate(it) }) }
             composable("aggiungi_mc") { SchermataAggiungiMc(onTornaIndietro = { navController.popBackStack() }) }
             composable("aggiungi_evento") { SchermataAggiungiEvento(onTornaIndietro = { navController.popBackStack() }) }
 
@@ -231,7 +233,6 @@ fun AppNavigation() {
             }
             composable("menu") { SchermataMenu(onTornaIndietro = { navController.popBackStack() }, onSelezionaModalita = { navController.navigate(it) }) }
 
-            composable("trasferte") { SchermataTrasferte(onTornaIndietro = { navController.popBackStack() }, onVaiAllaMappa = { navController.navigate("mappa_trasferte") }) }
             composable("mappa_trasferte") { SchermataMappaTrasferte(onTornaIndietro = { navController.popBackStack() }) }
             composable("trasferte_preferite") { SchermataTrasferte(onTornaIndietro = { navController.popBackStack() }, onVaiAllaMappa = { navController.navigate("mappa_trasferte") }, soloPreferiti = true) }
 
@@ -272,10 +273,7 @@ fun AppNavigation() {
             }
             composable("dettaglio_contest/{id}") { backStackEntry ->
                 val contestId = backStackEntry.arguments?.getString("id") ?: ""
-                SchermataGestioneBattleEvento(
-                    eventoId = contestId,
-                    onTornaIndietro = { navController.popBackStack() }
-                )
+                SchermataGestioneBattleEvento(eventoId = contestId, onTornaIndietro = { navController.popBackStack() }, onNavigate = { navController.navigate(it) })
             }
             composable("trasferte") {
                 SchermataTrasferte(
@@ -286,11 +284,7 @@ fun AppNavigation() {
             }
             composable("gestione_battle_evento/{eventoId}") { backStackEntry ->
                 val eventoId = backStackEntry.arguments?.getString("eventoId") ?: ""
-                // Questa schermata la creeremo nel prossimo step!
-                SchermataGestioneBattleEvento(
-                    eventoId = eventoId,
-                    onTornaIndietro = { navController.popBackStack() }
-                )
+                SchermataGestioneBattleEvento(eventoId = eventoId, onTornaIndietro = { navController.popBackStack() }, onNavigate = { navController.navigate(it) })
             }
             composable("aggiungi_contest") {
                 SchermataCreaContest(
@@ -303,6 +297,76 @@ fun AppNavigation() {
                     isGlobale = true, // Passiamo TRUE per mostrare tutti i contest
                     onTornaIndietro = { navController.popBackStack() },
                     onNavigate = { navController.navigate(it) }
+                )
+            }
+
+            // --- TRASFERTA APERTA SU UN EVENTO SPECIFICO (fix popup contest) ---
+            composable("trasferte_focus/{eventoId}") { backStackEntry ->
+                val id = backStackEntry.arguments?.getString("eventoId")
+                SchermataTrasferte(
+                    onTornaIndietro = { navController.popBackStack() },
+                    onVaiAllaMappa = { navController.navigate("mappa_trasferte") },
+                    onGestisciBattle = { e -> navController.navigate("gestione_battle_evento/$e") },
+                    eventoIdIniziale = id
+                )
+            }
+
+            // --- PARTE TRE: BATTLE BUILDER DEL CONTEST ---
+            composable("config_battle/{eventoId}") { backStackEntry ->
+                val eventoId = backStackEntry.arguments?.getString("eventoId") ?: ""
+                val vm = LocalDatabaseViewModel.current
+                val stile = StileContest.risolvi(vm.eventiApprovati.find { it.id == eventoId }?.contest_design)
+                LaunchedEffect(eventoId) { if (GestoreContestBattle.eventoIdCorrente != eventoId) GestoreContestBattle.caricaDalCloud(vm.supabase, eventoId) }
+                SchermataConfigBattle(
+                    stile = stile,
+                    onProsegui = { navController.navigate("roster_contest/$eventoId") },
+                    onTornaIndietro = { navController.popBackStack() }
+                )
+            }
+            composable("roster_contest/{eventoId}") { backStackEntry ->
+                val eventoId = backStackEntry.arguments?.getString("eventoId") ?: ""
+                val vm = LocalDatabaseViewModel.current
+                val scope = rememberCoroutineScope()
+                val stile = StileContest.risolvi(vm.eventiApprovati.find { it.id == eventoId }?.contest_design)
+                SchermataRosterContest(
+                    stile = stile,
+                    onProsegui = {
+                        if (GestoreContestBattle.accoppiamenti == "casuali") {
+                            GestoreContestBattle.generaCasuale()
+                            scope.launch { GestoreContestBattle.salvaSulCloud(vm.supabase, "configurato") }
+                            // torna alla schermata di gestione (pop di roster + config)
+                            navController.popBackStack("config_battle/$eventoId", inclusive = true)
+                        } else {
+                            navController.navigate("builder_contest/$eventoId")
+                        }
+                    },
+                    onTornaIndietro = { navController.popBackStack() }
+                )
+            }
+            composable("builder_contest/{eventoId}") { backStackEntry ->
+                val eventoId = backStackEntry.arguments?.getString("eventoId") ?: ""
+                val vm = LocalDatabaseViewModel.current
+                val scope = rememberCoroutineScope()
+                val stile = StileContest.risolvi(vm.eventiApprovati.find { it.id == eventoId }?.contest_design)
+                SchermataBuilderContest(
+                    stile = stile,
+                    onNuovoRound = { roundId -> navController.navigate("costruzione_round/$eventoId/$roundId") },
+                    onRoundClick = { roundId -> navController.navigate("costruzione_round/$eventoId/$roundId") },
+                    onConferma = { scope.launch { GestoreContestBattle.salvaSulCloud(vm.supabase, "configurato") }; navController.popBackStack() },
+                    onTornaIndietro = { scope.launch { GestoreContestBattle.salvaSulCloud(vm.supabase) }; navController.popBackStack() }
+                )
+            }
+            composable("costruzione_round/{eventoId}/{roundId}") { backStackEntry ->
+                val eventoId = backStackEntry.arguments?.getString("eventoId") ?: ""
+                val roundId = backStackEntry.arguments?.getString("roundId") ?: ""
+                val vm = LocalDatabaseViewModel.current
+                val scope = rememberCoroutineScope()
+                val stile = StileContest.risolvi(vm.eventiApprovati.find { it.id == eventoId }?.contest_design)
+                SchermataCostruzioneRound(
+                    roundId = roundId,
+                    stile = stile,
+                    onFatto = { scope.launch { GestoreContestBattle.salvaSulCloud(vm.supabase) }; navController.popBackStack() },
+                    onTornaIndietro = { navController.popBackStack() }
                 )
             }
         }

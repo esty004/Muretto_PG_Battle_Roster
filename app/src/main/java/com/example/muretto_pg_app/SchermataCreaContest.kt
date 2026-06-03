@@ -95,6 +95,7 @@ fun SchermataCreaContest(onTornaIndietro: () -> Unit) {
 
     var stileSelezionato by remember { mutableStateOf("DEFAULT") }
     val opzioniStile = listOf("DEFAULT", "CUSTOM", "DELEGA")
+    var descrizioneDelega by remember { mutableStateOf("") }
 
     // Variabili per lo Stile Custom
     var sfondoCustomUri by remember { mutableStateOf<Uri?>(null) }
@@ -248,6 +249,18 @@ fun SchermataCreaContest(onTornaIndietro: () -> Unit) {
                                         contentAlignment = Alignment.Center
                                     ) { Text(stile, color = if (isSelezionato) Color.White else Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold, fontSize = 14.sp) }
                                 }
+                                if (stileSelezionato == "DELEGA") {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    OutlinedTextField(
+                                        value = descrizioneDelega,
+                                        onValueChange = { descrizioneDelega = it },
+                                        label = { Text("Descrivi come vuoi lo stile", color = Tema.coloreTestoSecondario) },
+                                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, focusedBorderColor = Tema.colorePrincipale),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        minLines = 2
+                                    )
+                                    Text("Un admin riceverà la richiesta nelle notifiche e imposterà lo stile.", color = Tema.coloreTestoSecondario, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                                }
                             }
 
                             // 3. PANNELLO STILE CUSTOM
@@ -391,7 +404,8 @@ fun SchermataCreaContest(onTornaIndietro: () -> Unit) {
                                             coloreSfondo = if (stileSelezionato == "CUSTOM") coloreCornici.toHex() else null,
                                             coloreTesto = null,
                                             sfondoCustomBytes = bytesSfondo,
-                                            isContest = true // <--- AGGIUNGI QUESTA RIGA MAGICA!
+                                            isContest = true,
+                                            descrizioneDelega = if (stileSelezionato == "DELEGA") descrizioneDelega.trim() else null
                                         )
 
                                         staSalvandoTutto = false
