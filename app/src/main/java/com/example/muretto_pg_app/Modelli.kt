@@ -162,6 +162,7 @@ data class RichiestaAccount(
     val created_at: String = ""
 )
 
+
 @Serializable
 data class ContestDesign(
     val evento_id: String,
@@ -170,6 +171,7 @@ data class ContestDesign(
     val colore_sfondo: String? = null,
     val colore_testo: String? = null,
     val sfondo_custom_url: String? = null,
+    val sfondo_card_url: String? = null,
     // PREPARAZIONE PER I VOTI
     val sistema_voti: String? = null,
     val voto_pubblico: Boolean = false,

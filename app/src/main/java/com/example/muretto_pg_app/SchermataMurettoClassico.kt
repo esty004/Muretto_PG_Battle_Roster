@@ -294,8 +294,9 @@ fun SchermataMurettoClassico(
 fun CardFreestylerTorneo(
     freestyler: Freestyler,
     isSelezionato: Boolean,
-    tipoTorneo: TipoTorneo, // Aggiunto
-    indiceSelezione: Int,   // Aggiunto
+    tipoTorneo: TipoTorneo,
+    indiceSelezione: Int,
+    dimensioneGruppo: Int = 2,   // <-- NUOVO: 2 = coppie, N = squadre
     onClick: () -> Unit
 ) {
     val colorMatrix = remember(isSelezionato) { if (isSelezionato) ColorMatrix().apply { setToSaturation(0f) } else null }
@@ -308,7 +309,7 @@ fun CardFreestylerTorneo(
 
         // Se siamo in 2VS2 PREDEFINITE, coloro le coppie a due a due
         if (tipoTorneo == TipoTorneo.COPPIE_PREDEFINITE && indiceSelezione >= 0) {
-            val indiceCoppia = indiceSelezione / 2
+            val indiceCoppia = indiceSelezione / dimensioneGruppo.coerceAtLeast(1)
             val coloriSquadre = listOf(
                 Color(0xFFFF3D00), // Squadra 1 (Rosso/Arancio vivo)
                 Color(0xFF00B0FF), // Squadra 2 (Azzurro vivo)

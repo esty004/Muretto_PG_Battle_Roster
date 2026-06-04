@@ -103,17 +103,10 @@ fun SchermataGestioneBattleEvento(
                     // ─────────────────── VERDETTI ───────────────────
                     1 -> {
                         Text("SISTEMA DI VOTAZIONE", color = Tema.colorePrincipale, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            listOf("Verdetto Singolo", "Punteggio").forEach { opzione ->
-                                val isSel = sistemaVoti == opzione
-                                Box(
-                                    modifier = Modifier.weight(1f).height(50.dp).clip(RoundedCornerShape(12.dp)).background(if (isSel) Tema.colorePrincipale else Tema.coloreSfondoCard).clickable { sistemaVoti = opzione }.border(2.dp, if (isSel) Color.White else Color.Transparent, RoundedCornerShape(12.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) { Text(opzione, color = if (isSel) Color.White else Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold) }
-                            }
-                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Verdetto: ogni giudice sceglie il vincitore (o spareggio).", color = Tema.coloreTestoSecondario, fontSize = 14.sp)
+                        // sistemaVoti resta fisso a "Verdetto Singolo"
+                        LaunchedEffect(Unit) { sistemaVoti = "Verdetto Singolo" }
 
                         Spacer(modifier = Modifier.height(24.dp))
 
@@ -128,7 +121,8 @@ fun SchermataGestioneBattleEvento(
                         Spacer(modifier = Modifier.height(24.dp))
 
                         Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Tema.coloreSfondoCard).padding(16.dp)) {
-                            Text("Giudici Ufficiali: ${numeroGiudici.toInt()}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text("Giudici extra: ${numeroGiudici.toInt()}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text("Tu (organizzatore) sei già conteggiato come giudice. Totale: ${numeroGiudici.toInt() + 1}.", color = Color.Gray, fontSize = 12.sp)
                             Spacer(modifier = Modifier.height(8.dp))
                             Slider(value = numeroGiudici, onValueChange = { numeroGiudici = it }, valueRange = 0f..5f, steps = 4, colors = SliderDefaults.colors(thumbColor = Tema.colorePrincipale, activeTrackColor = Tema.colorePrincipale))
                         }
@@ -294,10 +288,12 @@ private fun EditorEstetica(eventoId: String, design: ContestDesign?, font: FontF
     var coloreCornici by remember { mutableStateOf(parse(design?.colore_sfondo, Color.White)) }
     var coloreBottoni by remember { mutableStateOf(parse(design?.colore_primario, Tema.colorePrincipale)) }
     var sfondoUri by remember { mutableStateOf<Uri?>(null) }
+    var sfondoCardUri by remember { mutableStateOf<Uri?>(null) }
     var staSalvando by remember { mutableStateOf(false) }
     var esito by remember { mutableStateOf("") }
 
     val selettoreSfondo = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { sfondoUri = it }
+    val selettoreSfondoCard = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { sfondoCardUri = it }
     val palette = listOf(Color.White, Color.Black, Color(0xFFD32F2F), Color(0xFF1E88E5), Color(0xFFFF9800), Color(0xFF4CAF50), Color(0xFF9C27B0), Color(0xFFFFEB3B), Color(0xFF00BCD4))
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -307,19 +303,29 @@ private fun EditorEstetica(eventoId: String, design: ContestDesign?, font: FontF
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             listOf("DEFAULT", "CUSTOM", "DELEGA").forEach { opt ->
                 val sel = tipoStile == opt
-                Box(
-                    modifier = Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(12.dp)).background(if (sel) Tema.colorePrincipale else Tema.coloreSfondoCard).border(2.dp, if (sel) Color.White else Color.Transparent, RoundedCornerShape(12.dp)).clickable { tipoStile = opt },
-                    contentAlignment = Alignment.Center
-                ) { Text(opt, color = if (sel) Color.White else Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+                Box(modifier = Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(12.dp)).background(if (sel) Tema.colorePrincipale else Tema.coloreSfondoCard).border(2.dp, if (sel) Color.White else Color.Transparent, RoundedCornerShape(12.dp)).clickable { tipoStile = opt }, contentAlignment = Alignment.Center) {
+                    Text(opt, color = if (sel) Color.White else Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
             }
         }
 
         if (tipoStile == "CUSTOM") {
             Spacer(modifier = Modifier.height(20.dp))
-            Box(modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(12.dp)).background(Tema.coloreSfondoCard).border(2.dp, coloreCornici, RoundedCornerShape(12.dp)).clickable { selettoreSfondo.launch("image/*") }, contentAlignment = Alignment.Center) {
+            Text("SFONDO GENERALE", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(modifier = Modifier.fillMaxWidth().height(110.dp).clip(RoundedCornerShape(12.dp)).background(Tema.coloreSfondoCard).border(2.dp, coloreCornici, RoundedCornerShape(12.dp)).clickable { selettoreSfondo.launch("image/*") }, contentAlignment = Alignment.Center) {
                 if (sfondoUri != null) AsyncImage(model = sfondoUri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 else if (!design?.sfondo_custom_url.isNullOrBlank()) AsyncImage(model = design?.sfondo_custom_url, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 else Text("Tocca per scegliere lo sfondo", color = Tema.coloreTestoSecondario)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("SFONDO CARD DEL ROUND", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(modifier = Modifier.fillMaxWidth().height(110.dp).clip(RoundedCornerShape(12.dp)).background(Tema.coloreSfondoCard).border(2.dp, coloreCornici, RoundedCornerShape(12.dp)).clickable { selettoreSfondoCard.launch("image/*") }, contentAlignment = Alignment.Center) {
+                if (sfondoCardUri != null) AsyncImage(model = sfondoCardUri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                else if (!design?.sfondo_card_url.isNullOrBlank()) AsyncImage(model = design?.sfondo_card_url, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                else Text("Tocca per lo sfondo delle card round", color = Tema.coloreTestoSecondario)
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -364,13 +370,14 @@ private fun EditorEstetica(eventoId: String, design: ContestDesign?, font: FontF
                 staSalvando = true; esito = ""
                 scope.launch {
                     val bytes = sfondoUri?.let { uri -> context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }
+                    val bytesCard = sfondoCardUri?.let { uri -> context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }
                     val ok = databaseViewModel.aggiornaDesignContest(
                         eventoId = eventoId,
                         tipoStile = tipoStile,
                         colorePrimario = if (tipoStile == "CUSTOM") coloreBottoni.toHex() else null,
                         coloreSfondo = if (tipoStile == "CUSTOM") coloreCornici.toHex() else null,
                         sfondoBytes = bytes,
-                        // se un admin salva una delega, la consideriamo completata
+                        sfondoCardBytes = bytesCard,
                         delegaCompletata = if (tipoStile != "DELEGA") true else null
                     )
                     staSalvando = false

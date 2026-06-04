@@ -2,6 +2,7 @@ package com.example.muretto_pg_app
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
@@ -14,33 +15,43 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import java.util.UUID
 
-// ─── RIGA TABELLA contest_battle ──────────────────────────────────────────────
-// NB: richiede che `Round` in Modelli.kt sia annotato @Serializable (vedi patch).
+// COLORI DEI GRUPPI (coppie/squadre) - identici a quelli di CardFreestylerTorneo
+val ColoriGruppiContest = listOf(
+    Color(0xFFFF3D00), // 1 Rosso/Arancio
+    Color(0xFF00B0FF), // 2 Azzurro
+    Color(0xFF00E676), // 3 Verde
+    Color(0xFFFFEA00), // 4 Giallo
+    Color(0xFFD500F9), // 5 Viola
+    Color(0xFF1DE9B6)  // 6 Teal
+)
+
+// RIGA TABELLA contest_battle  (richiede Round @Serializable in Modelli.kt)
 @Serializable
 data class ContestBattleRow(
     val evento_id: String,
     val tipo_battle: String = "1v1",            // '1v1' | '2v2' | 'squadra'
     val accoppiamenti: String = "predefiniti",  // 'predefiniti' | 'casuali'
     val fase_partenza: String = "OTTAVI",
+    val dimensione_squadra: Int = 2,            // 1 = 1v1, 2 = coppia, >2 = squadra
     val roster: List<Freestyler> = emptyList(),
     val tabellone: List<Round> = emptyList(),
     val stato: String = "bozza"                 // 'bozza' | 'configurato' | 'iniziato'
 )
 
-// ─── STILE DEL CONTEST (sostituisce Tema nelle schermate del builder) ──────────
+// STILE DEL CONTEST (sostituisce Tema nelle schermate del builder)
 data class StileContest(
     val coloreCornici: Color,
     val coloreBottoni: Color,
     val coloreSfondoCard: Color,
-    val sfondoUrl: String?,   // immagine custom (se CUSTOM/DELEGA compilato), altrimenti null
-    val sfondoRes: Int        // fallback drawable (Tema.sfondoGenerale)
+    val sfondoUrl: String?,      // sfondo generale custom
+    val sfondoCardUrl: String?,  // sfondo della card del round custom
+    val sfondoRes: Int           // fallback drawable (Tema.sfondoGenerale)
 ) {
     companion object {
         private fun parseHex(hex: String?, fallback: Color): Color = try {
             if (hex.isNullOrBlank()) fallback else Color(android.graphics.Color.parseColor(hex))
         } catch (e: Exception) { fallback }
 
-        // In creazione: colore_sfondo = colore CORNICI, colore_primario = colore BOTTONI.
         fun risolvi(design: ContestDesign?): StileContest {
             val custom = design?.tipo_stile == "CUSTOM" || design?.tipo_stile == "DELEGA"
             return StileContest(
@@ -48,18 +59,20 @@ data class StileContest(
                 coloreBottoni = parseHex(design?.colore_primario, Tema.colorePrincipale),
                 coloreSfondoCard = Tema.coloreSfondoCard,
                 sfondoUrl = if (custom) design?.sfondo_custom_url else null,
+                sfondoCardUrl = if (custom) design?.sfondo_card_url else null,
                 sfondoRes = Tema.sfondoGenerale
             )
         }
     }
 }
 
-// ─── GESTORE SEPARATO (NON tocca GestoreBattle) ────────────────────────────────
+// GESTORE SEPARATO (NON tocca GestoreBattle)
 object GestoreContestBattle {
     var eventoIdCorrente by mutableStateOf<String?>(null)
     var tipoBattle by mutableStateOf("1v1")
     var accoppiamenti by mutableStateOf("predefiniti")
     var fasePartenza by mutableStateOf(FaseTorneo.OTTAVI)
+    var dimensioneSquadra by mutableIntStateOf(2)
     var stato by mutableStateOf("bozza")
 
     val rosterSelezionato = mutableStateListOf<Freestyler>()
@@ -68,11 +81,21 @@ object GestoreContestBattle {
     fun reset() {
         eventoIdCorrente = null
         tipoBattle = "1v1"; accoppiamenti = "predefiniti"
-        fasePartenza = FaseTorneo.OTTAVI; stato = "bozza"
+        fasePartenza = FaseTorneo.OTTAVI; dimensioneSquadra = 2; stato = "bozza"
         rosterSelezionato.clear(); roundsAttuali.clear()
     }
 
-    // ── PERSISTENZA ──────────────────────────────────────────────────────────
+    /** Quanti freestyler per "lato" del match (1 per 1v1, 2 per coppia, N per squadra). */
+    fun membriPerLato(): Int = when (tipoBattle) {
+        "1v1" -> 1
+        "2v2" -> 2
+        else -> dimensioneSquadra.coerceAtLeast(2)
+    }
+
+    /** Vero quando i lati sono "gruppi" (coppie/squadre) con accoppiamenti predefiniti. */
+    fun isAGruppi(): Boolean = tipoBattle != "1v1" && accoppiamenti == "predefiniti"
+
+    // PERSISTENZA
     suspend fun caricaDalCloud(supabase: SupabaseClient, eventoId: String) {
         reset()
         eventoIdCorrente = eventoId
@@ -85,6 +108,7 @@ object GestoreContestBattle {
                 tipoBattle = r.tipo_battle
                 accoppiamenti = r.accoppiamenti
                 fasePartenza = runCatching { FaseTorneo.valueOf(r.fase_partenza) }.getOrDefault(FaseTorneo.OTTAVI)
+                dimensioneSquadra = r.dimensione_squadra
                 stato = r.stato
                 rosterSelezionato.clear(); rosterSelezionato.addAll(r.roster)
                 roundsAttuali.clear(); roundsAttuali.addAll(r.tabellone)
@@ -103,6 +127,7 @@ object GestoreContestBattle {
                 tipo_battle = tipoBattle,
                 accoppiamenti = accoppiamenti,
                 fase_partenza = fasePartenza.name,
+                dimensione_squadra = membriPerLato(),
                 roster = rosterSelezionato.toList(),
                 tabellone = roundsAttuali.toList(),
                 stato = stato
@@ -115,27 +140,47 @@ object GestoreContestBattle {
         }
     }
 
-    // ── LOGICA BUILDER ────────────────────────────────────────────────────────
+    // GRUPPI / LOGICA BUILDER
 
-    /** Id dei singoli MC già piazzati nei round (scompone le coppie 2v2 "idA_idB"). */
+    /** Unisce piu' freestyler in un unico "lato" (id e url separati, compatibile col rendering). */
+    fun creaGruppo(membri: List<Freestyler>): Freestyler {
+        if (membri.size == 1) return membri.first()
+        val urls = membri.joinToString(",") { if (it.immagineUrl.isNullOrBlank()) "no_pic" else it.immagineUrl!! }
+        return Freestyler(
+            id = membri.joinToString("_") { it.id },
+            nome = membri.joinToString(" & ") { it.nome },
+            immagineUrl = urls
+        )
+    }
+
+    /** I gruppi predefiniti, formati dall'ordine di selezione nel roster (chunked per dimensione). */
+    fun gruppiPredefiniti(): List<List<Freestyler>> =
+        if (isAGruppi()) rosterSelezionato.chunked(membriPerLato())
+        else rosterSelezionato.map { listOf(it) }
+
+    /** Colore del gruppo a cui appartiene un dato freestyler (per cornici coerenti). */
+    fun coloreGruppoDi(idMembro: String, fallback: Color): Color {
+        if (!isAGruppi()) return fallback
+        val idx = gruppiPredefiniti().indexOfFirst { gruppo -> gruppo.any { it.id == idMembro } }
+        return if (idx >= 0) ColoriGruppiContest[idx % ColoriGruppiContest.size] else fallback
+    }
+
+    /** Id dei singoli freestyler gia' piazzati nei round (scompone i lati combinati "a_b_c"). */
     fun idsUsati(): Set<String> {
         val out = mutableSetOf<String>()
         roundsAttuali.forEach { round ->
             round.partecipanti.forEach { p ->
-                if (tipoBattle == "2v2" && p.id.contains("_")) out.addAll(p.id.split("_"))
-                else out.add(p.id)
+                if (p.id.contains("_")) out.addAll(p.id.split("_")) else out.add(p.id)
             }
         }
         return out
     }
 
-    fun rosterDisponibile(): List<Freestyler> {
+    /** I gruppi ancora da accoppiare (per costruire i round). */
+    fun gruppiDisponibili(): List<List<Freestyler>> {
         val usati = idsUsati()
-        return rosterSelezionato.filter { it.id !in usati }
+        return gruppiPredefiniti().filter { gruppo -> gruppo.none { it.id in usati } }
     }
-
-    /** Quanti MC servono per riempire un round (1v1 → 2 singoli, 2v2 → 4 singoli). */
-    fun mcPerRound(): Int = if (tipoBattle == "2v2") 4 else 2
 
     fun nuovoRound(): Round {
         val r = Round(id = "cr_${UUID.randomUUID()}", numero = roundsAttuali.size + 1, partecipanti = emptyList())
@@ -143,75 +188,49 @@ object GestoreContestBattle {
         return r
     }
 
-    /** Combina due singoli in una "coppia" con lo stesso encoding di GestoreBattle (per BoxMC). */
-    private fun creaCoppia(a: Freestyler, b: Freestyler): Freestyler {
-        val u1 = if (a.immagineUrl.isNullOrBlank()) "no_pic" else a.immagineUrl
-        val u2 = if (b.immagineUrl.isNullOrBlank()) "no_pic" else b.immagineUrl
-        return Freestyler(id = "${a.id}_${b.id}", nome = "${a.nome} & ${b.nome}", immagineUrl = "$u1,$u2")
-    }
-
-    /** Salva i partecipanti del round. `singoli` = MC scelti in ordine (2 per 1v1, 4 per 2v2). */
-    fun salvaPartecipantiRound(roundId: String, singoli: List<Freestyler>) {
+    /** Salva i due lati del round. `lati` = lista di 2 gruppi (ognuno con 1..N membri). */
+    fun salvaLatiRound(roundId: String, lati: List<List<Freestyler>>) {
         val idx = roundsAttuali.indexOfFirst { it.id == roundId }
         if (idx == -1) return
-        val partecipanti = if (tipoBattle == "2v2" && singoli.size == 4) {
-            listOf(creaCoppia(singoli[0], singoli[1]), creaCoppia(singoli[2], singoli[3]))
-        } else {
-            singoli
-        }
+        val partecipanti = lati.map { creaGruppo(it) }
         roundsAttuali[idx] = roundsAttuali[idx].copy(partecipanti = partecipanti)
     }
 
     fun rimuoviRound(roundId: String) {
         roundsAttuali.removeIf { it.id == roundId }
-        // rinumera
         roundsAttuali.forEachIndexed { i, r -> roundsAttuali[i] = r.copy(numero = i + 1) }
     }
 
-    /** Vero se tutti gli MC del roster sono stati accoppiati (→ mostra CONFERMA, nascondi NUOVO ROUND). */
+    /** Vero se tutti i gruppi sono stati accoppiati. */
     fun tuttiAccoppiati(): Boolean =
-        rosterSelezionato.isNotEmpty() && rosterDisponibile().isEmpty() &&
+        rosterSelezionato.isNotEmpty() && gruppiDisponibili().isEmpty() &&
                 roundsAttuali.all { it.partecipanti.isNotEmpty() }
 
-    /**
-     * Per accoppiamenti CASUALI: genera automaticamente i round usando la STESSA logica
-     * di GestoreBattle.generaFase (portata qui, senza toccare lo stato globale).
-     */
+    /** Per accoppiamenti CASUALI: genera automaticamente i round. */
     fun generaCasuale() {
         roundsAttuali.clear()
-        val base = rosterSelezionato.toList()
-        val partecipanti = if (tipoBattle == "2v2") {
-            val mescolati = base.shuffled()
-            val coppie = mutableListOf<Freestyler>()
-            var i = 0
-            while (i + 1 < mescolati.size) { coppie.add(creaCoppia(mescolati[i], mescolati[i + 1])); i += 2 }
-            if (mescolati.size % 2 != 0) coppie.add(mescolati.last())
-            coppie
-        } else base.shuffled()
-
-        val fase = fasePartenza
-        val total = partecipanti.size
+        val membri = membriPerLato()
+        val base = rosterSelezionato.shuffled()
+        val lati = base.chunked(membri).map { creaGruppo(it) }
+        val total = lati.size
         if (total == 0) return
         if (total % 2 == 0) {
             var i = 0
-            while (i < total) { roundsAttuali.add(Round("cr_${fase.name}_${i / 2}", (i / 2) + 1, listOf(partecipanti[i], partecipanti[i + 1]))); i += 2 }
+            while (i < total) { roundsAttuali.add(Round("cr_${fasePartenza.name}_${i / 2}", (i / 2) + 1, listOf(lati[i], lati[i + 1]))); i += 2 }
         } else if (total >= 3) {
             val num1v1 = (total - 3) / 2
-            for (i in 0 until num1v1) roundsAttuali.add(Round("cr_${fase.name}_$i", i + 1, listOf(partecipanti[i * 2], partecipanti[i * 2 + 1])))
+            for (i in 0 until num1v1) roundsAttuali.add(Round("cr_${fasePartenza.name}_$i", i + 1, listOf(lati[i * 2], lati[i * 2 + 1])))
             val start = num1v1 * 2
-            roundsAttuali.add(Round("cr_${fase.name}_$num1v1", num1v1 + 1, listOf(partecipanti[start], partecipanti[start + 1], partecipanti[start + 2])))
+            roundsAttuali.add(Round("cr_${fasePartenza.name}_$num1v1", num1v1 + 1, listOf(lati[start], lati[start + 1], lati[start + 2])))
         } else {
-            roundsAttuali.add(Round("cr_${fase.name}_0", 1, listOf(partecipanti[0])))
+            roundsAttuali.add(Round("cr_${fasePartenza.name}_0", 1, listOf(lati[0])))
         }
     }
 }
 
-// ─── METODI DB AGGIUNTIVI (extension su DatabaseViewModel: usa supabase pubblico) ──
+// METODI DB AGGIUNTIVI (extension su DatabaseViewModel)
 
-/** Roster osservabile con TUTTI gli MC di TUTTI i muretti (per la selezione del contest). */
 object RosterGlobaleContest { val lista = mutableStateListOf<Freestyler>() }
-
-/** Contest in DELEGA non ancora completati (per la tab notifiche admin). */
 object StatoDelegaContest { val lista = mutableStateListOf<Evento>() }
 
 suspend fun DatabaseViewModel.caricaRosterGlobaleContest() {
@@ -226,29 +245,37 @@ suspend fun DatabaseViewModel.caricaRosterGlobaleContest() {
     }
 }
 
-/** Aggiorna l'estetica di un contest esistente (tab Estetica). Carica anche un nuovo sfondo se presente. */
+/** Aggiorna l'estetica di un contest (sfondo generale + sfondo card + colori). */
 suspend fun DatabaseViewModel.aggiornaDesignContest(
     eventoId: String,
     tipoStile: String,
-    colorePrimario: String?,   // colore BOTTONI (hex #AARRGGBB)
-    coloreSfondo: String?,     // colore CORNICI (hex #AARRGGBB)
+    colorePrimario: String?,
+    coloreSfondo: String?,
     sfondoBytes: ByteArray?,
+    sfondoCardBytes: ByteArray? = null,
     descrizioneDelega: String? = null,
     delegaCompletata: Boolean? = null
 ): Boolean {
     return try {
+        val bucket = supabase.storage["locandine_eventi"]
         var sfondoUrl: String? = null
         if (sfondoBytes != null) {
             val name = "sfondo_contest_${UUID.randomUUID()}.jpg"
-            val bucket = supabase.storage["locandine_eventi"]
             bucket.upload(name, sfondoBytes, upsert = true)
             sfondoUrl = bucket.publicUrl(name)
+        }
+        var sfondoCardUrl: String? = null
+        if (sfondoCardBytes != null) {
+            val name = "sfondo_card_${UUID.randomUUID()}.jpg"
+            bucket.upload(name, sfondoCardBytes, upsert = true)
+            sfondoCardUrl = bucket.publicUrl(name)
         }
         supabase.postgrest["contest_design"].update({
             set("tipo_stile", tipoStile)
             set("colore_primario", colorePrimario)
             set("colore_sfondo", coloreSfondo)
             if (sfondoUrl != null) set("sfondo_custom_url", sfondoUrl)
+            if (sfondoCardUrl != null) set("sfondo_card_url", sfondoCardUrl)
             if (descrizioneDelega != null) set("descrizione_delega", descrizioneDelega)
             if (delegaCompletata != null) set("delega_completata", delegaCompletata)
         }) { filter { eq("evento_id", eventoId) } }
@@ -260,7 +287,6 @@ suspend fun DatabaseViewModel.aggiornaDesignContest(
     }
 }
 
-/** Salva la descrizione della delega estetica (chiamata dalla creazione contest). */
 suspend fun DatabaseViewModel.salvaDescrizioneDelega(eventoId: String, descrizione: String): Boolean {
     return try {
         supabase.postgrest["contest_design"].update({
@@ -271,7 +297,6 @@ suspend fun DatabaseViewModel.salvaDescrizioneDelega(eventoId: String, descrizio
     } catch (e: Exception) { false }
 }
 
-/** Carica i contest in delega (tipo_stile = 'DELEGA' e non ancora completati) per gli admin. */
 suspend fun DatabaseViewModel.fetchContestInDelega() {
     try {
         val eventi = supabase.postgrest["eventi"]
