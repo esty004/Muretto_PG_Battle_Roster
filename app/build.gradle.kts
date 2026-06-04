@@ -55,6 +55,10 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("org.osmdroid:osmdroid-android:6.1.18")
+    // Per il ViewModel
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3") // O versione più recente
+    // Per BackHandler e rememberLauncherForActivityResult
+    implementation("androidx.activity:activity-compose:1.9.0")
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation(platform("com.google.firebase:firebase-bom:32.8.0"))
     implementation("com.google.firebase:firebase-firestore")
