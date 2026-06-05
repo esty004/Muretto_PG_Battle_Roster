@@ -106,17 +106,18 @@ fun SchermataRegistrazione(onTornaIndietro: () -> Unit) {
             }
 
             Column(modifier = Modifier.fillMaxWidth(0.9f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(value = nome, onValueChange = { nome = it }, label = { Text("Nome") }, colors = coloriInput, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = cognome, onValueChange = { cognome = it }, label = { Text("Cognome") }, colors = coloriInput, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = nomeArte, onValueChange = { nomeArte = it }, label = { Text("Nome d'arte (A.K.A)") }, colors = coloriInput, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = telefono, onValueChange = { telefono = it }, label = { Text("Numero di Telefono") }, colors = coloriInput, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, colors = coloriInput, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Password") }, visualTransformation = PasswordVisualTransformation(), colors = coloriInput, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = nome, onValueChange = { nome = it }, label = { Text("Nome") }, colors = coloriInput, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
+                OutlinedTextField(value = cognome, onValueChange = { cognome = it }, label = { Text("Cognome") }, colors = coloriInput, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
+                OutlinedTextField(value = nomeArte, onValueChange = { nomeArte = it }, label = { Text("Nome d'arte (A.K.A)") }, colors = coloriInput, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
+                OutlinedTextField(value = telefono, onValueChange = { telefono = it }, label = { Text("Numero di Telefono") }, colors = coloriInput, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
+                OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, colors = coloriInput, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
+                OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Password") }, visualTransformation = PasswordVisualTransformation(), colors = coloriInput, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
 
                 ExposedDropdownMenuBox(expanded = menuTipoAperto, onExpandedChange = { menuTipoAperto = !menuTipoAperto }) {
                     OutlinedTextField(
                         value = tipoAccountSelezionato, onValueChange = {}, readOnly = true, label = { Text("Tipo Account") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuTipoAperto) }, colors = coloriInput, modifier = Modifier.menuAnchor().fillMaxWidth()
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuTipoAperto) }, colors = coloriInput, modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp)
                     )
                     ExposedDropdownMenu(expanded = menuTipoAperto, onDismissRequest = { menuTipoAperto = false }, modifier = Modifier.background(Tema.coloreSfondoCard)) {
                         tipiAccount.forEach { opzione ->
@@ -132,7 +133,8 @@ fun SchermataRegistrazione(onTornaIndietro: () -> Unit) {
                     ExposedDropdownMenuBox(expanded = menuMurettoAperto, onExpandedChange = { menuMurettoAperto = !menuMurettoAperto }) {
                         OutlinedTextField(
                             value = murettoSelezionato, onValueChange = {}, readOnly = true, label = { Text("Muretto gestito") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuMurettoAperto) }, colors = coloriInput, modifier = Modifier.menuAnchor().fillMaxWidth()
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuMurettoAperto) }, colors = coloriInput, modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp)
                         )
                         ExposedDropdownMenu(expanded = menuMurettoAperto, onDismissRequest = { menuMurettoAperto = false }, modifier = Modifier.background(Tema.coloreSfondoCard)) {
                             muretti.forEach { m ->
@@ -179,11 +181,11 @@ fun SchermataRegistrazione(onTornaIndietro: () -> Unit) {
                                 }
                             } else null
 
-                            val successo = if (tipoDatabase == "rapper") {
-                                databaseViewModel.registraRapperDiretto(nome.trim(), cognome.trim(), nomeArte.trim(), email.trim(), password.trim(), telefono.trim())
-                            } else {
-                                databaseViewModel.inviaRichiestaAccount(nome.trim(), cognome.trim(), nomeArte.trim(), email.trim(), password.trim(), telefono.trim(), tipoDatabase, murettoDatabase)
-                            }
+                            val successo = databaseViewModel.eseguiRegistrazioneDiretta(
+                                nome.trim(), cognome.trim(), nomeArte.trim(),
+                                email.trim(), password.trim(), telefono.trim(),
+                                tipoDatabase, murettoDatabase
+                            )
 
                             staCaricando = false
                             if (successo) {
@@ -195,11 +197,11 @@ fun SchermataRegistrazione(onTornaIndietro: () -> Unit) {
                     },
                     enabled = !staCaricando,
                     colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
-                    shape = CircleShape,
+                    shape = RoundedCornerShape(24.dp),
                     modifier = Modifier.fillMaxWidth().height(60.dp)
                 ) {
                     if (staCaricando) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                    else Text("INVIA", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    else Text("INVIA", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = MioFont)
                 }
                 Spacer(modifier = Modifier.height(40.dp))
             }

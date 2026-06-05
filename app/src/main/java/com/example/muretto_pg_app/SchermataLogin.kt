@@ -26,8 +26,18 @@ fun SchermataLogin(
     onVaiARegistrazione: () -> Unit
 ) {
     val databaseViewModel = LocalDatabaseViewModel.current
-    val MioFontKomtit = FontFamily(Font(R.font.komtit__))
+    val MioFont = FontFamily(Font(R.font.komtit__))
     val scope = rememberCoroutineScope()
+
+    val coloriInput = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Tema.coloreTesto,
+        unfocusedTextColor = Tema.coloreTesto,
+        focusedBorderColor = Tema.colorePrincipale,
+        unfocusedBorderColor = Tema.coloreTestoSecondario,
+        focusedLabelColor = Tema.colorePrincipale,
+        unfocusedLabelColor = Tema.coloreTestoSecondario,
+        cursorColor = Tema.colorePrincipale
+    )
 
     // Se è già loggato mostra il pannello logout
     if (databaseViewModel.isAdmin || databaseViewModel.ruoloAttuale != RuoloUtente.NESSUNO) {
@@ -35,31 +45,33 @@ fun SchermataLogin(
             RuoloUtente.ADMIN -> "ADMIN"
             RuoloUtente.ORGANIZZATORE_MURETTO -> "ORG. MURETTO"
             RuoloUtente.ORGANIZZATORE_EVENTI -> "ORG. EVENTI"
+            RuoloUtente.RAPPER -> "RAPPER"
             else -> "LOGGATO"
         }
         Column(
-            modifier = Modifier.fillMaxSize().background(Color(0xFF1E1E1E)).padding(32.dp),
+            modifier = Modifier.fillMaxSize().background(Tema.coloreSfondo).padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Text(
                 "SEI GIÀ LOGGATO",
-                color = Color.Green,
-                fontSize = 20.sp,
-                fontFamily = MioFontKomtit
+                color = Tema.colorePrincipale,
+                fontSize = 24.sp,
+                fontFamily = MioFont,
+                fontWeight = FontWeight.Bold
             )
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 etichettaRuolo,
-                color = Color.Green,
-                fontSize = 16.sp,
-                fontFamily = MioFontKomtit,
-                modifier = Modifier.padding(top = 4.dp)
+                color = Tema.coloreTesto,
+                fontSize = 18.sp,
+                fontFamily = MioFont
             )
             databaseViewModel.profiloAttuale?.let {
                 Text(
-                    "${it.nome_arte}",
-                    color = Color.Gray,
-                    fontSize = 14.sp,
+                    it.nome_arte,
+                    color = Tema.coloreTestoSecondario,
+                    fontSize = 16.sp,
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
@@ -71,12 +83,18 @@ fun SchermataLogin(
                         databaseViewModel.isAdmin = false
                         databaseViewModel.ruoloAttuale = RuoloUtente.NESSUNO
                         databaseViewModel.profiloAttuale = null
+                        databaseViewModel.eventiPreferiti.clear()
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-            ) { Text("LOGOUT", color = Color.White) }
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(50.dp)
+            ) { Text("LOGOUT", color = Color.White, fontWeight = FontWeight.Bold) }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             TextButton(onClick = onTornaIndietro) {
-                Text("INDIETRO", color = Color.Gray)
+                Text("INDIETRO", color = Tema.coloreTestoSecondario, fontFamily = MioFont)
             }
         }
         return
@@ -88,118 +106,116 @@ fun SchermataLogin(
     var errore by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF1E1E1E))
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "LOGIN",
-            fontFamily = MioFontKomtit,
-            fontSize = 50.sp,
-            color = Color.White,
-            modifier = Modifier.padding(bottom = 40.dp)
-        )
-
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email", color = Color.Gray) },
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedBorderColor = Color(0xFF4CAF50),
-                unfocusedBorderColor = Color.Gray
-            ),
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Password", color = Color.Gray) },
-            visualTransformation = if (passwordVisibile) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                TextButton(onClick = { passwordVisibile = !passwordVisibile }) {
-                    Text(
-                        if (passwordVisibile) "NASCONDI" else "MOSTRA",
-                        color = Color.Gray,
-                        fontSize = 11.sp
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedBorderColor = Color(0xFF4CAF50),
-                unfocusedBorderColor = Color.Gray
-            ),
-            singleLine = true
-        )
-
-        if (errore.isNotEmpty()) {
-            Text(
-                errore,
-                color = Color.Red,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(top = 10.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(40.dp))
-
-        Button(
-            onClick = {
-                if (email.isBlank() || password.isBlank()) {
-                    errore = "Inserisci email e password"
-                    return@Button
-                }
-                isLoading = true
-                errore = ""
-
-                scope.launch {
-                    try {
-                        databaseViewModel.supabase.auth.signInWith(Email) {
-                            this.email = email.trim()
-                            this.password = password
-                        }
-                        databaseViewModel.controllaRuolo()
-                        isLoading = false
-                        onLoginSuccess()
-                    } catch (e: Exception) {
-                        isLoading = false
-                        errore = e.message ?: "Accesso negato: credenziali errate"
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxWidth().height(60.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
-            shape = RoundedCornerShape(12.dp),
-            enabled = !isLoading
+    Box(modifier = Modifier.fillMaxSize().background(Tema.coloreSfondo)) {
+        // Tasto Indietro in alto a sinistra
+        IconButton(
+            onClick = onTornaIndietro,
+            modifier = Modifier.padding(top = 40.dp, start = 16.dp)
         ) {
-            if (isLoading) {
-                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-            } else {
-                Text("ACCEDI", fontSize = 20.sp, color = Color.White, fontWeight = FontWeight.Bold)
+            Text("<", color = Tema.coloreTesto, fontSize = 45.sp, fontFamily = MioFont)
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "LOGIN",
+                fontFamily = MioFont,
+                fontSize = 50.sp,
+                color = Tema.coloreTesto,
+                modifier = Modifier.padding(bottom = 40.dp)
+            )
+
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = coloriInput,
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Password") },
+                visualTransformation = if (passwordVisibile) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    TextButton(onClick = { passwordVisibile = !passwordVisibile }) {
+                        Text(
+                            if (passwordVisibile) "NASCONDI" else "MOSTRA",
+                            color = Tema.coloreTestoSecondario,
+                            fontSize = 11.sp
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = coloriInput,
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp)
+            )
+
+            if (errore.isNotEmpty()) {
+                Text(
+                    errore,
+                    color = Color.Red,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
-        // Link registrazione
-        TextButton(onClick = { onVaiARegistrazione() }) {
-            Text("Non hai un account? REGISTRATI", color = Color(0xFF4CAF50), fontSize = 14.sp)
-        }
+            Button(
+                onClick = {
+                    if (email.isBlank() || password.isBlank()) {
+                        errore = "Inserisci email e password"
+                        return@Button
+                    }
+                    isLoading = true
+                    errore = ""
 
-        TextButton(onClick = { onTornaIndietro() }) {
-            Text("ANNULLA", color = Color.Gray)
+                    scope.launch {
+                        try {
+                            databaseViewModel.supabase.auth.signInWith(Email) {
+                                this.email = email.trim()
+                                this.password = password
+                            }
+                            databaseViewModel.controllaRuolo()
+                            isLoading = false
+                            onLoginSuccess()
+                        } catch (e: Exception) {
+                            isLoading = false
+                            errore = e.message ?: "Accesso negato: credenziali errate"
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(60.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
+                shape = RoundedCornerShape(24.dp),
+                enabled = !isLoading
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                } else {
+                    Text("ACCEDI", fontSize = 20.sp, color = Color.White, fontWeight = FontWeight.Bold, fontFamily = MioFont)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Link registrazione
+            TextButton(onClick = { onVaiARegistrazione() }) {
+                Text("Non hai un account? REGISTRATI", color = Tema.colorePrincipale, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

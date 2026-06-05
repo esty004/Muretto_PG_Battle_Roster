@@ -460,7 +460,7 @@ fun SchermataCreaContest(onTornaIndietro: () -> Unit) {
                         pinMarker?.let { pt ->
                             val marker = Marker(map)
                             marker.position = pt; marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                            marker.icon = android.graphics.drawable.BitmapDrawable(context.resources, android.graphics.Bitmap.createScaledBitmap(android.graphics.BitmapFactory.decodeResource(context.resources, R.drawable.logo_muretto), 100, 70, true))
+                            marker.icon = android.graphics.drawable.BitmapDrawable(context.resources, android.graphics.Bitmap.createScaledBitmap(android.graphics.BitmapFactory.decodeResource(context.resources, R.drawable.pin_muretto_pg), 100, 70, true))
                             map.overlays.add(marker)
                             map.controller.animateTo(pt)
                         }

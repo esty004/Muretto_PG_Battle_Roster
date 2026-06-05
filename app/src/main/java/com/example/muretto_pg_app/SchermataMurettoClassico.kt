@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -53,6 +54,7 @@ fun SchermataMurettoClassico(
     val databaseViewModel = LocalDatabaseViewModel.current
     val MioFontPersonalizzato = FontFamily(Font(R.font.komtit__))
     val focusManager = LocalFocusManager.current
+    val scope = rememberCoroutineScope()
     val is2v2 = tipoTorneo != TipoTorneo.SINGOLO
 
     // --- AGGIORNAMENTO DATI DAL CLOUD ---
@@ -204,34 +206,36 @@ fun SchermataMurettoClassico(
 
                             Button(
                                 onClick = {
-                                    val lines = testoNotepad.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
-                                    val nuoviIdSelezionati = mutableListOf<String>()
+                                    scope.launch {
+                                        val lines = testoNotepad.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
+                                        val nuoviIdSelezionati = mutableListOf<String>()
 
-                                    for (line in lines) {
-                                        val nomiDaProcessare = if (is2v2) line.split(Regex("(?i)\\s+e\\s+")).map { it.trim() }.filter { it.isNotEmpty() } else listOf(line)
+                                        for (line in lines) {
+                                            val nomiDaProcessare = if (is2v2) line.split(Regex("(?i)\\s+e\\s+")).map { it.trim() }.filter { it.isNotEmpty() } else listOf(line)
 
-                                        for (nome in nomiDaProcessare) {
-                                            val esistente = databaseViewModel.listaMcsCloud.find { it.nome.equals(nome, ignoreCase = true) }
-                                            if (esistente != null) {
-                                                nuoviIdSelezionati.add(esistente.id)
-                                            } else {
-                                                // --- MECCANICA GLOBALE ---
-                                                val mcGlobale = databaseViewModel.cercaMcGlobale(nome)
-                                                val nuovoMc = mcGlobale ?: Freestyler(
-                                                    id = UUID.randomUUID().toString(),
-                                                    nome = nome,
-                                                    immagineUrl = "",
-                                                    muretto_id = if (Tema.isBarreFaul) "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e" else "09fbe1d3-0022-41b8-ba4b-edc887c145a2"
-                                                )
-                                                databaseViewModel.listaMcsCloud.add(nuovoMc)
-                                                nuoviIdSelezionati.add(nuovoMc.id)
+                                            for (nome in nomiDaProcessare) {
+                                                val esistente = databaseViewModel.listaMcsCloud.find { it.nome.equals(nome, ignoreCase = true) }
+                                                if (esistente != null) {
+                                                    nuoviIdSelezionati.add(esistente.id)
+                                                } else {
+                                                    // --- MECCANICA GLOBALE ---
+                                                    val mcGlobale = databaseViewModel.cercaMcGlobale(nome)
+                                                    val nuovoMc = mcGlobale ?: Freestyler(
+                                                        id = UUID.randomUUID().toString(),
+                                                        nome = nome,
+                                                        immagineUrl = "",
+                                                        muretto_id = if (Tema.isBarreFaul) "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e" else "09fbe1d3-0022-41b8-ba4b-edc887c145a2"
+                                                    )
+                                                    databaseViewModel.listaMcsCloud.add(nuovoMc)
+                                                    nuoviIdSelezionati.add(nuovoMc.id)
+                                                }
                                             }
                                         }
-                                    }
 
-                                    mcsSelezionati = (mcsSelezionati + nuoviIdSelezionati).distinct()
-                                    testoNotepad = ""
-                                    mostraNotepad = false
+                                        mcsSelezionati = (mcsSelezionati + nuoviIdSelezionati).distinct()
+                                        testoNotepad = ""
+                                        mostraNotepad = false
+                                    }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), shape = CircleShape
                             ) { Text("PROSEGUI", color = Color.White, fontWeight = FontWeight.Bold) }
@@ -266,22 +270,24 @@ fun SchermataMurettoClassico(
             },
             confirmButton = {
                 Button(colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), onClick = {
-                    if (nomeNuovoMc.isNotBlank()) {
-                        val nome = nomeNuovoMc.trim()
-                        val esistenteInLista = databaseViewModel.listaMcsCloud.find { it.nome.equals(nome, ignoreCase = true) }
+                    scope.launch {
+                        if (nomeNuovoMc.isNotBlank()) {
+                            val nome = nomeNuovoMc.trim()
+                            val esistenteInLista = databaseViewModel.listaMcsCloud.find { it.nome.equals(nome, ignoreCase = true) }
 
-                        if (esistenteInLista == null) {
-                            val mcGlobale = databaseViewModel.cercaMcGlobale(nome)
-                            val nuovoMc = mcGlobale ?: Freestyler(
-                                id = UUID.randomUUID().toString(),
-                                nome = nome,
-                                immagineUrl = "",
-                                muretto_id = if (Tema.isBarreFaul) "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e" else "09fbe1d3-0022-41b8-ba4b-edc887c145a2"
-                            )
-                            databaseViewModel.listaMcsCloud.add(nuovoMc)
+                            if (esistenteInLista == null) {
+                                val mcGlobale = databaseViewModel.cercaMcGlobale(nome)
+                                val nuovoMc = mcGlobale ?: Freestyler(
+                                    id = UUID.randomUUID().toString(),
+                                    nome = nome,
+                                    immagineUrl = "",
+                                    muretto_id = if (Tema.isBarreFaul) "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e" else "09fbe1d3-0022-41b8-ba4b-edc887c145a2"
+                                )
+                                databaseViewModel.listaMcsCloud.add(nuovoMc)
+                            }
+                            nomeNuovoMc = ""
+                            mostraDialogAggiunta = false
                         }
-                        nomeNuovoMc = ""
-                        mostraDialogAggiunta = false
                     }
                 }) { Text("Aggiungi", color = Color.White) }
             },

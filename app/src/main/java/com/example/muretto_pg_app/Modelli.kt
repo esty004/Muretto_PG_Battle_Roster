@@ -60,6 +60,7 @@ import io.github.jan.supabase.storage.storage
 import io.ktor.client.statement.bodyAsText
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.gotrue.providers.builtin.Email as EmailProvider
 import io.ktor.util.InternalAPI
 import java.util.UUID
 import java.net.HttpURLConnection
@@ -68,19 +69,19 @@ import org.json.JSONObject
 
 // ─── TEMA E RUOLI ─────────────────────────────────────────────────────────────
 
-enum class MurettoAttivo { PG, BARRE_FAUL, ATENEO, FORTITUDO }
+enum class MurettoAttivo { PG, BARRE_FAUL, ATENEO, GROSSETO }
 
 object Tema {
     var murettoSelezionato by mutableStateOf(MurettoAttivo.PG)
 
     val isBarreFaul get() = murettoSelezionato == MurettoAttivo.BARRE_FAUL
     val isAteneo get() = murettoSelezionato == MurettoAttivo.ATENEO
-    val isFortitudo get() = murettoSelezionato == MurettoAttivo.FORTITUDO
+    val isGrosseto get() = murettoSelezionato == MurettoAttivo.GROSSETO
 
     val colorePrincipale: Color get() = when (murettoSelezionato) {
         MurettoAttivo.BARRE_FAUL -> Color(0xFF1E88E5) // Blu
         MurettoAttivo.ATENEO -> Color(0xFFFF9800)     // Arancione
-        MurettoAttivo.FORTITUDO -> Color(0xFFFFEB3B)  // Giallo Fortitudo
+        MurettoAttivo.GROSSETO -> Color(0xFFB71C1C)   // Rosso Grosseto
         MurettoAttivo.PG -> Color(0xFFD32F2F)         // Rosso
     }
 
@@ -92,7 +93,7 @@ object Tema {
     val coloreSfondoCard: Color get() = when (murettoSelezionato) {
         MurettoAttivo.BARRE_FAUL -> Color(0xFFF5F5F5)
         MurettoAttivo.ATENEO -> Color(0xFF1E1E1E)
-        MurettoAttivo.FORTITUDO -> Color(0xFF111111) // Sfondo scuro per far brillare il giallo
+        MurettoAttivo.GROSSETO -> Color(0xFF111111)
         MurettoAttivo.PG -> Color(0xFF111111)
     }
 
@@ -103,14 +104,14 @@ object Tema {
         get() = when (murettoSelezionato) {
             MurettoAttivo.BARRE_FAUL -> Brush.horizontalGradient(colors = listOf(Color(0xFF002244), Color(0xFF004488)))
             MurettoAttivo.ATENEO -> Brush.horizontalGradient(colors = listOf(Color(0xFF4A2B00), Color(0xFF804D00)))
-            MurettoAttivo.FORTITUDO -> Brush.horizontalGradient(colors = listOf(Color(0xFF4D4D00), Color(0xFF808000))) // Sfumatura oro scuro
+            MurettoAttivo.GROSSETO -> Brush.horizontalGradient(colors = listOf(Color(0xFF4B0000), Color(0xFF8B0000))) // Rosso Grosseto
             MurettoAttivo.PG -> Brush.horizontalGradient(colors = listOf(Color(0xFF3A0000), Color(0xFF00003A)))
         }
 
     val sfondoGenerale: Int get() = when (murettoSelezionato) {
         MurettoAttivo.BARRE_FAUL -> R.drawable.sfondo_barre_faul
         MurettoAttivo.ATENEO -> R.drawable.sfondo_ateneo
-        MurettoAttivo.FORTITUDO -> R.drawable.sfondo_fortitudo // Nuovo Sfondo!
+        MurettoAttivo.GROSSETO -> R.drawable.muretto_classico_grosseto
         MurettoAttivo.PG -> R.drawable.sfondo_muretto_classico
     }
 
@@ -118,7 +119,7 @@ object Tema {
     fun ottieniIdMurettoAttivo(): String = when (murettoSelezionato) {
         MurettoAttivo.BARRE_FAUL -> "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e"
         MurettoAttivo.ATENEO -> "INSERISCI-QUI-UUID-ATENEO"
-        MurettoAttivo.FORTITUDO -> "22ea8a2f-d45d-40b2-a6ee-841058f12f99"
+        MurettoAttivo.GROSSETO -> "34f6c62b-6d81-46ed-9d64-ec0a5ee02e82"
         MurettoAttivo.PG -> "09fbe1d3-0022-41b8-ba4b-edc887c145a2"
     }
 }
@@ -148,22 +149,6 @@ data class ProfiloUtente(
     val email: String = "",
     val statoRichiesta: Boolean = false   // true = approvato, false = in attesa
 )
-
-@Serializable
-data class RichiestaAccount(
-    val id: String = "",
-    val nome: String = "",
-    val cognome: String = "",
-    val nome_arte: String = "",
-    val email: String = "",
-    val password_temp: String = "",
-    val telefono: String = "",
-    val tipo_account: String = "",
-    val muretto_id: String? = null,
-    val stato: String = "in_attesa",
-    val created_at: String = ""
-)
-
 
 @Serializable
 data class ContestDesign(
@@ -279,199 +264,99 @@ class DatabaseViewModel : ViewModel() {
         _uiState.update { it.copy(error = null) }
     }
 
-    var listaMcsCloud = mutableStateListOf<Freestyler>()
-    var tuttiMcsCloud = mutableListOf<Freestyler>()
-    var staCaricando = mutableStateOf(false)
+    // ─── SESSIONE E PROFILO ───────────────────────────────────────────────────
 
-    var isAdmin by mutableStateOf(false)
-    var ruoloAttuale by mutableStateOf(RuoloUtente.NESSUNO)
-    var profiloAttuale by mutableStateOf<ProfiloUtente?>(null)
-    var accountInAttesa by mutableStateOf(false)   // true se loggato ma non ancora approvato
-
-    var richiesteInAttesa = mutableStateListOf<ProfiloUtente>()
-    var eventiInAttesa = mutableStateListOf<Evento>()
-    var eventiApprovati = mutableStateListOf<Evento>()
-
-    var eventiPreferiti = mutableStateListOf<String>() // Conterrà gli ID degli eventi preferiti dell'utente
-
-
-    suspend fun eseguiRegistrazioneSicura(richiesta: RichiestaAccount): Boolean {
-        return try {
-            android.util.Log.d("TEST_FUNZIONE", "1. Costruisco il JSON per il server...")
-
-            // Creiamo un payload JSON manuale e formattato perfettamente
-            // Gestiamo il muretto_id in sicurezza per evitare stringhe "null" letterali
-            val murettoJson = if (richiesta.muretto_id != null) "\"${richiesta.muretto_id}\"" else "null"
-
-            val payloadJSON = """
-                {
-                    "email": "${richiesta.email}",
-                    "password_temp": "${richiesta.password_temp}",
-                    "nome": "${richiesta.nome}",
-                    "cognome": "${richiesta.cognome}",
-                    "nome_arte": "${richiesta.nome_arte}",
-                    "telefono": "${richiesta.telefono}",
-                    "tipo_account": "${richiesta.tipo_account}",
-                    "muretto_id": $murettoJson
-                }
-            """.trimIndent()
-
-            android.util.Log.d("TEST_FUNZIONE", "2. Payload pronto, invio al server...")
-
-            val response = supabase.functions.invoke("gestore-registrazioni") {
-                // IL SEGRETO: Passiamo il JSON come TESTO GREZZO (String), non come Oggetto
-                setBody(payloadJSON)
-                contentType(io.ktor.http.ContentType.Application.Json)
-            }
-
-            val corpo = response.bodyAsText()
-            JSONObject(corpo).optBoolean("success", false)
-
-            android.util.Log.d("TEST_FUNZIONE", "3. Successo! Risposta: ${response.bodyAsText()}")
-            true
-        } catch (e: Exception) {
-            android.util.Log.e("TEST_FUNZIONE", "ERRORE CRITICO: ${e.message}", e)
-            e.printStackTrace()
-            false
-        }
-    }
-
-    fun inizializzaSessione() {
-        safeScope.launch(Dispatchers.IO) {
-            try {
-                kotlinx.coroutines.delay(500)
-                val user = supabase.auth.currentUserOrNull()
-                if (user != null) {
-                    controllaRuolo()
-                    fetchEventiPreferiti()
-                }
-            } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore sessione", e) }
+    suspend fun inizializzaSessione() {
+        val user = supabase.auth.currentUserOrNull()
+        if (user != null) {
+            controllaRuolo()
+            fetchEventiPreferiti(user.id)
         }
     }
 
     suspend fun controllaRuolo() {
-        val user = supabase.auth.currentUserOrNull()
-        if (user == null) {
-            withContext(Dispatchers.Main) {
-                isAdmin = false
-                ruoloAttuale = RuoloUtente.NESSUNO
-                profiloAttuale = null
-            }
-            return
-        }
         try {
-            val adminList = supabase.postgrest["amministratori"].select { filter { eq("id", user.id) } }.data
-            if (adminList != "[]") {
-                withContext(Dispatchers.Main) {
-                    isAdmin = true
-                    ruoloAttuale = RuoloUtente.ADMIN
-                }
-                fetchRichiesteInAttesa()
-                fetchEventiInAttesa()
-                return
-            }
+            val user = supabase.auth.currentUserOrNull() ?: return
+            val profilo = supabase.postgrest["profili"].select {
+                filter { eq("id", user.id) }
+            }.decodeSingle<ProfiloUtente>()
 
-            val profiliJson = supabase.postgrest["profili"].select { filter { eq("id", user.id) } }.decodeList<ProfiloUtente>()
             withContext(Dispatchers.Main) {
-                isAdmin = false
-                if (profiliJson.isNotEmpty()) {
-                    val profilo = profiliJson[0]
-                    profiloAttuale = profilo
-                    if (!profilo.statoRichiesta) {
-                        // account creato ma non ancora approvato dall'admin
-                        accountInAttesa = true
-                        ruoloAttuale = RuoloUtente.NESSUNO
-                    } else {
-                        accountInAttesa = false
-                        ruoloAttuale = when (profilo.tipo_account) {
-                            "organizzatore_muretto" -> RuoloUtente.ORGANIZZATORE_MURETTO
-                            "organizzatore_eventi" -> RuoloUtente.ORGANIZZATORE_EVENTI
-                            "rapper" -> RuoloUtente.RAPPER
-                            else -> RuoloUtente.NESSUNO
-                        }
-                    }
-                } else {
-                    ruoloAttuale = RuoloUtente.NESSUNO
+                profiloAttuale = profilo
+                ruoloAttuale = when (profilo.tipo_account) {
+                    "admin" -> RuoloUtente.ADMIN
+                    "organizzatore_muretto" -> RuoloUtente.ORGANIZZATORE_MURETTO
+                    "organizzatore_eventi" -> RuoloUtente.ORGANIZZATORE_EVENTI
+                    "rapper" -> RuoloUtente.RAPPER
+                    else -> RuoloUtente.NESSUNO
                 }
+                isAdmin = ruoloAttuale == RuoloUtente.ADMIN
+                accountInAttesa = !profilo.statoRichiesta
             }
         } catch (e: Exception) {
+            Log.e("DatabaseViewModel", "Errore controllaRuolo: ${e.message}")
+        }
+    }
+
+    // ─── MCS / ROSTER ─────────────────────────────────────────────────────────
+
+    var listaMcsCloud = mutableStateListOf<Freestyler>()
+    var tuttiMcsCloud = mutableStateListOf<Freestyler>()
+    var staCaricando = mutableStateOf(false)
+
+    suspend fun fetchMcsDalCloud(murettoId: String) {
+        try {
+            val mcs = supabase.postgrest["mcs"].select {
+                filter { eq("muretto_id", murettoId) }
+            }.decodeList<Freestyler>()
             withContext(Dispatchers.Main) {
-                isAdmin = false
-                ruoloAttuale = RuoloUtente.NESSUNO
+                listaMcsCloud.clear()
+                listaMcsCloud.addAll(mcs)
+                tuttiMcsCloud.clear()
+                tuttiMcsCloud.addAll(mcs)
             }
+        } catch (e: Exception) {
+            Log.e("DatabaseViewModel", "Errore fetch mcs: ${e.message}")
         }
     }
 
-    fun controllaAdmin() { safeScope.launch(Dispatchers.IO) { controllaRuolo() } }
-
-    fun fetchMcsDalCloud(idDelMuretto: String) {
-        staCaricando.value = true
-        safeScope.launch(Dispatchers.IO) {
-            try {
-                val scaricati = supabase.postgrest["mcs"].select().decodeList<Freestyler>()
-                withContext(Dispatchers.Main) {
-                    tuttiMcsCloud.clear()
-                    tuttiMcsCloud.addAll(scaricati)
-
-                    // Filtra usando il nuovo UUID
-                    val filtrati = scaricati.filter { it.muretto_id == idDelMuretto }
-
-                    listaMcsCloud.clear()
-                    listaMcsCloud.addAll(filtrati)
-                    staCaricando.value = false
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) { staCaricando.value = false }
-            }
-        }
-    }
-
-    fun cercaMcGlobale(nomeDaCercare: String): Freestyler? {
-        return tuttiMcsCloud.find { it.nome.equals(nomeDaCercare, ignoreCase = true) }
-    }
-
-    suspend fun inserisciNuovoMc(nome: String, murettoId: String, imageBytes: ByteArray?): Boolean {
+    suspend fun cercaMcGlobale(nome: String): Freestyler? {
         return try {
-            var imageUrl = ""
-            if (imageBytes != null) {
-                val fileName = "mc_${UUID.randomUUID()}.jpg"
-                val bucket = supabase.storage["immagini"]
-                bucket.upload(fileName, imageBytes, upsert = true)
-                imageUrl = bucket.publicUrl(fileName)
+            supabase.postgrest["mcs"].select {
+                filter { eq("nome", nome) }
+            }.decodeList<Freestyler>().firstOrNull()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun inserisciNuovoMc(nome: String, murettoId: String, immagineBytes: ByteArray?): Boolean {
+        return try {
+            val bucket = supabase.storage["avatar_mcs"]
+            var imageUrl: String? = null
+            if (immagineBytes != null) {
+                val name = "avatar_${UUID.randomUUID()}.jpg"
+                bucket.upload(name, immagineBytes, upsert = true)
+                imageUrl = bucket.publicUrl(name)
             }
-
-            val esistenti = supabase.postgrest["mcs"].select { filter { eq("muretto_id", murettoId) } }.decodeList<Freestyler>()
-
-            // ECCO LA MODIFICA: GESTIONE DEGLI ID PER FORTITUDO
-            val nuovoId = if (murettoId == "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e") { // Barre Faul
-                val maxNum = esistenti.mapNotNull { it.id.replace("bf", "").toIntOrNull() }.maxOrNull() ?: 0
-                "bf${maxNum + 1}"
-            } else if (murettoId == "22ea8a2f-d45d-40b2-a6ee-841058f12f99") { // Fortitudo
-                val maxNum = esistenti.mapNotNull { it.id.replace("fo", "").toIntOrNull() }.maxOrNull() ?: 0
-                "fo${maxNum + 1}"
-            } else { // Muretto PG
-                val maxNum = esistenti.mapNotNull { it.id.toIntOrNull() }.maxOrNull() ?: 0
-                (maxNum + 1).toString()
-            }
-
-            val nuovoMc = Freestyler(id = nuovoId, nome = nome, immagineUrl = imageUrl, muretto = null, muretto_id = murettoId)
-            supabase.postgrest["mcs"].insert(nuovoMc)
+            val mc = Freestyler(id = UUID.randomUUID().toString(), nome = nome, immagineUrl = imageUrl, muretto_id = murettoId)
+            supabase.postgrest["mcs"].insert(mc)
             true
         } catch (e: Exception) { false }
     }
 
-    suspend fun aggiornaMc(mcId: String, nuovoNome: String, imageBytes: ByteArray?): Boolean {
+    suspend fun aggiornaMc(mcId: String, nuovoNome: String, immagineBytes: ByteArray?): Boolean {
         return try {
-            var nuovaUrl: String? = null
-            if (imageBytes != null) {
-                val fileName = "mc_${UUID.randomUUID()}.jpg"
-                val bucket = supabase.storage["immagini"]
-                bucket.upload(fileName, imageBytes, upsert = true)
-                nuovaUrl = bucket.publicUrl(fileName)
+            val bucket = supabase.storage["avatar_mcs"]
+            var imageUrl: String? = null
+            if (immagineBytes != null) {
+                val name = "avatar_${UUID.randomUUID()}.jpg"
+                bucket.upload(name, immagineBytes, upsert = true)
+                imageUrl = bucket.publicUrl(name)
             }
             supabase.postgrest["mcs"].update({
                 set("nome", nuovoNome)
-                if (nuovaUrl != null) set("immagineUrl", nuovaUrl)
+                if (imageUrl != null) set("immagineUrl", imageUrl)
             }) { filter { eq("id", mcId) } }
             true
         } catch (e: Exception) { false }
@@ -480,262 +365,75 @@ class DatabaseViewModel : ViewModel() {
     suspend fun eliminaMc(mcId: String): Boolean {
         return try {
             supabase.postgrest["mcs"].delete { filter { eq("id", mcId) } }
-            withContext(Dispatchers.Main) {
-                listaMcsCloud.removeIf { it.id == mcId }
-                tuttiMcsCloud.removeIf { it.id == mcId }
-            }
             true
         } catch (e: Exception) { false }
     }
 
+    // ─── EVENTI ───────────────────────────────────────────────────────────────
+
+    var eventiInAttesa = mutableStateListOf<Evento>()
+    var eventiApprovati = mutableStateListOf<Evento>()
+
+    suspend fun fetchEventiApprovati() {
+        try {
+            val eventi = supabase.postgrest["eventi"]
+                .select(columns = Columns.raw("*, contest_design(*)")) { filter { eq("stato", "approvato") } }
+                .decodeList<Evento>()
+            withContext(Dispatchers.Main) {
+                eventiApprovati.clear()
+                eventiApprovati.addAll(eventi)
+            }
+        } catch (e: Exception) {
+            Log.e("DatabaseViewModel", "Errore fetch eventi approvati: ${e.message}")
+        }
+    }
+
+    suspend fun fetchEventiInAttesa() {
+        try {
+            val eventi = supabase.postgrest["eventi"]
+                .select(columns = Columns.raw("*, contest_design(*)")) { filter { eq("stato", "in_attesa") } }
+                .decodeList<Evento>()
+            withContext(Dispatchers.Main) {
+                eventiInAttesa.clear()
+                eventiInAttesa.addAll(eventi)
+            }
+        } catch (e: Exception) {
+            Log.e("DatabaseViewModel", "Errore fetch eventi in attesa: ${e.message}")
+        }
+    }
+
     suspend fun inserisciNuovoEvento(
-        titolo: String, locationNome: String, lat: Double, lng: Double,
-        dataOra: String, tipo: String, prezzo: String, scalaPin: Float, imageBytes: ByteArray?,
-        insta: String, maps: String, descrizione: String,
-        tipoStile: String = "DEFAULT",
-        colorePrimario: String? = null,
-        coloreSfondo: String? = null,
-        coloreTesto: String? = null,
-        sfondoCustomBytes: ByteArray? = null,
-        isContest: Boolean = false, // <--- 1. NUOVO PARAMETRO AGGIUNTO!
-        descrizioneDelega: String? = null
+        titolo: String, locationNome: String, lat: Double, lng: Double, dataOra: String, tipo: String, prezzo: String,
+        scalaPin: Float = 1.0f, imageBytes: ByteArray? = null, insta: String? = null, maps: String? = null, descrizione: String? = null,
+        isContest: Boolean = false, tipoStile: String = "DEFAULT", colorePrimario: String? = null, coloreSfondo: String? = null, coloreTesto: String? = null,
+        sfondoCustomBytes: ByteArray? = null, descrizioneDelega: String? = null
     ): Boolean {
         return try {
-            val user = supabase.auth.currentUserOrNull() ?: return false
+            val bucket = supabase.storage["locandine_eventi"]
             var imageUrl: String? = null
-
             if (imageBytes != null) {
-                val fileName = "evento_${java.util.UUID.randomUUID()}.jpg"
-                val bucket = supabase.storage["locandine_eventi"]
-                bucket.upload(fileName, imageBytes, upsert = true)
-                imageUrl = bucket.publicUrl(fileName)
+                val name = "locandina_${UUID.randomUUID()}.jpg"; bucket.upload(name, imageBytes, upsert = true); imageUrl = bucket.publicUrl(name)
             }
-
-            val idEvento = java.util.UUID.randomUUID().toString()
-            val murettoAssegnato = profiloAttuale?.muretto_id
-
-            val nuovoEvento = Evento(
-                id = idEvento, titolo = titolo, location_nome = locationNome, lat = lat, lng = lng,
-                data_ora = dataOra, tipo = tipo, prezzo = prezzo, immagine_url = imageUrl,
-                organizzatore_id = user.id, stato = "in_attesa", scala_pin = scalaPin,
-                insta = insta, maps = maps, descrizione = descrizione, muretto_id = murettoAssegnato
+            var sfondoCustomUrl: String? = null
+            if (sfondoCustomBytes != null) {
+                val name = "sfondo_contest_${UUID.randomUUID()}.jpg"; bucket.upload(name, sfondoCustomBytes, upsert = true); sfondoCustomUrl = bucket.publicUrl(name)
+            }
+            val evento = Evento(
+                id = UUID.randomUUID().toString(), titolo = titolo, location_nome = locationNome, lat = lat, lng = lng, data_ora = dataOra, tipo = tipo, prezzo = prezzo,
+                immagine_url = imageUrl, organizzatore_id = supabase.auth.currentUserOrNull()?.id, stato = "in_attesa", scala_pin = scalaPin, insta = insta, maps = maps, descrizione = descrizione,
+                muretto_id = Tema.ottieniIdMurettoAttivo()
             )
-
-            supabase.postgrest["eventi"].insert(nuovoEvento)
-
-            // <--- 2. IL FIX È QUI: Salviamo SEMPRE il design se è un contest!
-            if (isContest) {
-                var sfondoUrl: String? = null
-                if (sfondoCustomBytes != null) {
-                    val bgName = "sfondo_contest_${java.util.UUID.randomUUID()}.jpg"
-                    val bgBucket = supabase.storage["locandine_eventi"]
-                    bgBucket.upload(bgName, sfondoCustomBytes, upsert = true)
-                    sfondoUrl = bgBucket.publicUrl(bgName)
-                }
-
+            supabase.postgrest["eventi"].insert(evento)
+            if (isContest || tipo == "Contest") {
                 val design = ContestDesign(
-                    evento_id = idEvento, tipo_stile = tipoStile, colore_primario = colorePrimario,
-                    colore_sfondo = coloreSfondo, colore_testo = coloreTesto, sfondo_custom_url = sfondoUrl,
-                    descrizione_delega = if (tipoStile == "DELEGA") descrizioneDelega else null
+                    evento_id = evento.id, tipo_stile = tipoStile, colore_primario = colorePrimario,
+                    colore_sfondo = coloreSfondo, colore_testo = coloreTesto, sfondo_custom_url = sfondoCustomUrl,
+                    descrizione_delega = descrizioneDelega, delega_completata = false
                 )
                 supabase.postgrest["contest_design"].insert(design)
             }
             true
-        } catch (e: Exception) {
-            android.util.Log.e("ERRORE_SUPABASE", "Il database dice: ${e.message}", e)
-            false
-        }
-    }
-
-    suspend fun salvaImpostazioniVerdetti(
-        eventoId: String,
-        sistemaVoti: String,
-        votoPubblico: Boolean,
-        numeroGiudici: Int,
-        codiciGiudici: String?,
-        codicePubblico: String?,
-        qrCodePubblico: String?,
-        linkPubblico: String?
-    ): Boolean {
-        return try {
-            // Aggiorniamo la riga del design/impostazioni per questo specifico contest
-            supabase.postgrest["contest_design"].update({
-                set("sistema_voti", sistemaVoti)
-                set("voto_pubblico", votoPubblico)
-                set("numero_giudici", numeroGiudici)
-                set("codici_accesso_giudici", codiciGiudici)
-                set("codice_accesso_pubblico", codicePubblico)
-                set("qr_code_pubblico", qrCodePubblico)
-                set("link_pubblico", linkPubblico)
-            }) { filter { eq("evento_id", eventoId) } }
-
-            // Ricarichiamo gli eventi in modo che l'app veda subito i nuovi QR Code
-            fetchEventiApprovati()
-            true
-        } catch (e: Exception) {
-            android.util.Log.e("DatabaseViewModel", "Errore salvataggio verdetti: ${e.message}")
-            false
-        }
-    }
-
-    suspend fun inviaRichiestaAccount(
-        nome: String, cognome: String, nomeArte: String, email: String, passwordTemp: String, telefono: String, tipoAccount: String, muretto: String?
-    ): Boolean {
-        return try {
-            val passwordCriptata = CryptoHelper.encrypt(passwordTemp)
-            // Creiamo la richiesta SENZA il campo created_at (lasciamo fare al DB)
-            val richiesta = RichiestaAccount(
-                id = UUID.randomUUID().toString(),
-                nome = nome,
-                cognome = cognome,
-                nome_arte = nomeArte,
-                email = email,
-                password_temp = passwordCriptata,
-                telefono = telefono,
-                tipo_account = tipoAccount,
-                muretto_id = muretto,
-                stato = "in_attesa"
-            )
-
-            // Proviamo l'inserimento
-            // NON inseriamo più in 'richieste_account' (tabella rimossa).
-            // Creiamo subito l'account: la Edge Function imposta statoRichiesta=false
-            // perché il ruolo non è 'rapper'.
-            eseguiRegistrazioneSicura(richiesta)
-        } catch (e: Exception) {
-            // QUESTO LOG TI DIRÀ PERCHÉ FALLISCE (es: permessi mancanti o colonne errate)
-            android.util.Log.e("DEBUG_REGISTRAZIONE", "FALLIMENTO: ${e.message}")
-            e.printStackTrace()
-            false
-        }
-    }
-
-    suspend fun registraRapperDiretto(
-        nome: String, cognome: String, nomeArte: String,
-        email: String, passwordTemp: String, telefono: String
-    ): Boolean {
-        return try {
-            // Stessa cifratura che la Edge Function sa decifrare
-            val passwordCriptata = CryptoHelper.encrypt(passwordTemp)
-
-            val richiesta = RichiestaAccount(
-                id = UUID.randomUUID().toString(),
-                nome = nome,
-                cognome = cognome,
-                nome_arte = nomeArte,
-                email = email,
-                password_temp = passwordCriptata,
-                telefono = telefono,
-                tipo_account = "rapper",
-                muretto_id = null
-            )
-
-            // Riusa lo stesso percorso sicuro degli organizzatori
-            eseguiRegistrazioneSicura(richiesta)
-        } catch (e: Exception) {
-            android.util.Log.e("DEBUG_RAPPER", "Errore registrazione rapper: ${e.message}", e)
-            false
-        }
-    }
-
-    fun fetchRichiesteInAttesa() {
-        safeScope.launch(Dispatchers.IO) {
-            try {
-                val richieste = supabase.postgrest["profili"].select { filter { eq("statoRichiesta", false) } }.decodeList<ProfiloUtente>()
-                withContext(Dispatchers.Main) {
-                    richiesteInAttesa.clear()
-                    richiesteInAttesa.addAll(richieste)
-                }
-            } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore richieste", e) }
-        }
-    }
-
-    fun fetchEventiInAttesa() {
-        safeScope.launch(Dispatchers.IO) {
-            try {
-                // IL FIX: Chiediamo anche il design!
-                val eventi = supabase.postgrest["eventi"]
-                    .select(columns = Columns.raw("*, contest_design(*)")) { filter { eq("stato", "in_attesa") } }
-                    .decodeList<Evento>()
-                withContext(Dispatchers.Main) {
-                    eventiInAttesa.clear()
-                    eventiInAttesa.addAll(eventi)
-                }
-            } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore eventi in attesa", e) }
-        }
-    }
-
-    fun fetchEventiApprovati() {
-        safeScope.launch(Dispatchers.IO) {
-            try {
-                // IL FIX: Chiediamo anche il design!
-                val eventi = supabase.postgrest["eventi"]
-                    .select(columns = Columns.raw("*, contest_design(*)")) { filter { eq("stato", "approvato") } }
-                    .decodeList<Evento>()
-                android.util.Log.e("DEBUG_CONTEST", "approvati=${eventi.size}, con_design=${eventi.count { it.contest_design != null }}")
-                withContext(Dispatchers.Main) {
-                    eventiApprovati.clear()
-                    eventiApprovati.addAll(eventi)
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("DEBUG_TRASFERTE", "Errore fatale nella lettura eventi: ${e.message}", e)
-            }
-        }
-    }
-
-    // NUOVE FUNZIONI PER I PREFERITI
-    fun fetchEventiPreferiti() {
-        safeScope.launch(Dispatchers.IO) {
-            try {
-                val user = supabase.auth.currentUserOrNull() ?: return@launch
-                val preferiti = supabase.postgrest["eventi_preferiti"].select { filter { eq("user_id", user.id) } }.decodeList<EventoPreferito>()
-                withContext(Dispatchers.Main) {
-                    eventiPreferiti.clear()
-                    eventiPreferiti.addAll(preferiti.map { it.evento_id })
-                }
-            } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore preferiti", e) }
-        }
-    }
-
-    fun togglePreferito(eventoId: String) {
-        safeScope.launch(Dispatchers.IO) {
-            try {
-                val user = supabase.auth.currentUserOrNull() ?: return@launch
-                if (eventiPreferiti.contains(eventoId)) {
-                    supabase.postgrest["eventi_preferiti"].delete { filter { eq("user_id", user.id); eq("evento_id", eventoId) } }
-                    withContext(Dispatchers.Main) { eventiPreferiti.remove(eventoId) }
-                } else {
-                    supabase.postgrest["eventi_preferiti"].insert(EventoPreferito(user.id, eventoId))
-                    withContext(Dispatchers.Main) { eventiPreferiti.add(eventoId) }
-                }
-            } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore toggle preferito", e) }
-        }
-    }
-
-    suspend fun accettaRichiesta(profilo: ProfiloUtente): Boolean {
-        return try {
-            supabase.postgrest["profili"].update({ set("statoRichiesta", true) }) { filter { eq("id", profilo.id) } }
-            withContext(Dispatchers.Main) { richiesteInAttesa.removeIf { it.id == profilo.id } }
-            true
-        } catch (e: Exception) {
-            android.util.Log.e("DEBUG_ACCETTA", "Errore: ${e.message}")
-            false
-        }
-    }
-
-    suspend fun rifiutaRichiesta(profiloId: String): Boolean {
-        return try {
-            val payload = """{"user_id":"$profiloId"}"""
-            supabase.functions.invoke("elimina-registrazione") {
-                setBody(payload)
-                contentType(io.ktor.http.ContentType.Application.Json)
-            }
-            withContext(Dispatchers.Main) { richiesteInAttesa.removeIf { it.id == profiloId } }
-            true
-        } catch (e: Exception) {
-            android.util.Log.e("DEBUG_RIFIUTA", "Errore: ${e.message}")
-            false
-        }
+        } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore inserimento evento", e); false }
     }
 
     suspend fun accettaEvento(eventoId: String): Boolean {
@@ -757,27 +455,114 @@ class DatabaseViewModel : ViewModel() {
     suspend fun archiviaEvento(eventoId: String): Boolean {
         return try {
             supabase.postgrest["eventi"].update({ set("stato", "concluso") }) { filter { eq("id", eventoId) } }
-            withContext(Dispatchers.Main) {
-                eventiApprovati.removeIf { it.id == eventoId }
-            }
+            withContext(Dispatchers.Main) { eventiApprovati.removeIf { it.id == eventoId } }
             true
-        } catch (e: Exception) {
-            Log.e("DatabaseViewModel", "Errore archiviazione evento", e)
-            false
-        }
+        } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore archiviazione evento", e); false }
     }
 
     suspend fun eliminaEventoDefinitivamente(eventoId: String): Boolean {
         return try {
             supabase.postgrest["eventi"].delete { filter { eq("id", eventoId) } }
-            withContext(Dispatchers.Main) {
-                eventiApprovati.removeIf { it.id == eventoId }
-            }
+            withContext(Dispatchers.Main) { eventiApprovati.removeIf { it.id == eventoId } }
             true
-        } catch (e: Exception) {
-            Log.e("DatabaseViewModel", "Errore eliminazione definitiva evento", e)
-            false
+        } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore eliminazione definitiva evento", e); false }
+    }
+
+    // ─── PREFERITI ────────────────────────────────────────────────────────────
+
+    var eventiPreferiti = mutableStateListOf<String>()
+
+    suspend fun fetchEventiPreferiti(userId: String) {
+        try {
+            val prefs = supabase.postgrest["eventi_preferiti"].select {
+                filter { eq("user_id", userId) }
+            }.decodeList<EventoPreferito>()
+            withContext(Dispatchers.Main) {
+                eventiPreferiti.clear()
+                eventiPreferiti.addAll(prefs.map { it.evento_id })
+            }
+        } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore fetch preferiti: ${e.message}") }
+    }
+
+    fun togglePreferito(eventoId: String) {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return
+        safeScope.launch(Dispatchers.IO) {
+            try {
+                if (eventiPreferiti.contains(eventoId)) {
+                    supabase.postgrest["eventi_preferiti"].delete {
+                        filter { eq("user_id", userId); eq("evento_id", eventoId) }
+                    }
+                    withContext(Dispatchers.Main) { eventiPreferiti.remove(eventoId) }
+                } else {
+                    val pref = EventoPreferito(user_id = userId, evento_id = eventoId)
+                    supabase.postgrest["eventi_preferiti"].insert(pref)
+                    withContext(Dispatchers.Main) { eventiPreferiti.add(eventoId) }
+                }
+            } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore togglePreferito: ${e.message}") }
         }
+    }
+
+    // ─── ACCOUNT E RICHIESTE ──────────────────────────────────────────────────
+
+    var isAdmin by mutableStateOf(false)
+    var ruoloAttuale by mutableStateOf(RuoloUtente.NESSUNO)
+    var profiloAttuale by mutableStateOf<ProfiloUtente?>(null)
+    var accountInAttesa by mutableStateOf(false)
+    var richiesteInAttesa = mutableStateListOf<ProfiloUtente>()
+
+    suspend fun eseguiRegistrazioneDiretta(
+        nome: String, cognome: String, nomeArte: String,
+        email: String, passwordTemp: String, telefono: String,
+        tipoAccount: String, murettoId: String?
+    ): Boolean {
+        return try {
+            val authResponse = supabase.auth.signUpWith(EmailProvider) {
+                this.email = email.trim(); this.password = passwordTemp
+            }
+            val userId = authResponse?.id ?: throw Exception("Errore creazione Auth")
+            val autoApprovato = tipoAccount == "rapper"
+            val nuovoProfilo = ProfiloUtente(id = userId, nome = nome.trim(), cognome = cognome.trim(), nome_arte = nomeArte.trim(), telefono = telefono.trim(), tipo_account = tipoAccount, muretto_id = murettoId, email = email.trim(), statoRichiesta = autoApprovato)
+            supabase.postgrest["profili"].insert(nuovoProfilo)
+            true
+        } catch (e: Exception) { Log.e("REGISTRAZIONE", "Errore: ${e.message}", e); false }
+    }
+
+    suspend fun accettaRichiesta(profilo: ProfiloUtente): Boolean {
+        return try {
+            supabase.postgrest["profili"].update({ set("statoRichiesta", true) }) { filter { eq("id", profilo.id) } }
+            withContext(Dispatchers.Main) { richiesteInAttesa.removeIf { it.id == profilo.id } }
+            true
+        } catch (e: Exception) { Log.e("DEBUG_ACCETTA", "Errore: ${e.message}"); false }
+    }
+
+    suspend fun rifiutaRichiesta(profiloId: String): Boolean {
+        return try {
+            supabase.postgrest["profili"].delete { filter { eq("id", profiloId) } }
+            withContext(Dispatchers.Main) { richiesteInAttesa.removeIf { it.id == profiloId } }
+            true
+        } catch (e: Exception) { Log.e("DEBUG_RIFIUTA", "Errore: ${e.message}"); false }
+    }
+
+    fun fetchRichiesteInAttesa() {
+        safeScope.launch(Dispatchers.IO) {
+            try {
+                val richieste = supabase.postgrest["profili"].select { filter { eq("statoRichiesta", false) } }.decodeList<ProfiloUtente>()
+                withContext(Dispatchers.Main) {
+                    richiesteInAttesa.clear(); richiesteInAttesa.addAll(richieste)
+                }
+            } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore richieste", e) }
+        }
+    }
+
+    // ─── CONTEST DESIGN / VERDETTI ────────────────────────────────────────────
+
+    suspend fun salvaImpostazioniVerdetti(eventoId: String, sistemaVoti: String, votoPubblico: Boolean, numeroGiudici: Int, codGiudici: String?, codPubblico: String?, qrPubblico: String?, linkPubblico: String?) {
+        try {
+            supabase.postgrest["contest_design"].update({
+                set("sistema_voti", sistemaVoti); set("voto_pubblico", votoPubblico); set("numero_giudici", numeroGiudici)
+                set("codici_accesso_giudici", codGiudici); set("codice_accesso_pubblico", codPubblico); set("qr_code_pubblico", qrPubblico); set("link_pubblico", linkPubblico)
+            }) { filter { eq("evento_id", eventoId) } }
+        } catch (e: Exception) { Log.e("DatabaseViewModel", "Errore salvataggio verdetti", e) }
     }
 
     // --- NUOVE FUNZIONI GENERATORI (DB REALTIME) ---
@@ -1037,22 +822,5 @@ fun BoxMC(
                 drawLine(color = Color.Red.copy(alpha = 0.8f), start = Offset(size.width, 0f), end = Offset(0f, size.height), strokeWidth = 10f)
             }
         }
-    }
-}
-
-object CryptoHelper {
-    private const val CHIAVE_SEGRETA = "MurettoPG_Secret" // Deve essere di 16 caratteri
-
-    fun encrypt(password: String): String {
-        val keySpec = SecretKeySpec(CHIAVE_SEGRETA.toByteArray(), "AES")
-
-        // Creiamo l'array di 16 byte (nasce già riempito di zeri in Kotlin)
-        val iv = javax.crypto.spec.IvParameterSpec(ByteArray(16))
-
-        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
-        cipher.init(Cipher.ENCRYPT_MODE, keySpec, iv)
-
-        val encryptedBytes = cipher.doFinal(password.toByteArray())
-        return android.util.Base64.encodeToString(encryptedBytes, android.util.Base64.NO_WRAP)
     }
 }

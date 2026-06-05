@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.launch
 import java.util.UUID
 
 @Composable
@@ -108,6 +109,7 @@ fun SchermataAllenamento(onTornaIndietro: () -> Unit, onSelezionaAllenamento: (S
 @Composable
 fun SezioneMatchmaking(font: FontFamily) {
     val databaseViewModel = LocalDatabaseViewModel.current
+    val scope = rememberCoroutineScope()
     var mostraDialogAggiunta by remember { mutableStateOf(false) }
     var nomeNuovoMc by remember { mutableStateOf("") }
 
@@ -253,20 +255,22 @@ fun SezioneMatchmaking(font: FontFamily) {
                 Button(
                     colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale),
                     onClick = {
-                        if (nomeNuovoMc.isNotBlank()) {
-                            val nome = nomeNuovoMc.trim()
-                            val esistenteInLista = databaseViewModel.tuttiMcsCloud.find { it.nome.equals(nome, ignoreCase = true) }
+                        scope.launch {
+                            if (nomeNuovoMc.isNotBlank()) {
+                                val nome = nomeNuovoMc.trim()
+                                val esistenteInLista = databaseViewModel.tuttiMcsCloud.find { it.nome.equals(nome, ignoreCase = true) }
 
-                            if (esistenteInLista == null) {
-                                val mcGlobale = databaseViewModel.cercaMcGlobale(nome)
-                                val nuovoMc = mcGlobale ?: Freestyler(System.currentTimeMillis().toString(), nome, "", if (Tema.isBarreFaul) "barre_faul" else "muretto_pg")
-                                databaseViewModel.tuttiMcsCloud.add(nuovoMc)
-                                GestoreAllenamento.mcsSelezionatiIds = GestoreAllenamento.mcsSelezionatiIds + nuovoMc.id
-                            } else {
-                                GestoreAllenamento.mcsSelezionatiIds = GestoreAllenamento.mcsSelezionatiIds + esistenteInLista.id
+                                if (esistenteInLista == null) {
+                                    val mcGlobale = databaseViewModel.cercaMcGlobale(nome)
+                                    val nuovoMc = mcGlobale ?: Freestyler(System.currentTimeMillis().toString(), nome, "", if (Tema.isBarreFaul) "barre_faul" else "muretto_pg")
+                                    databaseViewModel.tuttiMcsCloud.add(nuovoMc)
+                                    GestoreAllenamento.mcsSelezionatiIds = GestoreAllenamento.mcsSelezionatiIds + nuovoMc.id
+                                } else {
+                                    GestoreAllenamento.mcsSelezionatiIds = GestoreAllenamento.mcsSelezionatiIds + esistenteInLista.id
+                                }
+                                nomeNuovoMc = ""
+                                mostraDialogAggiunta = false
                             }
-                            nomeNuovoMc = ""
-                            mostraDialogAggiunta = false
                         }
                     }
                 ) { Text("AGGIUNGI", color = Color.White) }

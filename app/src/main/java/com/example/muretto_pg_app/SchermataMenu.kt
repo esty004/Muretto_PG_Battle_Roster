@@ -127,17 +127,17 @@ fun CardModalita(nomeModalita: String, onClick: () -> Unit) {
                 "Contest" -> R.drawable.evento_ateneo
                 else -> R.drawable.due_contro_due
             }
-            MurettoAttivo.FORTITUDO -> when (nomeModalita) {
-                "Muretto classico" -> R.drawable.muretto_classico_fortitudo
-                "2 VS 2" -> R.drawable.due_contro_due_fortitudo
-                "Contest" -> R.drawable.evento_fortitudo
-                else -> R.drawable.muretto_classico_fortitudo
-            }
             MurettoAttivo.BARRE_FAUL -> when (nomeModalita) {
                 "Muretto classico" -> R.drawable.muretto_classico_barre_faul
                 "2 VS 2" -> R.drawable.due_contro_due_barre_faul
                 "Contest" -> R.drawable.evento_barre_faul
                 else -> R.drawable.muretto_classico
+            }
+            MurettoAttivo.GROSSETO -> when (nomeModalita) {
+                "Muretto classico" -> R.drawable.muretto_classico_grosseto
+                "2 VS 2" -> R.drawable.due_contro_due_grosseto
+                "Contest" -> R.drawable.evento // Immagine di un altro muretto (PG)
+                else -> R.drawable.muretto_classico_grosseto
             }
             MurettoAttivo.PG -> when (nomeModalita) {
                 "Muretto classico" -> R.drawable.muretto_classico

@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import java.util.UUID
 
 @Composable
@@ -36,6 +37,7 @@ fun SchermataOttavi(
 ) {
     val databaseViewModel = LocalDatabaseViewModel.current
     val MioFont = FontFamily(Font(R.font.komtit__))
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val listaRounds = GestoreBattle.roundsAttuali
     val tuttiFiniti = listaRounds.isNotEmpty() && listaRounds.all { it.completato }
@@ -122,24 +124,26 @@ fun SchermataOttavi(
             },
             confirmButton = {
                 Button(colors = ButtonDefaults.buttonColors(containerColor = Tema.colorePrincipale), onClick = {
-                    if (nomeNuovoMc.isNotBlank()) {
-                        val nome = nomeNuovoMc.trim()
+                    scope.launch {
+                        if (nomeNuovoMc.isNotBlank()) {
+                            val nome = nomeNuovoMc.trim()
 
-                        // --- MECCANICA GLOBALE (Aggiunta in corsa) ---
-                        val mcGlobale = databaseViewModel.cercaMcGlobale(nome)
-                        val nuovoMembro = mcGlobale ?: Freestyler(UUID.randomUUID().toString(), nome, "", Tema.ottieniIdMurettoAttivo())
-                        val roundAperti = GestoreBattle.roundsAttuali.filter { !it.completato }
-                        if (roundAperti.isNotEmpty()) {
-                            val roundPiuVuoto = roundAperti.minByOrNull { it.partecipanti.size }
-                            val indice = GestoreBattle.roundsAttuali.indexOfFirst { it.id == roundPiuVuoto?.id }
-                            if (indice != -1) {
-                                val roundModificato = GestoreBattle.roundsAttuali[indice].copy(partecipanti = GestoreBattle.roundsAttuali[indice].partecipanti + nuovoMembro)
-                                GestoreBattle.roundsAttuali[indice] = roundModificato
+                            // --- MECCANICA GLOBALE (Aggiunta in corsa) ---
+                            val mcGlobale = databaseViewModel.cercaMcGlobale(nome)
+                            val nuovoMembro = mcGlobale ?: Freestyler(UUID.randomUUID().toString(), nome, "", Tema.ottieniIdMurettoAttivo())
+                            val roundAperti = GestoreBattle.roundsAttuali.filter { !it.completato }
+                            if (roundAperti.isNotEmpty()) {
+                                val roundPiuVuoto = roundAperti.minByOrNull { it.partecipanti.size }
+                                val indice = GestoreBattle.roundsAttuali.indexOfFirst { it.id == roundPiuVuoto?.id }
+                                if (indice != -1) {
+                                    val roundModificato = GestoreBattle.roundsAttuali[indice].copy(partecipanti = GestoreBattle.roundsAttuali[indice].partecipanti + nuovoMembro)
+                                    GestoreBattle.roundsAttuali[indice] = roundModificato
+                                }
                             }
-                        }
 
-                        nomeNuovoMc = ""
-                        mostraDialogAggiunta = false
+                            nomeNuovoMc = ""
+                            mostraDialogAggiunta = false
+                        }
                     }
                 }) { Text("Aggiungi", color = Color.White) }
             },
