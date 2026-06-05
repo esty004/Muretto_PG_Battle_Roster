@@ -39,7 +39,7 @@ fun SchermataNotifiche(onTornaIndietro: () -> Unit, onNavigate: (String) -> Unit
     val contestInAttesa = databaseViewModel.eventiInAttesa.filter { it.contest_design != null }
     val contestInDelega = StatoDelegaContest.lista
     var tabSelezionata by remember { mutableIntStateOf(0) }
-    var richiestaSelezionata by remember { mutableStateOf<RichiestaAccount?>(null) }
+    var richiestaSelezionata by remember { mutableStateOf<ProfiloUtente?>(null) }
     var eventoSelezionato by remember { mutableStateOf<Evento?>(null) }
 
     LaunchedEffect(Unit) {
@@ -113,10 +113,10 @@ fun SchermataNotifiche(onTornaIndietro: () -> Unit, onNavigate: (String) -> Unit
     }
 }
 
-// ─── CARDS ───────────────────────────────────────────────────────────────────
+// ─── CARDS ────────────────────────────────Fprofilo───────────────────────────────────
 
 @Composable
-fun CardRichiesta(richiesta: RichiestaAccount, onClick: () -> Unit) {
+fun CardRichiesta(richiesta: ProfiloUtente, onClick: () -> Unit) {
     val etichettaTipo = when (richiesta.tipo_account) { "organizzatore_muretto" -> "Org. Muretto"; "organizzatore_eventi" -> "Org. Eventi"; else -> richiesta.tipo_account }
     val coloreTipo = when (richiesta.tipo_account) { "organizzatore_muretto" -> Color(0xFFD32F2F); "organizzatore_eventi" -> Color(0xFF1E88E5); else -> Color.Gray }
     Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).border(2.dp, Color(0xFF333333), RoundedCornerShape(16.dp)).background(Color(0xFF222222)).clickable { onClick() }.padding(16.dp)) {
@@ -161,7 +161,7 @@ fun CardEventoInAttesa(evento: Evento, isContest: Boolean = false, onClick: () -
 // ─── DIALOGS ─────────────────────────────────────────────────────────────────
 
 @Composable
-fun DialogDettaglioRichiesta(richiesta: RichiestaAccount, onDismiss: () -> Unit, onChiudi: () -> Unit) {
+fun DialogDettaglioRichiesta(richiesta: ProfiloUtente, onDismiss: () -> Unit, onChiudi: () -> Unit) {
     val databaseViewModel = LocalDatabaseViewModel.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()

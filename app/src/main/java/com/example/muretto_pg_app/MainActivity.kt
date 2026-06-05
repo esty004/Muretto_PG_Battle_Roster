@@ -369,6 +369,17 @@ fun AppNavigation() {
                     onTornaIndietro = { navController.popBackStack() }
                 )
             }
+
+            composable("battle_live/{eventoId}/{ruolo}") { backStackEntry ->
+                val id = backStackEntry.arguments?.getString("eventoId") ?: ""
+                val ruolo = backStackEntry.arguments?.getString("ruolo") ?: "spettatore"
+                SchermataBattleLive(
+                    eventoId = id,
+                    ruolo = ruolo,
+                    onEsci = { navController.popBackStack() },
+                    onProssimaFase = { navController.navigate("builder_contest/$id") }
+                )
+            }
         }
 
         val schermateSenzaPlayer = setOf("home", "benvenuto", "benvenuto_barre_faul", "mappa", "login", "aggiungi_mc", "aggiungi_evento", "trasferte", "trasferte_preferite", "mappa_trasferte", "registrazione", "gestione_mcs", "modifica_mc")

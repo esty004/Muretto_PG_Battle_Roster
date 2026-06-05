@@ -249,20 +249,19 @@ fun SchermataCreaContest(onTornaIndietro: () -> Unit) {
                                         contentAlignment = Alignment.Center
                                     ) { Text(stile, color = if (isSelezionato) Color.White else Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold, fontSize = 14.sp) }
                                 }
-                                if (stileSelezionato == "DELEGA") {
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    OutlinedTextField(
-                                        value = descrizioneDelega,
-                                        onValueChange = { descrizioneDelega = it },
-                                        label = { Text("Descrivi come vuoi lo stile", color = Tema.coloreTestoSecondario) },
-                                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, focusedBorderColor = Tema.colorePrincipale),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        minLines = 2
-                                    )
-                                    Text("Un admin riceverà la richiesta nelle notifiche e imposterà lo stile.", color = Tema.coloreTestoSecondario, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
-                                }
                             }
-
+                            if (stileSelezionato == "DELEGA") {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                OutlinedTextField(
+                                    value = descrizioneDelega,
+                                    onValueChange = { descrizioneDelega = it },
+                                    label = { Text("Descrivi come vuoi lo stile", color = Tema.coloreTestoSecondario) },
+                                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Tema.coloreTesto, unfocusedTextColor = Tema.coloreTesto, focusedBorderColor = Tema.colorePrincipale),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    minLines = 2
+                                )
+                                Text("Un admin riceverà la richiesta nelle notifiche e imposterà lo stile.", color = Tema.coloreTestoSecondario, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                            }
                             // 3. PANNELLO STILE CUSTOM
                             AnimatedVisibility(visible = stileSelezionato == "CUSTOM", enter = expandVertically(), exit = shrinkVertically()) {
                                 Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp).clip(RoundedCornerShape(16.dp)).background(Color.DarkGray.copy(alpha = 0.3f)).border(2.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp)).padding(16.dp)) {

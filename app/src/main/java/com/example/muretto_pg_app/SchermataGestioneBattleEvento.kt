@@ -237,8 +237,10 @@ fun SchermataGestioneBattleEvento(
 
                                     Button(
                                         onClick = {
-                                            // TODO PARTE QUATTRO: avvio live, voti giudici/pubblico, calcolo verdetto
-                                            scope.launch { GestoreContestBattle.salvaSulCloud(databaseViewModel.supabase, "iniziato") }
+                                            scope.launch {
+                                                GestoreContestBattle.salvaSulCloud(databaseViewModel.supabase, "iniziato")
+                                                onNavigate("battle_live/$eventoId/organizzatore")
+                                            }
                                         },
                                         enabled = GestoreContestBattle.stato == "configurato",
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50), disabledContainerColor = Color.DarkGray),

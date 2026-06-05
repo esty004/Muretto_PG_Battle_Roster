@@ -144,7 +144,9 @@ data class ProfiloUtente(
     val nome_arte: String = "",
     val telefono: String = "",
     val tipo_account: String = "",
-    val muretto_id: String? = null
+    val muretto_id: String? = null,
+    val email: String = "",
+    val statoRichiesta: Boolean = false   // true = approvato, false = in attesa
 )
 
 @Serializable
@@ -284,8 +286,9 @@ class DatabaseViewModel : ViewModel() {
     var isAdmin by mutableStateOf(false)
     var ruoloAttuale by mutableStateOf(RuoloUtente.NESSUNO)
     var profiloAttuale by mutableStateOf<ProfiloUtente?>(null)
+    var accountInAttesa by mutableStateOf(false)   // true se loggato ma non ancora approvato
 
-    var richiesteInAttesa = mutableStateListOf<RichiestaAccount>()
+    var richiesteInAttesa = mutableStateListOf<ProfiloUtente>()
     var eventiInAttesa = mutableStateListOf<Evento>()
     var eventiApprovati = mutableStateListOf<Evento>()
 
@@ -374,11 +377,18 @@ class DatabaseViewModel : ViewModel() {
                 if (profiliJson.isNotEmpty()) {
                     val profilo = profiliJson[0]
                     profiloAttuale = profilo
-                    ruoloAttuale = when (profilo.tipo_account) {
-                        "organizzatore_muretto" -> RuoloUtente.ORGANIZZATORE_MURETTO
-                        "organizzatore_eventi" -> RuoloUtente.ORGANIZZATORE_EVENTI
-                        "rapper" -> RuoloUtente.RAPPER
-                        else -> RuoloUtente.NESSUNO
+                    if (!profilo.statoRichiesta) {
+                        // account creato ma non ancora approvato dall'admin
+                        accountInAttesa = true
+                        ruoloAttuale = RuoloUtente.NESSUNO
+                    } else {
+                        accountInAttesa = false
+                        ruoloAttuale = when (profilo.tipo_account) {
+                            "organizzatore_muretto" -> RuoloUtente.ORGANIZZATORE_MURETTO
+                            "organizzatore_eventi" -> RuoloUtente.ORGANIZZATORE_EVENTI
+                            "rapper" -> RuoloUtente.RAPPER
+                            else -> RuoloUtente.NESSUNO
+                        }
                     }
                 } else {
                     ruoloAttuale = RuoloUtente.NESSUNO
@@ -588,10 +598,10 @@ class DatabaseViewModel : ViewModel() {
             )
 
             // Proviamo l'inserimento
-            supabase.postgrest["richieste_account"].insert(richiesta)
-
-            android.util.Log.d("DEBUG_REGISTRAZIONE", "Richiesta inviata con successo!")
-            true
+            // NON inseriamo più in 'richieste_account' (tabella rimossa).
+            // Creiamo subito l'account: la Edge Function imposta statoRichiesta=false
+            // perché il ruolo non è 'rapper'.
+            eseguiRegistrazioneSicura(richiesta)
         } catch (e: Exception) {
             // QUESTO LOG TI DIRÀ PERCHÉ FALLISCE (es: permessi mancanti o colonne errate)
             android.util.Log.e("DEBUG_REGISTRAZIONE", "FALLIMENTO: ${e.message}")
@@ -631,7 +641,7 @@ class DatabaseViewModel : ViewModel() {
     fun fetchRichiesteInAttesa() {
         safeScope.launch(Dispatchers.IO) {
             try {
-                val richieste = supabase.postgrest["richieste_account"].select { filter { eq("stato", "in_attesa") } }.decodeList<RichiestaAccount>()
+                val richieste = supabase.postgrest["profili"].select { filter { eq("statoRichiesta", false) } }.decodeList<ProfiloUtente>()
                 withContext(Dispatchers.Main) {
                     richiesteInAttesa.clear()
                     richiesteInAttesa.addAll(richieste)
@@ -662,6 +672,7 @@ class DatabaseViewModel : ViewModel() {
                 val eventi = supabase.postgrest["eventi"]
                     .select(columns = Columns.raw("*, contest_design(*)")) { filter { eq("stato", "approvato") } }
                     .decodeList<Evento>()
+                android.util.Log.e("DEBUG_CONTEST", "approvati=${eventi.size}, con_design=${eventi.count { it.contest_design != null }}")
                 withContext(Dispatchers.Main) {
                     eventiApprovati.clear()
                     eventiApprovati.addAll(eventi)
@@ -701,48 +712,30 @@ class DatabaseViewModel : ViewModel() {
         }
     }
 
-    suspend fun accettaRichiesta(richiesta: RichiestaAccount): Boolean {
-        android.util.Log.d("DEBUG_ACCETTA", "Inizio per: ${richiesta.email}")
-
-        // Chiamiamo la funzione sicura
-        val successoAuth = eseguiRegistrazioneSicura(richiesta)
-
-        // Se fallisce ma NON è per colpa dell'email già registrata, allora ci fermiamo
-        if (!successoAuth) {
-            // Qui potresti aggiungere un controllo più fine, ma per ora
-            // facciamo in modo che l'admin possa comunque provare a forzare
-            // l'aggiornamento dello stato se vede che il profilo esiste già.
-            android.util.Log.e("DEBUG_ACCETTA", "Il server ha dato errore. Controllo se devo comunque chiudere la notifica...")
-        }
-
+    suspend fun accettaRichiesta(profilo: ProfiloUtente): Boolean {
         return try {
-            // FORZIAMO l'aggiornamento dello stato sul DB
-            // Se l'admin preme "Accetta", vogliamo che la notifica sparisca comunque
-            supabase.postgrest["richieste_account"].update(
-                { set("stato", "accettata") }
-            ) {
-                filter { eq("id", richiesta.id) }
-            }
-
-            // Rimuoviamo dalla lista locale per far sparire il Dialog
-            withContext(Dispatchers.Main) {
-                richiesteInAttesa.removeIf { it.id == richiesta.id }
-            }
-
-            android.util.Log.d("DEBUG_ACCETTA", "Notifica aggiornata con successo.")
+            supabase.postgrest["profili"].update({ set("statoRichiesta", true) }) { filter { eq("id", profilo.id) } }
+            withContext(Dispatchers.Main) { richiesteInAttesa.removeIf { it.id == profilo.id } }
             true
         } catch (e: Exception) {
-            android.util.Log.e("DEBUG_ACCETTA", "Errore finale DB: ${e.message}")
+            android.util.Log.e("DEBUG_ACCETTA", "Errore: ${e.message}")
             false
         }
     }
 
-    suspend fun rifiutaRichiesta(richiestaId: String): Boolean {
+    suspend fun rifiutaRichiesta(profiloId: String): Boolean {
         return try {
-            supabase.postgrest["richieste_account"].update({ set("stato", "rifiutata") }) { filter { eq("id", richiestaId) } }
-            withContext(Dispatchers.Main) { richiesteInAttesa.removeIf { it.id == richiestaId } }
+            val payload = """{"user_id":"$profiloId"}"""
+            supabase.functions.invoke("elimina-registrazione") {
+                setBody(payload)
+                contentType(io.ktor.http.ContentType.Application.Json)
+            }
+            withContext(Dispatchers.Main) { richiesteInAttesa.removeIf { it.id == profiloId } }
             true
-        } catch (e: Exception) { false }
+        } catch (e: Exception) {
+            android.util.Log.e("DEBUG_RIFIUTA", "Errore: ${e.message}")
+            false
+        }
     }
 
     suspend fun accettaEvento(eventoId: String): Boolean {
