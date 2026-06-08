@@ -62,6 +62,7 @@ import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.gotrue.providers.builtin.Email as EmailProvider
 import io.ktor.util.InternalAPI
+import kotlinx.serialization.SerialName
 import java.util.UUID
 import java.net.HttpURLConnection
 import java.net.URL
@@ -69,34 +70,45 @@ import org.json.JSONObject
 
 // ─── TEMA E RUOLI ─────────────────────────────────────────────────────────────
 
-enum class MurettoAttivo { PG, BARRE_FAUL, ATENEO, GROSSETO }
+enum class MurettoAttivo { PG, BARRE_FAUL, ATENEO, GROSSETO, FORTITUDO}
 
 object Tema {
     var murettoSelezionato by mutableStateOf(MurettoAttivo.PG)
+    // Muretto caricato dal DB: se valorizzato, i suoi dati VINCONO sui fallback storici
+    var murettoCorrente by mutableStateOf<Muretto?>(null)
 
     val isBarreFaul get() = murettoSelezionato == MurettoAttivo.BARRE_FAUL
     val isAteneo get() = murettoSelezionato == MurettoAttivo.ATENEO
     val isGrosseto get() = murettoSelezionato == MurettoAttivo.GROSSETO
+    val isFortitudo get() = murettoSelezionato == MurettoAttivo.FORTITUDO
+    private fun hex(s: String?): Color? = try {
+        if (s.isNullOrBlank()) null else Color(android.graphics.Color.parseColor(s))
+    } catch (e: Exception) { null }
 
-    val colorePrincipale: Color get() = when (murettoSelezionato) {
-        MurettoAttivo.BARRE_FAUL -> Color(0xFF1E88E5) // Blu
-        MurettoAttivo.ATENEO -> Color(0xFFFF9800)     // Arancione
-        MurettoAttivo.GROSSETO -> Color(0xFFB71C1C)   // Rosso Grosseto
-        MurettoAttivo.PG -> Color(0xFFD32F2F)         // Rosso
+    // --- FALLBACK dei 4 muretti storici (drawable/colori dentro l'APK) ---
+    private val colorePrincipaleFallback: Color get() = when (murettoSelezionato) {
+        MurettoAttivo.BARRE_FAUL -> Color(0xFF1E88E5)
+        MurettoAttivo.ATENEO -> Color(0xFFFF9800)
+        MurettoAttivo.GROSSETO -> Color(0xFFB71C1C)
+        MurettoAttivo.PG -> Color(0xFFD32F2F)
+        MurettoAttivo.FORTITUDO -> Color(0xFFFFD600) // Giallo Fortitudo
     }
+
+    // --- COLORI (dal DB se c'è il muretto, altrimenti fallback) ---
+    val colorePrincipale: Color get() = hex(murettoCorrente?.colore_cornici) ?: colorePrincipaleFallback
+    val coloreBottoni: Color get() = hex(murettoCorrente?.colore_bottoni) ?: colorePrincipale
 
     val coloreSfondo: Color get() = when (murettoSelezionato) {
         MurettoAttivo.BARRE_FAUL -> Color(0xFFDCDCDC)
         else -> Color.Black
     }
-
     val coloreSfondoCard: Color get() = when (murettoSelezionato) {
         MurettoAttivo.BARRE_FAUL -> Color(0xFFF5F5F5)
         MurettoAttivo.ATENEO -> Color(0xFF1E1E1E)
         MurettoAttivo.GROSSETO -> Color(0xFF111111)
         MurettoAttivo.PG -> Color(0xFF111111)
+        MurettoAttivo.FORTITUDO -> Color(0xFF111111)
     }
-
     val coloreTesto: Color get() = if (murettoSelezionato == MurettoAttivo.BARRE_FAUL) Color.Black else Color.White
     val coloreTestoSecondario: Color get() = if (murettoSelezionato == MurettoAttivo.BARRE_FAUL) Color.DarkGray else Color.Gray
 
@@ -104,29 +116,59 @@ object Tema {
         get() = when (murettoSelezionato) {
             MurettoAttivo.BARRE_FAUL -> Brush.horizontalGradient(colors = listOf(Color(0xFF002244), Color(0xFF004488)))
             MurettoAttivo.ATENEO -> Brush.horizontalGradient(colors = listOf(Color(0xFF4A2B00), Color(0xFF804D00)))
-            MurettoAttivo.GROSSETO -> Brush.horizontalGradient(colors = listOf(Color(0xFF4B0000), Color(0xFF8B0000))) // Rosso Grosseto
+            MurettoAttivo.GROSSETO -> Brush.horizontalGradient(colors = listOf(Color(0xFF4B0000), Color(0xFF8B0000)))
             MurettoAttivo.PG -> Brush.horizontalGradient(colors = listOf(Color(0xFF3A0000), Color(0xFF00003A)))
+            MurettoAttivo.FORTITUDO -> Brush.horizontalGradient(colors = listOf(Color(0xFF3A3A00), Color(0xFF5C4D00)))
         }
 
+    // --- SFONDO GENERALE: drawable di fallback (usato finché non c'è l'URL) ---
     val sfondoGenerale: Int get() = when (murettoSelezionato) {
         MurettoAttivo.BARRE_FAUL -> R.drawable.sfondo_barre_faul
         MurettoAttivo.ATENEO -> R.drawable.sfondo_ateneo
         MurettoAttivo.GROSSETO -> R.drawable.muretto_classico_grosseto
         MurettoAttivo.PG -> R.drawable.sfondo_muretto_classico
+        MurettoAttivo.FORTITUDO -> R.drawable.sfondo_fortitudo
     }
 
-    // Helper per ottenere l'UUID del DB al volo
-    fun ottieniIdMurettoAttivo(): String = when (murettoSelezionato) {
+    // --- URL dal DB (li useremo per gli sfondi nello stadio 2c) ---
+    val sfondoGeneraleUrl: String? get() = murettoCorrente?.sfondo_url
+    val sfondoInizialeUrl: String? get() = murettoCorrente?.sfondo_iniziale_url
+    val sfondoCardMurettoUrl: String? get() = murettoCorrente?.sfondo_card_muretto_url
+    val sfondoCard2v2Url: String? get() = murettoCorrente?.sfondo_card_2v2_url
+    val sfondoCardContestUrl: String? get() = murettoCorrente?.sfondo_card_contest_url
+
+    // ID del muretto attivo: preferisci quello DB, altrimenti i 4 storici
+    fun ottieniIdMurettoAttivo(): String = murettoCorrente?.id ?: when (murettoSelezionato) {
         MurettoAttivo.BARRE_FAUL -> "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e"
-        MurettoAttivo.ATENEO -> "INSERISCI-QUI-UUID-ATENEO"
+        MurettoAttivo.ATENEO -> "d20af410-652c-4d91-ab62-3aae3b2a8db2"
         MurettoAttivo.GROSSETO -> "34f6c62b-6d81-46ed-9d64-ec0a5ee02e82"
+        MurettoAttivo.FORTITUDO -> "22ea8a2f-d45d-40b2-a6ee-841058f12f99"
         MurettoAttivo.PG -> "09fbe1d3-0022-41b8-ba4b-edc887c145a2"
+    }
+
+    // Seleziona un muretto del DB: imposta il corrente e mappa l'enum (per i fallback drawable)
+    fun selezionaMuretto(m: Muretto?) {
+        murettoCorrente = m
+        if (m != null) {
+            murettoSelezionato = when {
+                m.name.contains("Barre", true) -> MurettoAttivo.BARRE_FAUL
+                m.name.contains("Ateneo", true) -> MurettoAttivo.ATENEO
+                m.name.contains("Grosseto", true) -> MurettoAttivo.GROSSETO
+                m.name.contains("Fortitudo", true) -> MurettoAttivo.FORTITUDO
+                else -> MurettoAttivo.PG
+            }
+        }
     }
 }
 
 enum class RuoloUtente { NESSUNO, ADMIN, ORGANIZZATORE_MURETTO, ORGANIZZATORE_EVENTI, RAPPER }
 
 // ─── MODELLI DATI ─────────────────────────────────────────────────────────────
+@Serializable
+data class Amministratore(
+    val id: String = "",
+    val created_at: String? = null
+)
 
 @Serializable
 data class Freestyler(
@@ -209,6 +251,49 @@ data class Topic(val valore: String, val parole_vietate: String? = null)
 @Serializable
 data class Mode(val valore: String)
 
+@Serializable
+data class Muretto(
+    val id: String = "",
+    val name: String = "",
+    val meeting_schedule: String? = null,
+    val description: String? = null,
+    val instagram: String? = null,
+    val location: String? = null,
+    @SerialName("immagineURL") val immagineURL: String? = null, // logo
+    val sfondo_iniziale_url: String? = null,
+    val sfondo_url: String? = null,
+    val sfondo_card_muretto_url: String? = null,
+    val sfondo_card_2v2_url: String? = null,
+    val sfondo_card_contest_url: String? = null,
+    val colore_cornici: String? = null,
+    val colore_bottoni: String? = null,
+    val lat: Double? = null,
+    val lng: Double? = null,
+    val pin_url: String? = null,
+    val scala_pin: Float? = 1.0f
+)
+
+@Serializable
+data class MurettoInsert(
+    val name: String,
+    val meeting_schedule: String? = null,
+    val description: String? = null,
+    val instagram: String? = null,
+    val location: String? = null,
+    @SerialName("immagineURL") val immagineURL: String? = null,
+    val sfondo_iniziale_url: String? = null,
+    val sfondo_url: String? = null,
+    val sfondo_card_muretto_url: String? = null,
+    val sfondo_card_2v2_url: String? = null,
+    val sfondo_card_contest_url: String? = null,
+    val colore_cornici: String? = null,
+    val colore_bottoni: String? = null,
+    val lat: Double? = null,
+    val lng: Double? = null,
+    val pin_url: String? = null,
+    val scala_pin: Float? = 1.0f
+)
+
 // ─── DATABASE E SUPABASE SICURO ───────────────────────────────────────────────
 
 data class DatabaseUiState(
@@ -276,25 +361,66 @@ class DatabaseViewModel : ViewModel() {
 
     suspend fun controllaRuolo() {
         try {
-            val user = supabase.auth.currentUserOrNull() ?: return
+            val user = supabase.auth.currentUserOrNull()
+            if (user == null) {
+                withContext(Dispatchers.Main) {
+                    isAdmin = false
+                    ruoloAttuale = RuoloUtente.NESSUNO
+                    profiloAttuale = null
+                    accountInAttesa = false
+                }
+                return
+            }
+
+            // 1) Sei admin? -> riga in 'amministratori' con il tuo id
+            val isAdminDb = supabase.postgrest["amministratori"].select {
+                filter { eq("id", user.id) }
+            }.decodeList<Amministratore>().isNotEmpty()
+
+            if (isAdminDb) {
+                withContext(Dispatchers.Main) {
+                    isAdmin = true
+                    ruoloAttuale = RuoloUtente.ADMIN
+                    accountInAttesa = false
+                }
+                fetchRichiesteInAttesa()
+                fetchEventiInAttesa()
+                return
+            }
+
+            // 2) Altrimenti leggi il profilo per gli altri ruoli
             val profilo = supabase.postgrest["profili"].select {
                 filter { eq("id", user.id) }
-            }.decodeSingle<ProfiloUtente>()
+            }.decodeList<ProfiloUtente>().firstOrNull()
 
             withContext(Dispatchers.Main) {
-                profiloAttuale = profilo
-                ruoloAttuale = when (profilo.tipo_account) {
-                    "admin" -> RuoloUtente.ADMIN
-                    "organizzatore_muretto" -> RuoloUtente.ORGANIZZATORE_MURETTO
-                    "organizzatore_eventi" -> RuoloUtente.ORGANIZZATORE_EVENTI
-                    "rapper" -> RuoloUtente.RAPPER
-                    else -> RuoloUtente.NESSUNO
+                isAdmin = false
+                if (profilo == null) {
+                    profiloAttuale = null
+                    ruoloAttuale = RuoloUtente.NESSUNO
+                    accountInAttesa = false
+                } else {
+                    profiloAttuale = profilo
+                    if (!profilo.statoRichiesta) {
+                        accountInAttesa = true
+                        ruoloAttuale = RuoloUtente.NESSUNO
+                    } else {
+                        accountInAttesa = false
+                        ruoloAttuale = when (profilo.tipo_account) {
+                            "organizzatore_muretto" -> RuoloUtente.ORGANIZZATORE_MURETTO
+                            "organizzatore_eventi" -> RuoloUtente.ORGANIZZATORE_EVENTI
+                            "rapper" -> RuoloUtente.RAPPER
+                            else -> RuoloUtente.NESSUNO
+                        }
+                    }
                 }
-                isAdmin = ruoloAttuale == RuoloUtente.ADMIN
-                accountInAttesa = !profilo.statoRichiesta
             }
         } catch (e: Exception) {
             Log.e("DatabaseViewModel", "Errore controllaRuolo: ${e.message}")
+            withContext(Dispatchers.Main) {
+                isAdmin = false
+                ruoloAttuale = RuoloUtente.NESSUNO
+            }
         }
     }
 
@@ -345,6 +471,66 @@ class DatabaseViewModel : ViewModel() {
         } catch (e: Exception) { false }
     }
 
+    fun fetchMuretti() {
+        safeScope.launch(Dispatchers.IO) {
+            try {
+                val lista = supabase.postgrest["muretti"].select().decodeList<Muretto>()
+                withContext(Dispatchers.Main) { murettiCloud.clear(); murettiCloud.addAll(lista) }
+            } catch (e: Exception) { android.util.Log.e("MURETTI", "Errore fetch: ${e.message}", e) }
+        }
+    }
+
+    /** Crea un muretto caricando tutte le immagini sul bucket pubblico 'immagini'.
+     *  `immagini` ha chiavi: logo, pin, sfondo_iniziale, sfondo, card_muretto, card_2v2, card_contest. */
+    suspend fun creaMuretto(
+        nome: String, descrizione: String?, instagram: String?, orari: String?, location: String?,
+        lat: Double?, lng: Double?, scalaPin: Float,
+        coloreCornici: String?, coloreBottoni: String?,
+        immagini: Map<String, ByteArray>
+    ): Boolean {
+        return try {
+            val bucket = supabase.storage["Muretti"]   // <-- bucket dedicato, M maiuscola
+            // mappa: chiave logica -> sottocartella nel bucket
+            val cartelle = mapOf(
+                "logo" to "loghi",
+                "pin" to "pin_muretti",
+                "sfondo_iniziale" to "schermate_muretti",
+                "sfondo" to "sfondi_muretti",
+                "card_muretto" to "sfondi_card/muretto_classico",
+                "card_2v2" to "sfondi_card/2 VS 2",
+                "card_contest" to "sfondi_card/contest"
+            )
+            suspend fun up(key: String): String? {
+                val b = immagini[key] ?: return null
+                val cartella = cartelle[key] ?: return null
+                val path = "$cartella/${key}_${UUID.randomUUID()}.png"
+                bucket.upload(path, b, upsert = true)
+                return bucket.publicUrl(path)
+            }
+            val nuovo = MurettoInsert(
+                name = nome.trim(),
+                description = descrizione?.ifBlank { null },
+                instagram = instagram?.ifBlank { null },
+                meeting_schedule = orari?.ifBlank { null },
+                location = location?.ifBlank { null },
+                lat = lat, lng = lng, scala_pin = scalaPin,
+                colore_cornici = coloreCornici, colore_bottoni = coloreBottoni,
+                immagineURL = up("logo"),
+                pin_url = up("pin"),
+                sfondo_iniziale_url = up("sfondo_iniziale"),
+                sfondo_url = up("sfondo"),
+                sfondo_card_muretto_url = up("card_muretto"),
+                sfondo_card_2v2_url = up("card_2v2"),
+                sfondo_card_contest_url = up("card_contest")
+            )
+            supabase.postgrest["muretti"].insert(nuovo)
+            fetchMuretti()
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("MURETTI", "Errore crea: ${e.message}", e); false
+        }
+    }
+
     suspend fun aggiornaMc(mcId: String, nuovoNome: String, immagineBytes: ByteArray?): Boolean {
         return try {
             val bucket = supabase.storage["avatar_mcs"]
@@ -373,6 +559,7 @@ class DatabaseViewModel : ViewModel() {
 
     var eventiInAttesa = mutableStateListOf<Evento>()
     var eventiApprovati = mutableStateListOf<Evento>()
+    var murettiCloud = mutableStateListOf<Muretto>()
 
     suspend fun fetchEventiApprovati() {
         try {
@@ -609,7 +796,7 @@ class DatabaseViewModel : ViewModel() {
         try {
             val topicTask = async { supabase.postgrest["topics"].select().decodeList<Topic>().random().valore }
             val wordsTask = async { supabase.postgrest["common_words"].select().decodeList<Word>().shuffled().take(3).map { it.valore } }
-            
+
             Pair(topicTask.await(), wordsTask.await())
         } catch (e: Exception) {
             Pair("ERRORE", listOf("ERRORE", "ERRORE", "ERRORE"))

@@ -34,11 +34,7 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 
 @Composable
-fun SchermataGestioneBattleEvento(
-    eventoId: String,
-    onTornaIndietro: () -> Unit,
-    onNavigate: (String) -> Unit = {}     // <-- NUOVO: per aprire le schermate del builder
-) {
+fun SchermataGestioneBattleEvento(eventoId: String, onTornaIndietro: () -> Unit, onNavigate: (String) -> Unit) {
     val databaseViewModel = LocalDatabaseViewModel.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()

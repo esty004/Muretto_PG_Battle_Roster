@@ -87,12 +87,7 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
         Box(modifier = Modifier.fillMaxSize()) {
 
             // 1. --- SFONDO GLOBALE DELLA SCHERMATA (Dinamico) ---
-            Image(
-                painter = painterResource(id = Tema.sfondoGenerale),
-                contentDescription = "Sfondo Schermata",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+            SfondoSchermata(Modifier.fillMaxSize(), "Sfondo Schermata")
             // Patina scura fissa per leggere bene i contenuti esterni
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)))
 

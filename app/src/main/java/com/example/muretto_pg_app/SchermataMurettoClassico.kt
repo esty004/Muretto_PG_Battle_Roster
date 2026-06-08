@@ -88,12 +88,7 @@ fun SchermataMurettoClassico(
         Box(modifier = Modifier.fillMaxSize()) {
 
             // --- NUOVO SFONDO DINAMICO ---
-            Image(
-                painter = painterResource(id = Tema.sfondoGenerale),
-                contentDescription = "Sfondo Muretto Classico",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop // L'immagine riempirà tutto lo schermo senza deformarsi
-            )
+            SfondoSchermata(Modifier.fillMaxSize(), "Sfondo Muretto Classico")
             // Patina scura (al 50%) sopra lo sfondo per rendere leggibili i testi e le card
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
             // ---------------------------------
