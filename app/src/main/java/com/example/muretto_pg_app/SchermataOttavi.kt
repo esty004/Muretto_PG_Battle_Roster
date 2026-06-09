@@ -155,12 +155,7 @@ fun RoundCard(round: Round, onClick: () -> Unit) {
             .clickable { onClick() }
     ) {
         // 2. SFONDO CARD: L'immagine specifica sfondo_round_card (con zoom)
-        Image(
-            painter = painterResource(id = R.drawable.sfondo_round_card),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize().scale(1.2f),
-            contentScale = ContentScale.Crop
-        )
+        Box(modifier = Modifier.fillMaxSize().background(Tema.coloreSfondoCard))
         Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
 
         Column(

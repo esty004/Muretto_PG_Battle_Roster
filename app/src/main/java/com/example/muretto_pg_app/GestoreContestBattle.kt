@@ -44,8 +44,7 @@ data class StileContest(
     val coloreBottoni: Color,
     val coloreSfondoCard: Color,
     val sfondoUrl: String?,      // sfondo generale custom
-    val sfondoCardUrl: String?,  // sfondo della card del round custom
-    val sfondoRes: Int           // fallback drawable (Tema.sfondoGenerale)
+    val sfondoCardUrl: String?   // sfondo della card del round custom
 ) {
     companion object {
         private fun parseHex(hex: String?, fallback: Color): Color = try {
@@ -59,8 +58,7 @@ data class StileContest(
                 coloreBottoni = parseHex(design?.colore_primario, Tema.colorePrincipale),
                 coloreSfondoCard = Tema.coloreSfondoCard,
                 sfondoUrl = if (custom) design?.sfondo_custom_url else null,
-                sfondoCardUrl = if (custom) design?.sfondo_card_url else null,
-                sfondoRes = Tema.sfondoGenerale
+                sfondoCardUrl = if (custom) design?.sfondo_card_url else null
             )
         }
     }

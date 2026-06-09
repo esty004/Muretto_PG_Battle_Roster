@@ -99,7 +99,18 @@ class MainActivity : ComponentActivity() {
         if (!isNotificationListenerPermissionGranted(this)) {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
-
+        coil.Coil.setImageLoader(
+            coil.ImageLoader.Builder(this)
+                .crossfade(true)
+                .respectCacheHeaders(false) // serve dalla cache anche senza header/owner offline
+                .diskCache {
+                    coil.disk.DiskCache.Builder()
+                        .directory(cacheDir.resolve("image_cache"))
+                        .maxSizeBytes(300L * 1024 * 1024) // 300 MB
+                        .build()
+                }
+                .build()
+        )
         setContent {
             MaterialTheme {
                 LaunchedEffect(Unit) {
@@ -366,6 +377,7 @@ fun AppNavigation() {
             composable("gestione_muretti") {
                 SchermataGestioneMuretti(onTornaIndietro = { navController.popBackStack() })
             }
+            composable("scarica_offline") { SchermataScaricaOffline(onTornaIndietro = { navController.popBackStack() }) }
         }
 
         val schermateSenzaPlayer = setOf("home", "benvenuto", "mappa", "login", "aggiungi_mc", "aggiungi_evento", "trasferte", "trasferte_preferite", "mappa_trasferte", "registrazione", "gestione_mcs", "modifica_mc")
@@ -566,9 +578,12 @@ fun MenuLaterale(onNavigate: (String) -> Unit, onChiudi: () -> Unit, scope: kotl
                     }
                 }
             }
+        }
 
+        if (databaseViewModel.isAdmin || databaseViewModel.ruoloAttuale == RuoloUtente.ORGANIZZATORE_MURETTO) {
             MenuItem(titolo = "GESTIONE MURETTI", icona = R.drawable.add) { onNavigate("gestione_muretti") }
         }
+
         Spacer(modifier = Modifier.weight(1f))
         MenuItem(titolo = "LOGOUT", icona = R.drawable.versus, coloreTesto = Color.Red) {
             onChiudi()
@@ -580,6 +595,7 @@ fun MenuLaterale(onNavigate: (String) -> Unit, onChiudi: () -> Unit, scope: kotl
                 databaseViewModel.eventiPreferiti.clear()
             }
         }
+        MenuItem(titolo = "SCARICA OFFLINE", icona = R.drawable.add) { onNavigate("scarica_offline") }
         Spacer(modifier = Modifier.height(40.dp))
     }
 }
@@ -747,13 +763,7 @@ fun SchermataMappa(onPinClick: (String) -> Unit, onTornaIndietro: () -> Unit) {
         nome.contains("pg", true) || nome.contains("perugia", true) -> GeoPoint(43.112056, 12.388439)
         else -> null
     }
-    fun fallbackPinRes(nome: String): Int = when {
-        nome.contains("barre", true) -> R.drawable.pin_barre_faul
-        nome.contains("ateneo", true) -> R.drawable.pin_ateneo
-        nome.contains("grosseto", true) -> R.drawable.pin_grosseto
-        nome.contains("fortitudo", true) -> R.drawable.pin_fortitudo
-        else -> R.drawable.pin_muretto_pg
-    }
+    fun fallbackPinRes(nome: String): Int = R.drawable.pin_default
 
     val mapView = remember {
         MapView(ctx).apply {
@@ -835,13 +845,6 @@ fun SchermataBenvenutoMuretto(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Un
     val alphaContenuto by animateFloatAsState(targetValue = if (inTransizione) 0f else 1f, animationSpec = tween(700), finishedListener = { if (inTransizione) onVaiAlMenu() })
 
     val urlSfondo = Tema.sfondoInizialeUrl
-    val fallbackRes = when (Tema.murettoSelezionato) {
-        MurettoAttivo.BARRE_FAUL -> R.drawable.sfondo_schermata_iniziale_barre_faul
-        MurettoAttivo.ATENEO -> R.drawable.sfondo_schermata_iniziale_ateneo
-        MurettoAttivo.GROSSETO -> R.drawable.sfondo_schermata_iniziale_grosseto
-        MurettoAttivo.FORTITUDO -> R.drawable.sfondo_schermata_iniziale_fortitudo
-        MurettoAttivo.PG -> R.drawable.sfondo_schermata_iniziale
-    }
 
     Box(
         modifier = Modifier.fillMaxSize().background(Color.Black)
@@ -852,7 +855,7 @@ fun SchermataBenvenutoMuretto(onTornaIndietro: () -> Unit, onVaiAlMenu: () -> Un
             if (!urlSfondo.isNullOrBlank()) {
                 AsyncImage(model = urlSfondo, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             } else {
-                Image(painter = painterResource(id = fallbackRes), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                Box(modifier = Modifier.fillMaxSize().background(Tema.coloreSfondo))
             }
         }
         if (!inTransizione) {

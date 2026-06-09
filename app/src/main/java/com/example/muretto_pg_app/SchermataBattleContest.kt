@@ -44,9 +44,9 @@ import kotlinx.coroutines.launch
 @Composable
 private fun SfondoContest(stile: StileContest) {
     if (stile.sfondoUrl != null) {
-        AsyncImage(model = stile.sfondoUrl, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, error = painterResource(stile.sfondoRes))
+        AsyncImage(model = stile.sfondoUrl, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
     } else {
-        Image(painter = painterResource(stile.sfondoRes), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        Box(modifier = Modifier.fillMaxSize().background(Tema.coloreSfondo))
     }
     Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)))
 }
@@ -277,9 +277,9 @@ fun SchermataRosterContest(stile: StileContest, onProsegui: () -> Unit, onTornaI
 fun RoundCardContest(round: Round, stile: StileContest, onClick: () -> Unit) {
     Box(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).border(3.dp, stile.coloreCornici, RoundedCornerShape(24.dp)).clickable { onClick() }) {
         if (stile.sfondoCardUrl != null) {
-            AsyncImage(model = stile.sfondoCardUrl, contentDescription = null, modifier = Modifier.matchParentSize().scale(1.05f), contentScale = ContentScale.Crop, error = painterResource(R.drawable.sfondo_round_card))
+            AsyncImage(model = stile.sfondoCardUrl, contentDescription = null, modifier = Modifier.matchParentSize().scale(1.05f), contentScale = ContentScale.Crop)
         } else {
-            Image(painter = painterResource(id = R.drawable.sfondo_round_card), contentDescription = null, modifier = Modifier.matchParentSize().scale(1.2f), contentScale = ContentScale.Crop)
+            Box(modifier = Modifier.matchParentSize().background(stile.coloreSfondoCard))
         }
         Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.45f)))
 

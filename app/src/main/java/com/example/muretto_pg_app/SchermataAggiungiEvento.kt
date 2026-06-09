@@ -354,7 +354,7 @@ fun SchermataAggiungiEvento(onTornaIndietro: () -> Unit) {
                             val marker = Marker(map)
                             marker.position = pt
                             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                            val defaultBmp = android.graphics.BitmapFactory.decodeResource(context.resources, R.drawable.pin_muretto_pg)
+                            val defaultBmp = android.graphics.BitmapFactory.decodeResource(context.resources, R.drawable.pin_default)
                             marker.icon = android.graphics.drawable.BitmapDrawable(context.resources, android.graphics.Bitmap.createScaledBitmap(defaultBmp, 100, 70, true))
                             map.overlays.add(marker)
                             map.controller.animateTo(pt)

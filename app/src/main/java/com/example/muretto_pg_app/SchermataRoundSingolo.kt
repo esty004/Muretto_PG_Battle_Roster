@@ -126,14 +126,7 @@ fun SchermataRoundSingolo(roundId: String, onTornaIndietro: () -> Unit) {
                 ) {
 
                     // 2. --- SFONDO SPECIFICO DELLA BATTLE CARD (Cyberpunk) ---
-                    Image(
-                        painter = painterResource(id = R.drawable.sfondo_round_card),
-                        contentDescription = "Sfondo Battle",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .scale(1.2f), // ZOOM DEL 20%
-                        contentScale = ContentScale.Crop
-                    )
+                    Box(modifier = Modifier.fillMaxSize().background(Tema.coloreSfondoCard))
                     // Patina scura (leggera) per far risaltare gli MC
                     Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
 

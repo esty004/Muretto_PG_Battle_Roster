@@ -72,7 +72,7 @@ fun SchermataContest(isGlobale: Boolean, onTornaIndietro: () -> Unit, onNavigate
 
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Box(modifier = Modifier.fillMaxSize()) {
-            Image(painter = painterResource(id = Tema.sfondoGenerale), contentDescription = "Sfondo", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            SfondoSchermata(Modifier.fillMaxSize(), "Sfondo")
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)))
 
             Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {

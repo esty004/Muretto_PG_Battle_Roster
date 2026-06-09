@@ -59,14 +59,7 @@ fun SchermataTrasferte(
 
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
         Box(modifier = Modifier.fillMaxSize()) {
-
-            // --- SFONDO DINAMICO ---
-            Image(
-                painter = painterResource(id = Tema.sfondoGenerale),
-                contentDescription = "Sfondo Trasferte",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+            SfondoSchermata(Modifier.fillMaxSize(), "Sfondo Trasferte")
             // Se siamo in un muretto con gradiente speciale (es. Barre Faul) o sfondi particolari, possiamo gestire la patina
             if (Tema.isBarreFaul) {
                 Box(modifier = Modifier.fillMaxSize().background(

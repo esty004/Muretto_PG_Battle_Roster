@@ -35,12 +35,7 @@ fun SchermataEventi(onTornaIndietro: () -> Unit, onNavigate: (String) -> Unit) {
         Box(modifier = Modifier.fillMaxSize()) {
 
             // --- SFONDO DINAMICO ---
-            Image(
-                painter = painterResource(id = if (Tema.isBarreFaul) R.drawable.sfondo_barre_faul else if(Tema.isAteneo) R.drawable.sfondo_ateneo else R.drawable.sfondo_muretto_classico),
-                contentDescription = "Sfondo Menu",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+            SfondoSchermata(Modifier.fillMaxSize(), "Sfondo Menu")
             // Patina scura per leggibilità
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
 

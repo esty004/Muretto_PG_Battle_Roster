@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import coil.compose.AsyncImage
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,12 +37,7 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
         Box(modifier = Modifier.fillMaxSize()) {
 
             // --- SFONDO DINAMICO ---
-            Image(
-                painter = painterResource(id = Tema.sfondoGenerale),
-                contentDescription = "Sfondo Menu",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+            SfondoSchermata(Modifier.fillMaxSize(), "Sfondo Menu")
             // Patina scura per leggibilità
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
 
@@ -76,7 +72,7 @@ fun SchermataMenu(onTornaIndietro: () -> Unit, onSelezionaModalita: (String) -> 
 
             FloatingActionButton(
                 onClick = onTornaIndietro,
-                containerColor = Tema.colorePrincipale,
+                containerColor = Tema.coloreBottoni,
                 contentColor = Color.White,
                 shape = CircleShape,
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = 32.dp)
@@ -113,7 +109,6 @@ fun CardModalita(nomeModalita: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            // --- MODIFICA QUI: Altezza aumentata da 150.dp a 200.dp ---
             .height(200.dp)
             .clip(RoundedCornerShape(16.dp))
             .border(4.dp, Tema.colorePrincipale, RoundedCornerShape(16.dp))
@@ -121,41 +116,20 @@ fun CardModalita(nomeModalita: String, onClick: () -> Unit) {
             .clickable { onClick() },
         contentAlignment = Alignment.BottomCenter
     ) {
-        val resourceId = when (Tema.murettoSelezionato) {
-            MurettoAttivo.ATENEO -> when (nomeModalita) {
-                "Muretto classico" -> R.drawable.muretto_classico_ateneo
-                "Contest" -> R.drawable.evento_ateneo
-                else -> R.drawable.due_contro_due
-            }
-            MurettoAttivo.BARRE_FAUL -> when (nomeModalita) {
-                "Muretto classico" -> R.drawable.muretto_classico_barre_faul
-                "2 VS 2" -> R.drawable.due_contro_due_barre_faul
-                "Contest" -> R.drawable.evento_barre_faul
-                else -> R.drawable.muretto_classico
-            }
-            MurettoAttivo.GROSSETO -> when (nomeModalita) {
-                "Muretto classico" -> R.drawable.muretto_classico_grosseto
-                "2 VS 2" -> R.drawable.due_contro_due_grosseto
-                "Contest" -> R.drawable.evento // Immagine di un altro muretto (PG)
-                else -> R.drawable.muretto_classico_grosseto
-            }
-
-            MurettoAttivo.FORTITUDO -> when (nomeModalita) {
-                "Muretto classico" -> R.drawable.muretto_classico_fortitudo
-                "2 VS 2" -> R.drawable.due_contro_due_fortitudo
-                "Contest" -> R.drawable.evento_fortitudo
-                else -> R.drawable.muretto_classico_fortitudo
-            }
-
-            MurettoAttivo.PG -> when (nomeModalita) {
-                "Muretto classico" -> R.drawable.muretto_classico
-                "2 VS 2" -> R.drawable.due_contro_due
-                "Contest" -> R.drawable.evento
-                else -> R.drawable.muretto_classico
-            }
+        // 1) URL dal DB in base alla modalità
+        val urlCard = when (nomeModalita) {
+            "Muretto classico" -> Tema.sfondoCardMurettoUrl
+            "2 VS 2" -> Tema.sfondoCard2v2Url
+            "Contest" -> Tema.sfondoCardContestUrl
+            else -> null
         }
 
-        Image(painter = painterResource(id = resourceId), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        // Mostra l'immagine dal DB se c'è, altrimenti riempimento a colore pieno
+        if (!urlCard.isNullOrBlank()) {
+            AsyncImage(model = urlCard, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        } else {
+            Box(modifier = Modifier.fillMaxSize().background(Tema.colorePrincipale.copy(alpha = 0.35f)))
+        }
 
         Box(modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.6f)).padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
             Text(text = nomeModalita.uppercase(), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)

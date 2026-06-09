@@ -108,12 +108,16 @@ fun SchermataAggiungiMc(onTornaIndietro: () -> Unit) {
             // Selettore Muretto
             Text("A quale Muretto appartiene?", color = Tema.coloreTesto, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
 
-            val murettiMap = mapOf(
-                "Muretto PG" to "09fbe1d3-0022-41b8-ba4b-edc887c145a2",
-                "Barre Faul" to "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e",
-                "Fortitudo" to "22ea8a2f-d45d-40b2-a6ee-841058f12f99"
-            )
-            var nomeMurettoSelezionato by remember { mutableStateOf("Muretto PG") }
+            LaunchedEffect(Unit) { databaseViewModel.fetchMuretti() }
+            val murettiMap = databaseViewModel.murettiCloud.associate { it.name to it.id }
+            var nomeMurettoSelezionato by remember { mutableStateOf("") }
+            LaunchedEffect(databaseViewModel.murettiCloud.size) {
+                if (nomeMurettoSelezionato.isBlank() && databaseViewModel.murettiCloud.isNotEmpty()) {
+                    val primo = databaseViewModel.murettiCloud.first()
+                    nomeMurettoSelezionato = primo.name
+                    murettoSelezionatoId = primo.id
+                }
+            }
             var menuMurettoMc by remember { mutableStateOf(false) }
 
             ExposedDropdownMenuBox(expanded = menuMurettoMc, onExpandedChange = { menuMurettoMc = !menuMurettoMc }) {
@@ -160,7 +164,7 @@ fun SchermataAggiungiMc(onTornaIndietro: () -> Unit) {
                             nomeMc = ""
                             imageUri = null
                             // Aggiorna la lista globale usando l'ID numerico
-                            databaseViewModel.fetchMcsDalCloud(if (Tema.isBarreFaul) "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e" else "09fbe1d3-0022-41b8-ba4b-edc887c145a2")
+                            databaseViewModel.fetchMcsDalCloud(murettoSelezionatoId)
                         } else {
                             messaggioEsito = "Errore durante il caricamento."
                         }

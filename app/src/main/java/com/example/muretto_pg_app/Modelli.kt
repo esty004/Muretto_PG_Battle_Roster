@@ -122,13 +122,8 @@ object Tema {
         }
 
     // --- SFONDO GENERALE: drawable di fallback (usato finché non c'è l'URL) ---
-    val sfondoGenerale: Int get() = when (murettoSelezionato) {
-        MurettoAttivo.BARRE_FAUL -> R.drawable.sfondo_barre_faul
-        MurettoAttivo.ATENEO -> R.drawable.sfondo_ateneo
-        MurettoAttivo.GROSSETO -> R.drawable.muretto_classico_grosseto
-        MurettoAttivo.PG -> R.drawable.sfondo_muretto_classico
-        MurettoAttivo.FORTITUDO -> R.drawable.sfondo_fortitudo
-    }
+    // Niente più drawable per-muretto: il fallback è un colore (vedi SfondoSchermata)
+    val sfondoGenerale: Int? get() = null
 
     // --- URL dal DB (li useremo per gli sfondi nello stadio 2c) ---
     val sfondoGeneraleUrl: String? get() = murettoCorrente?.sfondo_url
@@ -309,8 +304,13 @@ class DatabaseViewModel : ViewModel() {
     private val supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2endudXhsamhieGVwbGhianplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNzUwNjQsImV4cCI6MjA5Mjk1MTA2NH0.4d9ZS_87F7LcelnJMBAdbDkbXOeE2xQ7rGSehFHtMs8"
     // DA ORA IN POI SUPABASE SI INIZIALIZZA TRAMITE LA CASSAFORTE
     lateinit var supabase: io.github.jan.supabase.SupabaseClient
-
+    var appContext: android.content.Context? = null
+    suspend fun scaricaVersioneOffline(onProgress: (String, Float) -> Unit) {
+        val ctx = appContext ?: return
+        GestoreOffline.scaricaTutto(ctx, supabase, onProgress)
+    }
     fun inizializzaSupabase(context: Context) {
+        appContext = context.applicationContext
         // 1. Creiamo la Master Key AES256
         val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
@@ -436,13 +436,16 @@ class DatabaseViewModel : ViewModel() {
                 filter { eq("muretto_id", murettoId) }
             }.decodeList<Freestyler>()
             withContext(Dispatchers.Main) {
-                listaMcsCloud.clear()
-                listaMcsCloud.addAll(mcs)
-                tuttiMcsCloud.clear()
-                tuttiMcsCloud.addAll(mcs)
+                listaMcsCloud.clear(); listaMcsCloud.addAll(mcs)
+                tuttiMcsCloud.clear(); tuttiMcsCloud.addAll(mcs)
             }
         } catch (e: Exception) {
-            Log.e("DatabaseViewModel", "Errore fetch mcs: ${e.message}")
+            // OFFLINE: leggo dalla cache locale e filtro per muretto
+            val locali = appContext?.let { GestoreOffline.caricaMcs(it) }?.filter { it.muretto_id == murettoId } ?: emptyList()
+            withContext(Dispatchers.Main) {
+                listaMcsCloud.clear(); listaMcsCloud.addAll(locali)
+                tuttiMcsCloud.clear(); tuttiMcsCloud.addAll(locali)
+            }
         }
     }
 
@@ -476,7 +479,10 @@ class DatabaseViewModel : ViewModel() {
             try {
                 val lista = supabase.postgrest["muretti"].select().decodeList<Muretto>()
                 withContext(Dispatchers.Main) { murettiCloud.clear(); murettiCloud.addAll(lista) }
-            } catch (e: Exception) { android.util.Log.e("MURETTI", "Errore fetch: ${e.message}", e) }
+            } catch (e: Exception) {
+                val locali = appContext?.let { GestoreOffline.caricaMuretti(it) } ?: emptyList()
+                withContext(Dispatchers.Main) { murettiCloud.clear(); murettiCloud.addAll(locali) }
+            }
         }
     }
 
@@ -528,6 +534,63 @@ class DatabaseViewModel : ViewModel() {
             true
         } catch (e: Exception) {
             android.util.Log.e("MURETTI", "Errore crea: ${e.message}", e); false
+        }
+    }
+
+    suspend fun aggiornaMuretto(
+        id: String,
+        nome: String, descrizione: String?, instagram: String?, orari: String?, location: String?,
+        lat: Double?, lng: Double?, scalaPin: Float,
+        coloreCornici: String?, coloreBottoni: String?,
+        nuoveImmagini: Map<String, ByteArray>   // solo quelle ricaricate
+    ): Boolean {
+        return try {
+            val bucket = supabase.storage["Muretti"]
+            val cartelle = mapOf(
+                "logo" to "loghi",
+                "pin" to "pin_muretti",
+                "sfondo_iniziale" to "schermate_muretti",
+                "sfondo" to "sfondi_muretti",
+                "card_muretto" to "sfondi_card/muretto_classico",
+                "card_2v2" to "sfondi_card/2 VS 2",
+                "card_contest" to "sfondi_card/contest"
+            )
+            suspend fun up(key: String): String? {
+                val b = nuoveImmagini[key] ?: return null
+                val cartella = cartelle[key] ?: return null
+                val path = "$cartella/${key}_${UUID.randomUUID()}.png"
+                bucket.upload(path, b, upsert = true)
+                return bucket.publicUrl(path)
+            }
+            // upload PRIMA (sono sospese, non possono stare dentro il builder update{})
+            val logoUrl = up("logo")
+            val pinUrl = up("pin")
+            val sfIniz = up("sfondo_iniziale")
+            val sfGen = up("sfondo")
+            val cardM = up("card_muretto")
+            val card2 = up("card_2v2")
+            val cardC = up("card_contest")
+
+            supabase.postgrest["muretti"].update({
+                set("description", descrizione?.ifBlank { null })
+                set("instagram", instagram?.ifBlank { null })
+                set("meeting_schedule", orari?.ifBlank { null })
+                set("location", location?.ifBlank { null })
+                set("lat", lat); set("lng", lng); set("scala_pin", scalaPin)
+                set("colore_cornici", coloreCornici); set("colore_bottoni", coloreBottoni)
+                if (logoUrl != null) set("immagineURL", logoUrl)
+                if (pinUrl != null) set("pin_url", pinUrl)
+                if (sfIniz != null) set("sfondo_iniziale_url", sfIniz)
+                if (sfGen != null) set("sfondo_url", sfGen)
+                if (cardM != null) set("sfondo_card_muretto_url", cardM)
+                if (card2 != null) set("sfondo_card_2v2_url", card2)
+                if (cardC != null) set("sfondo_card_contest_url", cardC)
+            }) { filter { eq("id", id) } }
+
+            fetchMuretti()
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("MURETTI", "Errore aggiorna: ${e.message}", e); false
         }
     }
 
@@ -756,39 +819,33 @@ class DatabaseViewModel : ViewModel() {
 
     suspend fun fetchRandomWords(quantita: Int): List<String> {
         return try {
-            // Prendiamo un pool di 200 parole e ne scegliamo X a caso
-            val result = supabase.postgrest["common_words"].select().decodeList<Word>()
-            result.shuffled().take(quantita).map { it.valore }
+            supabase.postgrest["common_words"].select().decodeList<Word>().shuffled().take(quantita).map { it.valore }
         } catch (e: Exception) {
-            Log.e("Supabase", "Errore fetch parole: ${e.message}")
-            emptyList()
+            (appContext?.let { GestoreOffline.caricaWords(it) } ?: emptyList()).shuffled().take(quantita).map { it.valore }
         }
     }
 
     suspend fun fetchRandomTopic(): String {
         return try {
-            val result = supabase.postgrest["topics"].select().decodeList<Topic>()
-            result.randomOrNull()?.valore ?: "ERRORE CARICAMENTO"
+            supabase.postgrest["topics"].select().decodeList<Topic>().randomOrNull()?.valore ?: "ERRORE CARICAMENTO"
         } catch (e: Exception) {
-            "ERRORE CONNESSIONE"
+            (appContext?.let { GestoreOffline.caricaTopics(it) } ?: emptyList()).randomOrNull()?.valore ?: "OFFLINE: scarica i dati"
         }
     }
 
     suspend fun fetchRandomMode(): String {
         return try {
-            val result = supabase.postgrest["modes"].select().decodeList<Mode>()
-            result.randomOrNull()?.valore ?: "ERRORE CARICAMENTO"
+            supabase.postgrest["modes"].select().decodeList<Mode>().randomOrNull()?.valore ?: "ERRORE CARICAMENTO"
         } catch (e: Exception) {
-            "ERRORE CONNESSIONE"
+            (appContext?.let { GestoreOffline.caricaModes(it) } ?: emptyList()).randomOrNull()?.valore ?: "OFFLINE: scarica i dati"
         }
     }
 
     suspend fun fetchRandomTaboo(): Topic? {
         return try {
-            val result = supabase.postgrest["topics"].select().decodeList<Topic>()
-            result.filter { !it.parole_vietate.isNullOrBlank() }.randomOrNull()
+            supabase.postgrest["topics"].select().decodeList<Topic>().filter { !it.parole_vietate.isNullOrBlank() }.randomOrNull()
         } catch (e: Exception) {
-            null
+            (appContext?.let { GestoreOffline.caricaTopics(it) } ?: emptyList()).filter { !it.parole_vietate.isNullOrBlank() }.randomOrNull()
         }
     }
 
@@ -796,10 +853,11 @@ class DatabaseViewModel : ViewModel() {
         try {
             val topicTask = async { supabase.postgrest["topics"].select().decodeList<Topic>().random().valore }
             val wordsTask = async { supabase.postgrest["common_words"].select().decodeList<Word>().shuffled().take(3).map { it.valore } }
-
             Pair(topicTask.await(), wordsTask.await())
         } catch (e: Exception) {
-            Pair("ERRORE", listOf("ERRORE", "ERRORE", "ERRORE"))
+            val t = (appContext?.let { GestoreOffline.caricaTopics(it) } ?: emptyList()).randomOrNull()?.valore ?: "OFFLINE"
+            val w = (appContext?.let { GestoreOffline.caricaWords(it) } ?: emptyList()).shuffled().take(3).map { it.valore }
+            Pair(t, w.ifEmpty { listOf("scarica", "i", "dati") })
         }
     }
 }

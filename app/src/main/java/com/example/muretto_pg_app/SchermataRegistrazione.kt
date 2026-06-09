@@ -46,8 +46,13 @@ fun SchermataRegistrazione(onTornaIndietro: () -> Unit) {
     var tipoAccountSelezionato by remember { mutableStateOf(tipiAccount[0]) }
     var menuTipoAperto by remember { mutableStateOf(false) }
 
-    val muretti = listOf("Muretto PG", "Barre Faul", "Ateneo", "Fortitudo")
-    var murettoSelezionato by remember { mutableStateOf(muretti[0]) }
+    LaunchedEffect(Unit) { databaseViewModel.fetchMuretti() }
+    val murettiCloud = databaseViewModel.murettiCloud
+    val muretti = murettiCloud.map { it.name }
+    var murettoSelezionato by remember { mutableStateOf("") }
+    LaunchedEffect(murettiCloud.size) {
+        if (murettoSelezionato.isBlank() && murettiCloud.isNotEmpty()) murettoSelezionato = murettiCloud.first().name
+    }
     var menuMurettoAperto by remember { mutableStateOf(false) }
 
     var staCaricando by remember { mutableStateOf(false) }
@@ -173,12 +178,7 @@ fun SchermataRegistrazione(onTornaIndietro: () -> Unit) {
                                 else -> "organizzatore_muretto"
                             }
                             val murettoDatabase = if (tipoDatabase == "organizzatore_muretto") {
-                                when (murettoSelezionato) {
-                                    "Barre Faul" -> "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e"
-                                    "Fortitudo" -> "22ea8a2f-d45d-40b2-a6ee-841058f12f99"
-                                    "Ateneo" -> "d20af410-652c-4d91-ab62-3aae3b2a8db2" // Inserisci qui l'UUID di Ateneo se ce l'hai nel DB!
-                                    else -> "09fbe1d3-0022-41b8-ba4b-edc887c145a2" // Muretto PG
-                                }
+                                murettiCloud.find { it.name == murettoSelezionato }?.id
                             } else null
 
                             val successo = databaseViewModel.eseguiRegistrazioneDiretta(

@@ -65,9 +65,9 @@ fun membriDiLato(lato: Freestyler): List<Freestyler> {
 @Composable
 private fun SfondoLive(stile: StileContest) {
     if (stile.sfondoUrl != null) {
-        coil.compose.AsyncImage(model = stile.sfondoUrl, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, error = painterResource(stile.sfondoRes))
+        coil.compose.AsyncImage(model = stile.sfondoUrl, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
     } else {
-        Image(painter = painterResource(stile.sfondoRes), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        Box(modifier = Modifier.fillMaxSize().background(Tema.coloreSfondo))
     }
     Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)))
 }

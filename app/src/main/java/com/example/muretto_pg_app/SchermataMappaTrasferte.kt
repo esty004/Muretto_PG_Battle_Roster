@@ -91,7 +91,7 @@ fun SchermataMappaTrasferte(onTornaIndietro: () -> Unit) {
                             position = GeoPoint(evento.lat, evento.lng)
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
 
-                            val defaultBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.evento)
+                            val defaultBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.pin_default)
                             // FIX: Aggiunto ?: 1.0f per evitare crash se scala_pin è null
                             icon = BitmapDrawable(context.resources, creaPinConBitmap(defaultBitmap, evento.scala_pin ?: 1.0f))
 

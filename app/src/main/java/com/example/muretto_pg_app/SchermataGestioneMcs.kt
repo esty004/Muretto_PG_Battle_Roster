@@ -29,28 +29,18 @@ fun SchermataGestioneMcs(onTornaIndietro: () -> Unit, onModificaMc: (String) -> 
     val isAdmin = databaseViewModel.isAdmin
     val murettoOrganizzatore = databaseViewModel.profiloAttuale?.muretto_id
 
-    var tabSelezionata by remember {
-        mutableIntStateOf(
-            if (isAdmin) 0
-            else when (murettoOrganizzatore) {
-                "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e" -> 1 // Barre Faul
-                "IL_TUO_UUID_DI_ATENEO" -> 2               // Ateneo (se hai messo il vero UUID nel DB)
-                "22ea8a2f-d45d-40b2-a6ee-841058f12f99" -> 3 // Fortitudo
-                else -> 0                                  // Muretto PG (Default)
-            }
-        )
-    }
+    LaunchedEffect(Unit) { databaseViewModel.fetchMuretti() }
+    val muretti = databaseViewModel.murettiCloud
 
-    // SchermataGestioneMcs.kt
-    LaunchedEffect(tabSelezionata) {
-        val murettoId = when(tabSelezionata) {
-            0 -> "09fbe1d3-0022-41b8-ba4b-edc887c145a2" // PG
-            1 -> "2d0f412c-4e9d-4eab-b886-f7a2226d7b9e" // Barre Faul
-            2 -> "INSERISCI-QUI-UUID-ATENEO"
-            3 -> "22ea8a2f-d45d-40b2-a6ee-841058f12f99" // Fortitudo
-            else -> "09fbe1d3-0022-41b8-ba4b-edc887c145a2"
-        }
-        databaseViewModel.fetchMcsDalCloud(murettoId)
+    // admin: tutti i muretti. organizzatore: solo il suo.
+    val murettiVisibili = if (isAdmin) muretti.toList()
+    else muretti.filter { it.id == murettoOrganizzatore }
+
+    var tabSelezionata by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(murettiVisibili.size, tabSelezionata) {
+        val m = murettiVisibili.getOrNull(tabSelezionata) ?: murettiVisibili.firstOrNull()
+        if (m != null) databaseViewModel.fetchMcsDalCloud(m.id)
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Tema.coloreSfondo) {
@@ -67,9 +57,8 @@ fun SchermataGestioneMcs(onTornaIndietro: () -> Unit, onModificaMc: (String) -> 
                         indicator = { tabPositions -> TabRowDefaults.SecondaryIndicator(modifier = Modifier.tabIndicatorOffset(tabPositions[tabSelezionata]), color = Tema.colorePrincipale) },
                         divider = {}
                     ) {
-                        val tabs = listOf("MURETTO PG", "BARRE FAUL", "ATENEO", "FORTITUDO")
-                        tabs.forEachIndexed { index, titolo ->
-                            Tab(selected = tabSelezionata == index, onClick = { tabSelezionata = index }, text = { Text(titolo, color = if (tabSelezionata == index) Tema.coloreTesto else Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold) })
+                        murettiVisibili.forEachIndexed { index, m ->
+                            Tab(selected = tabSelezionata == index, onClick = { tabSelezionata = index }, text = { Text(m.name.uppercase(), color = if (tabSelezionata == index) Tema.coloreTesto else Tema.coloreTestoSecondario, fontWeight = FontWeight.Bold) })
                         }
                     }
                 }
